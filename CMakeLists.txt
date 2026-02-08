@@ -37,12 +37,12 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 # Add the appropriate main file based on target platform
 if(EMSCRIPTEN)
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_native\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext/GLFWRenderContext\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext/GLFWRenderContext\\.h$")
+  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext\\.cpp$")
+  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext\\.h$")
 else()
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_wasm\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext/WebRenderContext\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext/WebRenderContext\\.h$")
+  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext\\.cpp$")
+  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext\\.h$")
 endif()
 
 add_executable(ipass_webgpu ${SOURCES})
@@ -55,7 +55,7 @@ set_target_properties(ipass_webgpu PROPERTIES
 )
 
 if(MSVC)
-  target_compile_options(ipass_webgpu PRIVATE /W4)
+  target_compile_options(ipass_webgpu PRIVATE /W4 /external:anglebrackets /external:W0)
 else()
   target_compile_options(ipass_webgpu PRIVATE -Wall -Wextra -pedantic)
 endif()
@@ -125,9 +125,13 @@ add_library(nuklear INTERFACE)
 target_include_directories(nuklear SYSTEM INTERFACE
   ${nuklear_SOURCE_DIR}
 )
-
-target_sources(ipass_webgpu PRIVATE
-  source/nuklear_impl.cpp
+target_compile_definitions(nuklear INTERFACE
+  NK_INCLUDE_FIXED_TYPES
+  NK_INCLUDE_STANDARD_IO
+  NK_INCLUDE_DEFAULT_ALLOCATOR
+  NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+  NK_INCLUDE_FONT_BAKING
+  NK_INCLUDE_DEFAULT_FONT
 )
 
 if(MSVC)
@@ -165,7 +169,17 @@ foreach(SHADER_FILE ${SHADER_FILES})
 endforeach()
 
 target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::glm)
+
+file(GLOB_RECURSE _all_source_children LIST_DIRECTORIES true "${CMAKE_CURRENT_SOURCE_DIR}/source/*")
+set(_source_include_dirs ${CMAKE_CURRENT_SOURCE_DIR}/source)
+foreach(_child ${_all_source_children})
+  if(IS_DIRECTORY ${_child})
+    list(APPEND _source_include_dirs ${_child})
+  endif()
+endforeach()
+
 target_include_directories(ipass_webgpu PRIVATE
+  ${_source_include_dirs}
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_headers_SOURCE_DIR}
 )

@@ -3,12 +3,14 @@
 
 #include <nuklear.h>
 
-#include "RenderContext/GLFWRenderContext/GLFWRenderContext.h"
-#include "Renderer/Renderer.h"
+#include <iostream>
+
+#include "GLFWRenderContext.h"
+#include "Renderer.h"
 
 int main()
 {
-	GLFWRenderContext context = GLFWRenderContext();
+	GLFWRenderContext context = GLFWRenderContext({1920, 1080});
 	Renderer renderer(context);
 
 	while (context.isRunning())
