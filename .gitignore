@@ -3,6 +3,8 @@
 build/
 external/
 
+fiveserver.config.js
+
 .cache
 .clangd
 

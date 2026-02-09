@@ -65,8 +65,7 @@ set(_backend_define "")
 # ------------------------------------------
 # WebGPU Backend Config
 # ------------------------------------------
-if(EMSCRIPTEN) # Building for WASM is still kinda broken, need to fix
-  set(WEBGPU_BACKEND "EMSCRIPTEN" CACHE STRING "" FORCE)
+if(EMSCRIPTEN)
   set(GLFW3WEBGPU_BACKEND "EMSCRIPTEN" CACHE STRING "" FORCE)
 
   if(NOT TARGET glfw)
@@ -79,8 +78,8 @@ if(EMSCRIPTEN) # Building for WASM is still kinda broken, need to fix
     target_link_options(glfw INTERFACE "-sUSE_GLFW=3")
   endif()
 
-  FetchContent_MakeAvailable(webgpu nuklear)
-  set(_backend_define WEBGPU_BACKEND_EMSCRIPTEN)
+  FetchContent_MakeAvailable(webgpu nuklear glfw3webgpu glm)
+  set(_backend_define WEBGPU_BACKEND_EMDAWNWEBGPU)
 
 else() # WGPU or DAWN backend
   if(MINGW)
@@ -172,6 +171,7 @@ target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::
 
 file(GLOB_RECURSE _all_source_children LIST_DIRECTORIES true "${CMAKE_CURRENT_SOURCE_DIR}/source/*")
 set(_source_include_dirs ${CMAKE_CURRENT_SOURCE_DIR}/source)
+
 foreach(_child ${_all_source_children})
   if(IS_DIRECTORY ${_child})
     list(APPEND _source_include_dirs ${_child})
@@ -199,7 +199,6 @@ if(EMSCRIPTEN)
   endforeach()
 
   target_link_options(ipass_webgpu PRIVATE
-    "-sUSE_WEBGPU=1"
     "-sUSE_GLFW=3"
     "-sASYNCIFY"
     ${PRELOAD_OPTIONS}
