@@ -1,9 +1,8 @@
 #include "WebRenderContext.h"
 #include <emscripten.h>
-#include <emscripten/html5_webgpu.h>
 #include <iostream>
 
-WebRenderContext::WebRenderContext()
+WebRenderContext::WebRenderContext(glm::vec2 size) : RenderContext(size)
 {
   this->Initialize();
 
@@ -37,11 +36,12 @@ wgpu::TextureView WebRenderContext::GetNextTextureView()
 
 void WebRenderContext::GenerateSurface()
 {
-  WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc;
-  canvasDesc.chain.sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector;
-  canvasDesc.selector = "#canvas";
+  wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc;
+  canvasDesc.setDefault();
+  canvasDesc.selector = {"#canvas", strlen("#canvas")};
 
   wgpu::SurfaceDescriptor surfDesc;
+  surfDesc.setDefault();
   surfDesc.nextInChain = &canvasDesc.chain;
 
   this->surface = this->instance.createSurface(surfDesc);
@@ -59,10 +59,10 @@ void WebRenderContext::GetSurfaceFormat()
 wgpu::ShaderModule WebRenderContext::CreateShaderModuleFromSource(std::string &shaderSource)
 {
   wgpu::ShaderModuleDescriptor shaderDesc;
-  wgpu::ShaderModuleWGSLDescriptor wgslDesc;
-  wgslDesc.chain.next = nullptr;
-  wgslDesc.chain.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
-  wgslDesc.code = shaderSource.c_str();
+  wgpu::ShaderSourceWGSL wgslDesc;
+  wgslDesc.setDefault();
+  wgslDesc.code.data = shaderSource.c_str();
+  wgslDesc.code.length = shaderSource.length();
   shaderDesc.nextInChain = &wgslDesc.chain;
 
   return this->device.createShaderModule(shaderDesc);

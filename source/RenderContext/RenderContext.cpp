@@ -52,8 +52,8 @@ void RenderContext::ConfigureSurface()
   wgpu::SurfaceConfiguration surfConfig;
   surfConfig.setDefault();
   surfConfig.device = this->device;
-  surfConfig.width = 640;
-  surfConfig.height = 480;
+  surfConfig.width = this->screenSize.x;
+  surfConfig.height = this->screenSize.y;
   surfConfig.format = this->surfaceFormat;
   surfConfig.usage = wgpu::TextureUsage::RenderAttachment;
   surfConfig.presentMode = wgpu::PresentMode::Fifo;

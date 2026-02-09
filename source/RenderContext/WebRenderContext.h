@@ -6,7 +6,7 @@
 class WebRenderContext : public RenderContext
 {
 public:
-  WebRenderContext();
+  WebRenderContext(glm::vec2 size);
 
   void GenerateSurface() override;
   void GetSurfaceFormat() override;

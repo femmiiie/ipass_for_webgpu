@@ -1,6 +1,7 @@
 #ifndef RENDERCONTEXT
 #define RENDERCONTEXT
 
+#include <glm/glm.hpp>
 #include <exception>
 
 #include <webgpu/webgpu.hpp>
@@ -14,6 +15,8 @@ struct RenderContext
   wgpu::Surface surface;
   wgpu::TextureFormat surfaceFormat;
 
+  glm::uvec2 screenSize;
+
   void Initialize();
   void ConfigureSurface();
 
@@ -21,14 +24,13 @@ struct RenderContext
 
   virtual void GenerateSurface() = 0;
   virtual void GetSurfaceFormat() = 0;
-  virtual void SetEntryPoint(WGPUStringView &entryPoint, const char* name) = 0;
-  virtual void InitLabel(WGPUStringView &label) = 0;
   virtual wgpu::ShaderModule CreateShaderModuleFromSource(std::string &shaderSource) = 0;
 
   virtual wgpu::TextureView GetNextTextureView() = 0;
   virtual void Present() = 0;
   virtual void DevicePoll() = 0;
 
+  RenderContext(glm::uvec2 size) : screenSize(size) {}
   ~RenderContext();
 };
 

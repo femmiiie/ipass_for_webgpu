@@ -3,25 +3,20 @@
 
 #include <emscripten.h>
 
-#include "Application.h"
-#include "RenderContext/WebRenderContext/WebRenderContext.h"
+#include "Renderer.h"
+#include "WebRenderContext.h"
 
 int main()
 {
-  WebRenderContext context = WebRenderContext();
-
-  Application app(context);
-  if (!app.ok)
-  {
-    return 1;
-  }
+  WebRenderContext context = WebRenderContext({1920, 1080});
+  Renderer renderer(context);
 
   auto callback = [](void *arg)
   {
-    Application *app = reinterpret_cast<Application *>(arg);
-    app->MainLoop();
+    Renderer *renderer = reinterpret_cast<Renderer *>(arg);
+    renderer->MainLoop();
   };
-  emscripten_set_main_loop_arg(callback, &app, 0, true);
+  emscripten_set_main_loop_arg(callback, &renderer, 0, true);
 
   return 0;
 }
