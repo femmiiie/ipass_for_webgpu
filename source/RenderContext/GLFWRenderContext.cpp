@@ -108,8 +108,3 @@ void GLFWRenderContext::DevicePoll()
 #endif
 }
 
-void GLFWRenderContext::SetEntryPoint(WGPUStringView &entryPoint, const char* name)
-{
-  entryPoint.data = name;
-  entryPoint.length = strlen(name);
-}
