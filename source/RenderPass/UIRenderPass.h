@@ -8,7 +8,6 @@
 #include <nuklear.h>
 
 #include "RenderPass.h"
-#include "RenderContext.h" 
 #include "Utils.h"
 
 
@@ -27,7 +26,7 @@ public:
   static constexpr uint64_t MAX_VERTEX_BUFFER_SIZE = MAX_VERTEX_COUNT * sizeof(Vertex);
   static constexpr uint64_t MAX_INDEX_BUFFER_SIZE = MAX_INDEX_COUNT * sizeof(glm::u16);
 
-  UIRenderPass(RenderContext& context);
+  UIRenderPass(Renderer& context);
   ~UIRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
   void RenderUI();

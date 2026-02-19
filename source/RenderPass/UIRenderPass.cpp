@@ -1,8 +1,9 @@
 #include "UIRenderPass.h"
+#include "Renderer.h"
 
 #include <cstring>
 
-UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
+UIRenderPass::UIRenderPass(Renderer& context) : RenderPass(context)
 {
 
 	nk_font_atlas_init_default(&this->atlas);

@@ -1,6 +1,7 @@
 #include "SceneRenderPass.h"
+#include "Renderer.h"
 
-SceneRenderPass::SceneRenderPass(RenderContext& ctx) : RenderPass(ctx)
+SceneRenderPass::SceneRenderPass(Renderer& context) : RenderPass(ctx)
 {
   std::vector<glm::f32> data {//basic test triangle
     // position          normal               color                tex

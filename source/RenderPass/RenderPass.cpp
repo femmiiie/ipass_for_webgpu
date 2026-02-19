@@ -1,4 +1,5 @@
 #include "RenderPass.h"
+#include "Renderer.h"
 
 wgpu::Buffer RenderPass::CreateBuffer(uint64_t size, wgpu::BufferUsage usage, bool mapped)
 {

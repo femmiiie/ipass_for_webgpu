@@ -6,17 +6,20 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Utils.h"
 
+#include <vector>
+#include <string>
+#include <exception>
 
-#include "RenderContext.h" 
+class Renderer;
 
 class RenderPass
 {
 public:
-  RenderPass(RenderContext& ctx) : context(ctx) {};
+  RenderPass(Renderer& ctx) : context(ctx) {};
   virtual ~RenderPass() = default;
   virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
 
-  RenderContext &context;
+  Renderer &context;
 
   wgpu::RenderPipeline pipeline;
   uint32_t vertexCount;
