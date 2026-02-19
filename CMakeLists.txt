@@ -17,6 +17,11 @@ FetchContent_Declare(nuklear
   GIT_TAG
 )
 
+FetchContent_Declare(glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG 3.4
+)
+
 FetchContent_Declare(glfw3webgpu
   GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu
   GIT_TAG main
@@ -32,17 +37,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
 )
 
-# Remove both main files from the sources list
-
-# Add the appropriate main file based on target platform
+# Select correct main file for target platform
 if(EMSCRIPTEN)
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_native\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/GLFWRenderContext\\.h$")
 else()
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_wasm\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext\\.cpp$")
-  list(FILTER SOURCES EXCLUDE REGEX ".*/RenderContext/WebRenderContext\\.h$")
 endif()
 
 add_executable(ipass_webgpu ${SOURCES})
@@ -89,10 +88,6 @@ else() # WGPU or DAWN backend
     set(WGPU_NATIVE_RUNTIME "msvc" CACHE STRING "" FORCE)
   endif()
 
-  FetchContent_Declare(glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG 3.4
-  )
   set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
   set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
   set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
