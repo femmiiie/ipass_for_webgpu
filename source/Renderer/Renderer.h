@@ -1,6 +1,9 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <GLFW/glfw3.h>
+#include <glfw3webgpu.h>
+
 #include <webgpu/webgpu.hpp>
 
 #include <iostream>
@@ -8,6 +11,8 @@
 #include <vector>
 #include <cstring>
 #include <array>
+#include <string>
+#include <exception>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -16,24 +21,43 @@
 #include "UIRenderPass.h"
 #include "SceneRenderPass.h"
 #include "RenderPass.h"
-#include "RenderContext.h"
 #include "Utils.h"
 
 class Renderer
 {
 public:
-  Renderer(RenderContext &context);
-  ~Renderer();
-  void MainLoop();
+  wgpu::Adapter adapter;
+  wgpu::Instance instance;
+  wgpu::Device device;
+  wgpu::Queue queue;
+  wgpu::Surface surface;
+  wgpu::TextureFormat surfaceFormat;
 
-  nk_context* getUIContext();
+  GLFWwindow *window;
+  GLFWwindow *getWindow() { return this->window; }
+
+  glm::uvec2 screenSize;
+
+  Renderer(glm::uvec2 size);
+  ~Renderer();
+
+  void MainLoop();
+  nk_context *getUIContext();
+
+  bool isRunning();
+  wgpu::ShaderModule LoadShader(std::string filepath);
+  wgpu::TextureView GetNextTextureView();
+  void Present();
+  void DevicePoll();
 
 private:
+  SceneRenderPass *scenePass = nullptr;
+  UIRenderPass *uiPass = nullptr;
 
-  SceneRenderPass* scenePass = nullptr;
-  UIRenderPass* uiPass = nullptr;
-  RenderContext &context;
-
+  void Initialize();
+  void ConfigureSurface();
+  void GenerateSurface();
+  void GetSurfaceFormat();
 };
 
 class RendererException : public std::exception
