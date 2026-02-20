@@ -5,17 +5,24 @@
 
 #include <iostream>
 
-#include "GLFWRenderContext.h"
 #include "Renderer.h"
+#include "InputManager.h"
+#include "Camera.h"
 
 int main()
 {
-	GLFWRenderContext context = GLFWRenderContext({1920, 1080});
-	Renderer renderer(context);
+	Renderer renderer({1920, 1080});
 
-	while (context.isRunning())
+	InputManager::Initialize(renderer.getWindow(), renderer.getUIContext());
+
+
+	while (renderer.isRunning())
 	{
+		InputManager::BeginInput();
 		glfwPollEvents();
+		InputManager::EndInput();
+		InputManager::PollInputs();
+
 		renderer.MainLoop();
 	}
 

@@ -2,19 +2,29 @@
 #include <webgpu/webgpu.hpp>
 
 #include <emscripten.h>
+#include <GLFW/glfw3.h>
 
 #include "Renderer.h"
-#include "WebRenderContext.h"
+#include "InputManager.h"
 
 int main()
 {
-  WebRenderContext context = WebRenderContext({1920, 1080});
-  Renderer renderer(context);
+  Renderer renderer({1920, 1080});
+
+  InputManager::Initialize(renderer.getWindow(), renderer.getUIContext());
+  InputManager::BeginInput();
 
   auto callback = [](void *arg)
   {
     Renderer *renderer = reinterpret_cast<Renderer *>(arg);
+
+    InputManager::EndInput();
+    InputManager::PollInputs();
+
     renderer->MainLoop();
+
+    InputManager::BeginInput();
+    glfwPollEvents();
   };
   emscripten_set_main_loop_arg(callback, &renderer, 0, true);
 
