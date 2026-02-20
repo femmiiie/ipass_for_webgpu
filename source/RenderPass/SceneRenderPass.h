@@ -3,6 +3,7 @@
 
 #include "RenderPass.h"
 
+class Camera;
 
 class SceneRenderPass : public RenderPass
 {
@@ -11,12 +12,16 @@ public:
   ~SceneRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
 
+  void SetCamera(Camera* cam) { camera = cam; }
+
   void InitializeRenderPipeline();
 
   wgpu::BlendState GetBlendState();
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
 private:
+  Camera* camera = nullptr;
+
   struct Light
   {
     glm::vec4 position;

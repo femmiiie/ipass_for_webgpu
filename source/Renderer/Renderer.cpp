@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "Renderer.h"
+#include "Camera.h"
 
 Renderer::Renderer(glm::uvec2 size) : screenSize(size)
 {
@@ -29,6 +30,12 @@ Renderer::Renderer(glm::uvec2 size) : screenSize(size)
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
+
+void Renderer::SetCamera(Camera* cam)
+{
+  if (scenePass) { scenePass->SetCamera(cam); }
+}
+
 
 Renderer::~Renderer()
 {

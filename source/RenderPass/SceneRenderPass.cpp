@@ -1,7 +1,8 @@
 #include "SceneRenderPass.h"
 #include "Renderer.h"
+#include "Camera.h"
 
-SceneRenderPass::SceneRenderPass(Renderer& context) : RenderPass(ctx)
+SceneRenderPass::SceneRenderPass(Renderer& context) : RenderPass(context)
 {
   std::vector<glm::f32> data {//basic test triangle
     // position          normal               color                tex
@@ -64,6 +65,17 @@ SceneRenderPass::~SceneRenderPass()
 
 void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 {
+  if (camera)
+  {
+    if (camera->requiresUpdate()) { 
+      camera->update(); 
+      mvp.P = camera->getProjectionMatrix();
+    }
+
+    mvp.V = camera->getViewMatrix();
+    context.queue.writeBuffer(mvpBuffer, 0, &mvp, sizeof(MVP));
+  }
+
   encoder.setPipeline(this->pipeline);
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);

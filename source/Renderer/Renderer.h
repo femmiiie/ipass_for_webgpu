@@ -23,6 +23,8 @@
 #include "RenderPass.h"
 #include "Utils.h"
 
+class Camera;
+
 class Renderer
 {
 public:
@@ -43,6 +45,7 @@ public:
 
   void MainLoop();
   nk_context *getUIContext();
+  void SetCamera(Camera* cam);
 
   bool isRunning();
   wgpu::ShaderModule LoadShader(std::string filepath);
