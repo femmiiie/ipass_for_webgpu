@@ -63,7 +63,8 @@ void Camera::setViewMatrix()
 
 void Camera::update()
 {
-  if (type == Settings::PERSPEC)
+  // if (type == Settings::PERSPEC)
+  if (true)
   {
     projectionMatrix = glm::perspective(fov, aspectRatio, nearClip, farClip);
   }
