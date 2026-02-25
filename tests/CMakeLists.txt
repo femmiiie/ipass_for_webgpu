@@ -23,7 +23,7 @@ target_compile_definitions(test_scan PRIVATE WEBGPU_BACKEND_${BACKEND})
 if(BACKEND STREQUAL "WGPU")
   add_custom_command(TARGET test_scan POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/_deps/wgpu-windows-x86_64-gnu-release-src/lib/wgpu_native.dll"
+    "${CMAKE_BINARY_DIR}/_deps/wgpu-windows-x86_64-${WGPU_NATIVE_RUNTIME}-release-src/lib/wgpu_native.dll"
     "$<TARGET_FILE_DIR:test_scan>"
     COMMENT "Copying wgpu_native.dll for test_scan"
   )
