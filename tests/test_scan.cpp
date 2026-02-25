@@ -4,6 +4,7 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
+#include <string>
 #include <array>
 #include <cstdint>
 #include <iostream>

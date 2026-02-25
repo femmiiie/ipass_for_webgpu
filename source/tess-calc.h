@@ -31,8 +31,8 @@ class TessCalcPass {
     bool exec(wgpu::CommandEncoder encoder, uint32_t num_tris);
 };
 
-bool TessCalcPass::init(wgpu::Device &device) {
-    this->device = device;
+bool TessCalcPass::init(wgpu::Device &dev) {
+    this->device = dev;
 
     // make shader
     wgpu::ShaderModuleDescriptor shaderDesc;
@@ -57,8 +57,8 @@ wgpu::BindGroupLayout TessCalcPass::get_bind_group_layout() {
     return pipeline.getBindGroupLayout(0);
 }
 
-bool TessCalcPass::set_bindgroup(wgpu::BindGroup bindgroup) {
-    this->bindgroup = bindgroup;
+bool TessCalcPass::set_bindgroup(wgpu::BindGroup bg) {
+    this->bindgroup = bg;
     return true;
 }
 

@@ -144,8 +144,8 @@ class TessScanPass {
     bool exec(wgpu::CommandEncoder encoder, uint32_t max_tris);
 };
 
-bool TessScanPass::init(wgpu::Device &device) {
-    this->device = device;
+bool TessScanPass::init(wgpu::Device &dev) {
+    this->device = dev;
 
     wgpu::ShaderModuleDescriptor shaderDesc;
     wgpu::ShaderSourceWGSL wgsl;
