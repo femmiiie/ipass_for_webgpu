@@ -48,7 +48,6 @@ public:
   void SetCamera(Camera* cam);
 
   bool isRunning();
-  wgpu::ShaderModule LoadShader(std::string filepath);
   wgpu::TextureView GetNextTextureView();
   void Present();
   void DevicePoll();

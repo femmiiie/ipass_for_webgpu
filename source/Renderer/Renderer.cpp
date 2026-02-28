@@ -2,8 +2,7 @@
 #include <cassert>
 #include <vector>
 #include <cstring>
-#include <fstream>
-#include <sstream>
+
 
 #include "Renderer.h"
 #include "Camera.h"
@@ -136,33 +135,6 @@ wgpu::TextureView Renderer::GetNextTextureView()
   texture.release();
 #endif
   return targetView;
-}
-
-wgpu::ShaderModule Renderer::LoadShader(std::string filepath)
-{
-  std::ifstream fs(filepath);
-
-  if (!fs.is_open())
-  {
-    std::cout << "Failed to open file " << filepath << std::endl;
-    return nullptr;
-  }
-
-  std::ostringstream ss;
-  ss << fs.rdbuf();
-  std::string shaderSource = ss.str();
-
-  wgpu::ShaderModuleDescriptor shaderDesc;
-  wgpu::ShaderSourceWGSL shaderCodeDesc;
-
-  shaderCodeDesc.chain.next = nullptr;
-  shaderCodeDesc.chain.sType = wgpu::SType::ShaderSourceWGSL;
-
-  shaderDesc.nextInChain = &shaderCodeDesc.chain;
-  shaderCodeDesc.code.data = shaderSource.c_str();
-  shaderCodeDesc.code.length = shaderSource.length();
-
-  return this->device.createShaderModule(shaderDesc);
 }
 
 void Renderer::GenerateSurface()

@@ -84,7 +84,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 
 void SceneRenderPass::InitializeRenderPipeline()
 {
-  wgpu::ShaderModule shaderModule = context.LoadShader("shader.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "shader.wgsl");
   if (!shaderModule)
   {
     throw new RenderPassException("Failed to load shader module.");
