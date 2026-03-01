@@ -2,7 +2,7 @@
 #include "Renderer.h"
 #include "Camera.h"
 
-SceneRenderPass::SceneRenderPass(Renderer& context) : RenderPass(context)
+SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
 {
   std::vector<glm::f32> data {//basic test triangle
     // position          normal               color                tex

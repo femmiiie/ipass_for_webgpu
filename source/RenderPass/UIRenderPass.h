@@ -10,8 +10,6 @@
 #include "RenderPass.h"
 #include "Utils.h"
 
-
-
 class UIRenderPass : public RenderPass
 {
 public:
@@ -26,7 +24,7 @@ public:
   static constexpr uint64_t MAX_VERTEX_BUFFER_SIZE = MAX_VERTEX_COUNT * sizeof(Vertex);
   static constexpr uint64_t MAX_INDEX_BUFFER_SIZE = MAX_INDEX_COUNT * sizeof(glm::u16);
 
-  UIRenderPass(Renderer& context);
+  UIRenderPass(RenderContext& context);
   ~UIRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
   void RenderUI();
@@ -45,6 +43,8 @@ private:
   nk_font_atlas atlas;
   nk_buffer cmds, verts, idx;
   nk_convert_config convertConfig;
+
+  std::string current_filename = "No Object Loaded";
 
   wgpu::Sampler sampler;
   wgpu::Texture texture;

@@ -5,21 +5,21 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Utils.h"
+#include "RenderContext.h"
 
 #include <vector>
 #include <string>
 #include <exception>
 
-class Renderer;
 
 class RenderPass
 {
 public:
-  RenderPass(Renderer& ctx) : context(ctx) {};
+  RenderPass(RenderContext& ctx) : context(ctx) {};
   virtual ~RenderPass() = default;
   virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
 
-  Renderer &context;
+  RenderContext &context;
 
   wgpu::RenderPipeline pipeline;
   uint32_t vertexCount;

@@ -22,6 +22,7 @@
 #include "SceneRenderPass.h"
 #include "RenderPass.h"
 #include "Utils.h"
+#include "RenderContext.h"
 
 class Camera;
 
@@ -30,15 +31,12 @@ class Renderer
 public:
   wgpu::Adapter adapter;
   wgpu::Instance instance;
-  wgpu::Device device;
-  wgpu::Queue queue;
-  wgpu::Surface surface;
-  wgpu::TextureFormat surfaceFormat;
+
+  RenderContext context;
 
   GLFWwindow *window;
   GLFWwindow *getWindow() { return this->window; }
 
-  glm::uvec2 screenSize;
 
   Renderer(glm::uvec2 size);
   ~Renderer();

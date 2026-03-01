@@ -2,8 +2,9 @@
 #include "Renderer.h"
 
 #include <cstring>
+#include <vector>
 
-UIRenderPass::UIRenderPass(Renderer& context) : RenderPass(context)
+UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
 {
 
 	nk_font_atlas_init_default(&this->atlas);
@@ -13,6 +14,10 @@ UIRenderPass::UIRenderPass(Renderer& context) : RenderPass(context)
 
 	int img_w, img_h;
 	const void* image = nk_font_atlas_bake(&atlas, &img_w, &img_h, NK_FONT_ATLAS_RGBA32);
+
+  size_t bakedSize = (size_t)(img_w * img_h * 4);
+  std::vector<uint8_t> imageCopy(bakedSize);
+  memcpy(imageCopy.data(), image, bakedSize);
 
   struct nk_draw_null_texture nullTex;
 	nk_font_atlas_end(&this->atlas, nk_handle_id(0), &nullTex);
@@ -86,7 +91,7 @@ UIRenderPass::UIRenderPass(Renderer& context) : RenderPass(context)
   source.rowsPerImage = textureDesc.size.height;
 
   size_t imageSize = (size_t)(img_w * img_h * 4);
-  this->context.queue.writeTexture(destination, image, imageSize, source, textureDesc.size);
+  this->context.queue.writeTexture(destination, imageCopy.data(), imageSize, source, textureDesc.size);
 
   // Create projection uniform buffer (mat4x4f = 64 bytes)
   wgpu::BufferDescriptor projDesc;
@@ -297,19 +302,63 @@ void UIRenderPass::UpdateProjection(glm::uvec2 size)
 
 void UIRenderPass::RenderUI()
 {
-  static nk_flags flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
+  nk_context* ctx = &this->uiContext; //alias for simpler code
+
+  nk_color bg = nk_rgb(200, 0, 0);
+  ctx->style.window.background = bg;
+  ctx->style.window.fixed_background = nk_style_item_color(bg);
+
+  static nk_flags flags = NK_WINDOW_BORDER;
   glm::vec2 menu_size(this->context.screenSize);
   menu_size.x /= 4;
-  if (nk_begin(&this->uiContext, "Test Window", nk_rect(0, 0, menu_size.x, menu_size.y), flags))
+
+  if (nk_begin(ctx, "Test Window", nk_rect(0, 0, menu_size.x, menu_size.y), flags))
   {
-    nk_layout_row_static(&this->uiContext, 30, 80, 1);
-    if (nk_button_label(&this->uiContext, "Click me"))
+    nk_layout_row_dynamic(ctx, 0, 2);
+    
+    nk_label(ctx, this->current_filename.c_str(), NK_TEXT_LEFT);
+    if (nk_button_label(ctx, "Open File"))
     {
-      std::cout << "Button was pressed!" << std::endl;
+      // utils::OpenFile("")
     }
 
-    nk_layout_row_dynamic(&this->uiContext, 20, 1);
-    nk_label(&this->uiContext, "Nuklear is working!", NK_TEXT_LEFT);
+    static nk_bool active;
+    if (nk_checkbox_label(ctx, "Enable Tessellation", &active))
+    {
+      //send update to tess status: scene.TessStatus(active);
+      std::cout << "Test!" << "\n";
+    }
+
+    nk_spacer(ctx);
+    //add divider line here?
+
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Object Properties", NK_MINIMIZED))
+    {
+      nk_label(ctx, "Rotation, Scale, etc. go here", NK_TEXT_LEFT);
+      nk_tree_pop(ctx);
+    }
+
+    //Profiling?
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Profiling", NK_MINIMIZED))
+    {
+      static nk_bool perf_active;
+      if (nk_checkbox_label(ctx, "Show Performance Window", &perf_active))
+      {
+
+      }
+
+      nk_label(ctx, "", NK_TEXT_LEFT);
+      nk_tree_pop(ctx);
+    }
+
+    //Environment Settings
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
+    {
+      nk_label(ctx, "Background Color", NK_TEXT_LEFT);
+      nk_label(ctx, "Background Color", NK_TEXT_LEFT);
+      nk_tree_pop(ctx);
+    }
+
   }
   nk_end(&this->uiContext);
 

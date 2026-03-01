@@ -8,7 +8,7 @@ class Camera;
 class SceneRenderPass : public RenderPass
 {
 public:
-  SceneRenderPass(Renderer& context);
+  SceneRenderPass(RenderContext& context);
   ~SceneRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
 
