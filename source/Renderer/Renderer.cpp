@@ -30,6 +30,12 @@ Renderer::Renderer(glm::uvec2 size)
   this->uiPass = new UIRenderPass(this->context);
   this->scenePass = new SceneRenderPass(this->context);
 
+  glfwSetWindowUserPointer(this->window, this);
+  glfwSetFramebufferSizeCallback(this->window, [](GLFWwindow* w, int width, int height) {
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(w));
+    renderer->OnResize(width, height);
+  });
+
   std::cout << "Renderer initialized successfully" << std::endl;
 }
 
@@ -81,6 +87,7 @@ void Renderer::Initialize()
   }
 
   this->GenerateSurface();
+  this->GetSurfaceFormat();
   this->ConfigureSurface();
 
   this->adapter.release();
@@ -89,8 +96,6 @@ void Renderer::Initialize()
 
 void Renderer::ConfigureSurface()
 {
-  this->GetSurfaceFormat();
-
   wgpu::SurfaceConfiguration surfConfig;
   surfConfig.setDefault();
   surfConfig.device = this->context.device;
@@ -116,7 +121,16 @@ wgpu::TextureView Renderer::GetNextTextureView()
 {
   wgpu::SurfaceTexture surfaceTexture;
   this->context.surface.getCurrentTexture(&surfaceTexture);
-  if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal)
+  if (surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Outdated ||
+      surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Lost)
+  {
+    int w, h;
+    glfwGetFramebufferSize(this->window, &w, &h);
+    OnResize(w, h);
+    return nullptr;
+  }
+  if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal &&
+      surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessSuboptimal)
   {
     return nullptr;
   }
@@ -174,6 +188,20 @@ void Renderer::DevicePoll()
 #elif defined(WEBGPU_BACKEND_WGPU)
   this->context.device.poll(false, nullptr);
 #endif
+}
+
+void Renderer::OnResize(int w, int h)
+{
+  if (w == 0 || h == 0) { return; }
+  context.screenSize = { (uint32_t)w, (uint32_t)h };
+  ConfigureSurface();
+  if (uiPass) { uiPass->UpdateProjection(context.screenSize); }
+  for (auto& cb : resizeCallbacks) { cb(w, h); }
+}
+
+void Renderer::AddResizeCallback(std::function<void(int, int)> cb)
+{
+  resizeCallbacks.emplace_back(std::move(cb));
 }
 
 nk_context *Renderer::getUIContext()

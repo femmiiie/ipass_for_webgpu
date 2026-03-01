@@ -13,6 +13,7 @@
 #include <array>
 #include <string>
 #include <exception>
+#include <functional>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -50,9 +51,14 @@ public:
   void Present();
   void DevicePoll();
 
+  void OnResize(int w, int h);
+  void AddResizeCallback(std::function<void(int, int)> cb);
+
 private:
   SceneRenderPass *scenePass = nullptr;
   UIRenderPass *uiPass = nullptr;
+
+  std::vector<std::function<void(int, int)>> resizeCallbacks;
 
   void Initialize();
   void ConfigureSurface();
