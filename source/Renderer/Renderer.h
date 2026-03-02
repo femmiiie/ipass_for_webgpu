@@ -6,6 +6,10 @@
 
 #include <webgpu/webgpu.hpp>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -15,36 +19,26 @@
 #include <exception>
 #include <functional>
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include "UIRenderPass.h"
-#include "SceneRenderPass.h"
-#include "RenderPass.h"
-#include "Utils.h"
 #include "RenderContext.h"
-
-class Camera;
+#include "RenderPass.h"
+#include "SceneRenderPass.h"
+#include "UIRenderPass.h"
+#include "Utils.h"
 
 class Renderer
 {
 public:
-  wgpu::Adapter adapter;
-  wgpu::Instance instance;
-
   RenderContext context;
 
   GLFWwindow *window;
   GLFWwindow *getWindow() { return this->window; }
 
 
-  Renderer(glm::uvec2 size);
+  Renderer();
   ~Renderer();
 
   void MainLoop();
   nk_context *getUIContext();
-  void SetCamera(Camera* cam);
 
   bool isRunning();
   wgpu::TextureView GetNextTextureView();
@@ -52,17 +46,17 @@ public:
   void DevicePoll();
 
   void OnResize(int w, int h);
-  void AddResizeCallback(std::function<void(int, int)> cb);
 
 private:
   SceneRenderPass *scenePass = nullptr;
   UIRenderPass *uiPass = nullptr;
 
-  std::vector<std::function<void(int, int)>> resizeCallbacks;
+
+
+  void UpdateSceneViewport();
 
   void Initialize();
   void ConfigureSurface();
-  void GenerateSurface();
   void GetSurfaceFormat();
 };
 

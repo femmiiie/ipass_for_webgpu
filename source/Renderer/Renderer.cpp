@@ -6,19 +6,21 @@
 
 #include "Renderer.h"
 #include "Camera.h"
+#include "Settings.h"
 
-Renderer::Renderer(glm::uvec2 size)
+Renderer::Renderer()
 {
-  this->context.screenSize = size;
-
   if (!glfwInit())
   {
     throw RendererException("Failed to initialize GLFW!");
   }
 
+  //sets initial size to 2/3 monitor resolution
+  const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+  this->context.size = glm::uvec2(mode->width / 1.5, mode->height / 1.5);
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  this->window = glfwCreateWindow(size.x, size.y, "iPASS for WebGPU", nullptr, nullptr);
+  this->window = glfwCreateWindow(this->context.size.x, this->context.size.y, "iPASS for WebGPU", nullptr, nullptr);
   if (!this->window)
   {
     glfwTerminate();
@@ -26,6 +28,9 @@ Renderer::Renderer(glm::uvec2 size)
   }
 
   this->Initialize();
+
+  // Compute the initial scene viewport (to the right of the UI panel).
+  this->UpdateSceneViewport();
 
   this->uiPass = new UIRenderPass(this->context);
   this->scenePass = new SceneRenderPass(this->context);
@@ -39,10 +44,6 @@ Renderer::Renderer(glm::uvec2 size)
   std::cout << "Renderer initialized successfully" << std::endl;
 }
 
-void Renderer::SetCamera(Camera* cam)
-{
-  if (scenePass) { scenePass->SetCamera(cam); }
-}
 
 
 Renderer::~Renderer()
@@ -61,16 +62,16 @@ Renderer::~Renderer()
 
 void Renderer::Initialize()
 {
-  this->instance = wgpu::createInstance();
-  if (!this->instance)
+  wgpu::Instance instance = wgpu::createInstance();
+  if (!instance)
   {
     throw RendererException("Failed to create WebGPU instance!");
   }
 
   wgpu::RequestAdapterOptions adapterOpts;
   adapterOpts.setDefault();
-  this->adapter = this->instance.requestAdapter(adapterOpts);
-  if (!this->adapter)
+  wgpu::Adapter adapter = instance.requestAdapter(adapterOpts);
+  if (!adapter)
   {
     throw RendererException("Failed to get adapter!");
   }
@@ -80,18 +81,32 @@ void Renderer::Initialize()
   deviceDesc.requiredFeatures = nullptr;
   deviceDesc.requiredFeatureCount = 0;
 
-  this->context.device = this->adapter.requestDevice(deviceDesc);
+  this->context.device = adapter.requestDevice(deviceDesc);
   if (!this->context.device)
   {
     throw RendererException("Failed to get device!");
   }
 
-  this->GenerateSurface();
-  this->GetSurfaceFormat();
+  WGPUSurface rawSurface = glfwCreateWindowWGPUSurface(instance, this->window);
+  if (!rawSurface)
+  {
+    throw RendererException("Failed to create surface!");
+  }
+  this->context.surface = wgpu::Surface(rawSurface);
+
+
+#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
+  this->surfaceFormat = wgpu::TextureFormat::BGRA8Unorm;
+#else
+  wgpu::SurfaceCapabilities capabilities;
+  this->context.surface.getCapabilities(adapter, &capabilities);
+  this->context.surfaceFormat = capabilities.formats[0];
+#endif
+
   this->ConfigureSurface();
 
-  this->adapter.release();
-  this->instance.release();
+  adapter.release();
+  instance.release();
 }
 
 void Renderer::ConfigureSurface()
@@ -99,8 +114,8 @@ void Renderer::ConfigureSurface()
   wgpu::SurfaceConfiguration surfConfig;
   surfConfig.setDefault();
   surfConfig.device = this->context.device;
-  surfConfig.width  = this->context.screenSize.x;
-  surfConfig.height = this->context.screenSize.y;
+  surfConfig.width  = this->context.size.x;
+  surfConfig.height = this->context.size.y;
   surfConfig.format = this->context.surfaceFormat;
   surfConfig.usage = wgpu::TextureUsage::RenderAttachment;
   surfConfig.presentMode = wgpu::PresentMode::Fifo;
@@ -153,27 +168,6 @@ wgpu::TextureView Renderer::GetNextTextureView()
   return targetView;
 }
 
-void Renderer::GenerateSurface()
-{
-  WGPUSurface rawSurface = glfwCreateWindowWGPUSurface(this->instance, this->window);
-  if (!rawSurface)
-  {
-    throw RendererException("Failed to create surface!");
-  }
-  this->context.surface = wgpu::Surface(rawSurface);
-}
-
-void Renderer::GetSurfaceFormat()
-{
-#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
-  this->surfaceFormat = wgpu::TextureFormat::BGRA8Unorm;
-#else
-  wgpu::SurfaceCapabilities capabilities;
-  this->context.surface.getCapabilities(this->adapter, &capabilities);
-  this->context.surfaceFormat = capabilities.formats[0];
-#endif
-}
-
 void Renderer::Present()
 {
 #ifndef WEBGPU_BACKEND_EMDAWNWEBGPU
@@ -193,15 +187,11 @@ void Renderer::DevicePoll()
 void Renderer::OnResize(int w, int h)
 {
   if (w == 0 || h == 0) { return; }
-  context.screenSize = { (uint32_t)w, (uint32_t)h };
-  ConfigureSurface();
-  if (uiPass) { uiPass->UpdateProjection(context.screenSize); }
-  for (auto& cb : resizeCallbacks) { cb(w, h); }
-}
-
-void Renderer::AddResizeCallback(std::function<void(int, int)> cb)
-{
-  resizeCallbacks.emplace_back(std::move(cb));
+  this->context.size = { (uint32_t)w, (uint32_t)h };
+  this->ConfigureSurface();
+  this->UpdateSceneViewport();
+  if (this->uiPass)    { this->uiPass->UpdateProjection(context.size); }
+  if (this->scenePass) { this->scenePass->OnResize(context.size); }
 }
 
 nk_context *Renderer::getUIContext()
@@ -209,13 +199,25 @@ nk_context *Renderer::getUIContext()
   return this->uiPass ? this->uiPass->getUIContext() : nullptr;
 }
 
+void Renderer::UpdateSceneViewport()
+{
+  float menuWidth = (float)context.size.x / 4.0f;
+  context.sceneViewport.x      = menuWidth;
+  context.sceneViewport.y      = 0.0f;
+  context.sceneViewport.width  = (float)context.size.x - menuWidth;
+  context.sceneViewport.height = (float)context.size.y;
+}
+
 void Renderer::MainLoop()
 {
+  this->context.tick();
+  Settings::checkUpdates();
+
   wgpu::TextureView targetView = this->GetNextTextureView();
   if (!targetView) { return; }
 
   wgpu::CommandEncoderDescriptor encoderDesc;
-  utils::InitLabel(encoderDesc.label);
+  encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
   wgpu::RenderPassColorAttachment renderPassColorAttachment;
@@ -223,7 +225,12 @@ void Renderer::MainLoop()
   renderPassColorAttachment.resolveTarget = nullptr;
   renderPassColorAttachment.loadOp = wgpu::LoadOp::Clear;
   renderPassColorAttachment.storeOp = wgpu::StoreOp::Store;
-  renderPassColorAttachment.clearValue = WGPUColor{0.0, 0.0, 0.2, 0.0};
+  renderPassColorAttachment.clearValue = WGPUColor{
+    Settings::clearColor.r, 
+    Settings::clearColor.g, 
+    Settings::clearColor.b, 
+    Settings::clearColor.a
+  };
 #ifndef WEBGPU_BACKEND_WGPU
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
@@ -237,13 +244,17 @@ void Renderer::MainLoop()
   wgpu::RenderPassEncoder passEncoder = encoder.beginRenderPass(renderPassDesc);
 
   this->scenePass->Execute(passEncoder);
+
+  passEncoder.setViewport(0, 0, (float)context.size.x, (float)context.size.y, 0.0f, 1.0f);
+  passEncoder.setScissorRect(0, 0, context.size.x, context.size.y);
+
   this->uiPass->Execute(passEncoder);
 
   passEncoder.end();
   passEncoder.release();
 
   wgpu::CommandBufferDescriptor cmdBufferDescriptor = {};
-  utils::InitLabel(cmdBufferDescriptor.label);
+  cmdBufferDescriptor.label = WGPU_STRING_VIEW_INIT;
 
   wgpu::CommandBuffer command = encoder.finish(cmdBufferDescriptor);
   encoder.release();
@@ -254,4 +265,6 @@ void Renderer::MainLoop()
   targetView.release();
   this->Present();
   this->DevicePoll();
+
+  this->context.measure();
 }
