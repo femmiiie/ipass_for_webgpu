@@ -238,7 +238,17 @@ void Renderer::MainLoop()
   wgpu::RenderPassDescriptor renderPassDesc;
   renderPassDesc.colorAttachmentCount = 1;
   renderPassDesc.colorAttachments = &renderPassColorAttachment;
-  renderPassDesc.depthStencilAttachment = nullptr;
+  wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
+  depthStencilAttachment.view              = this->scenePass->GetDepthTextureView();
+  depthStencilAttachment.depthLoadOp       = wgpu::LoadOp::Clear;
+  depthStencilAttachment.depthStoreOp      = wgpu::StoreOp::Store;
+  depthStencilAttachment.depthClearValue   = 1.0f;
+  depthStencilAttachment.depthReadOnly     = false;
+  depthStencilAttachment.stencilLoadOp     = wgpu::LoadOp::Undefined;
+  depthStencilAttachment.stencilStoreOp    = wgpu::StoreOp::Undefined;
+  depthStencilAttachment.stencilReadOnly   = true;
+
+  renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
   renderPassDesc.timestampWrites = nullptr;
 
   wgpu::RenderPassEncoder passEncoder = encoder.beginRenderPass(renderPassDesc);

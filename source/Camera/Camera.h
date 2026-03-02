@@ -57,7 +57,7 @@ private:
   // Settings::ProjectionType type = Settings::PERSPEC;
   float aspectRatio = 16.0f / 9.0f;
   float fov         = glm::radians(45.0f);
-  float nearClip    = 0.1f;
+  float nearClip    = 0.01f;
   float farClip     = 100.0f;
 
   void convertSPHtoCAR();

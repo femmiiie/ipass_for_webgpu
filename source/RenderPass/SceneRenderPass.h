@@ -19,12 +19,19 @@ public:
   void OnResize(glm::uvec2 size);
 
   void InitializeRenderPipeline();
+  void LoadOBJ();
+
+  wgpu::TextureView GetDepthTextureView() { return this->depthTextureView; }
 
   wgpu::BlendState GetBlendState();
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
 private:
   Camera camera;
+
+  wgpu::Texture depthTexture;
+  wgpu::TextureView depthTextureView;
+  void CreateDepthTexture(glm::uvec2 size);
 
   struct Light
   {
@@ -37,6 +44,7 @@ private:
   struct MVP
   {
     glm::mat4 M;
+    glm::mat4 M_inv;
     glm::mat4 V;
     glm::mat4 P;
   } mvp;  

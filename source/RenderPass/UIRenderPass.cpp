@@ -247,7 +247,14 @@ void UIRenderPass::InitializeRenderPipeline()
 
   pipelineDesc.fragment = &fragmentState;
 
-  pipelineDesc.depthStencil = nullptr;
+  wgpu::DepthStencilState uiDepthStencil = wgpu::Default;
+  uiDepthStencil.format             = wgpu::TextureFormat::Depth24Plus;
+  uiDepthStencil.depthWriteEnabled  = wgpu::OptionalBool::False;
+  uiDepthStencil.depthCompare       = wgpu::CompareFunction::Always;
+  uiDepthStencil.stencilReadMask    = 0;
+  uiDepthStencil.stencilWriteMask   = 0;
+  pipelineDesc.depthStencil = &uiDepthStencil;
+
   pipelineDesc.multisample.count = 1;
   pipelineDesc.multisample.mask = ~0u;
   pipelineDesc.multisample.alphaToCoverageEnabled = false;
