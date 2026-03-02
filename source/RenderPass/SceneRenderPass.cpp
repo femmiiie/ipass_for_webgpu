@@ -1,10 +1,22 @@
 #include "SceneRenderPass.h"
-#include "Renderer.h"
-#include "Camera.h"
 
 SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
 {
-  std::vector<glm::f32> data {//basic test triangle
+  camera.setScrollScaling(0.5f);
+  float vp_width = context.sceneViewport.width;
+  float vp_height = context.sceneViewport.height;
+  camera.getAspect_M() = (vp_height > 0.0f) ? vp_width / vp_height : 1.0f;
+  camera.deferUpdate();
+
+  InputManager::AddScrollCallback(
+    [this](double x, double y) { camera.OnScroll(x, y); }
+  );
+  InputManager::AddMouseButtonCallback(
+    GLFW_MOUSE_BUTTON_MIDDLE,
+    [this](int action, int mods) { camera.OnMouseButton(action, mods); }
+  );
+
+  std::vector<glm::f32> data { // basic test triangle
     // position          normal               color                tex
     0.0, 0.0, 0.0, 1.0,  0.0, 0.0, 1.0, 0.0,  1.0, 0.0, 0.0, 1.0,  0.0, 0.0,
     0.5, 0.5, 0.0, 1.0,  0.0, 0.0, 1.0, 0.0,  0.0, 1.0, 0.0, 1.0,  0.0, 0.0,
@@ -23,8 +35,8 @@ SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
   this->mvp = {
     .M = glm::mat4(1),
     .V = glm::lookAt(
-            glm::vec3(0, 0, -2),
-            glm::vec3(0),
+            glm::vec3(0, -2, 0),
+            glm::vec3(0, 0, 0),
             glm::vec3(0, 1, 0)
             ),
     .P = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f)
@@ -65,14 +77,39 @@ SceneRenderPass::~SceneRenderPass()
 
 void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 {
-  if (camera)
-  {
-    if (camera->requiresUpdate()) { 
-      camera->update(); 
-      mvp.P = camera->getProjectionMatrix();
-    }
+  bool mvpDirty = false;
 
-    mvp.V = camera->getViewMatrix();
+  const RenderContext::Viewport& vp = context.sceneViewport;
+  encoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0f, 1.0f);
+  encoder.setScissorRect((uint32_t)vp.x, (uint32_t)vp.y,
+                         (uint32_t)vp.width, (uint32_t)vp.height);
+
+  if (Settings::resetTransformUpdate())
+  {
+    glm::mat4 T  = glm::translate(glm::mat4(1.0f), Settings::translation);
+    glm::mat4 Rx = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.x), glm::vec3(1, 0, 0));
+    glm::mat4 Ry = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.y), glm::vec3(0, 1, 0));
+    glm::mat4 Rz = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.z), glm::vec3(0, 0, 1));
+    glm::mat4 S  = glm::scale(glm::mat4(1.0f), Settings::scale);
+    mvp.M = T * Rz * Ry * Rx * S;
+    mvpDirty = true;
+  }
+
+  if (camera.requiresUpdate())
+  {
+    camera.update();
+    mvp.P = camera.getProjectionMatrix();
+    mvpDirty = true;
+  }
+
+  if (camera.consumeViewUpdate())
+  {
+    mvp.V = camera.getViewMatrix();
+    mvpDirty = true;
+  }
+
+  if (mvpDirty)
+  {
     context.queue.writeBuffer(mvpBuffer, 0, &mvp, sizeof(MVP));
   }
 
@@ -80,6 +117,13 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
   encoder.draw(this->vertexCount, 1, 0, 0);
+}
+
+void SceneRenderPass::OnResize(glm::uvec2 /*size*/)
+{
+  const RenderContext::Viewport& vp = context.sceneViewport;
+  camera.getAspect_M() = (vp.height > 0.0f) ? vp.width / vp.height : 1.0f;
+  camera.deferUpdate();
 }
 
 void SceneRenderPass::InitializeRenderPipeline()

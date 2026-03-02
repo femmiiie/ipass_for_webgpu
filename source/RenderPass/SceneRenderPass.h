@@ -1,9 +1,13 @@
 #ifndef SCENERENDERPASS_H_
 #define SCENERENDERPASS_H_
 
+#include "Camera.h"
+#include "InputManager.h"
 #include "RenderPass.h"
+#include "Settings.h"
 
-class Camera;
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/gtc/matrix_transform.hpp>
 
 class SceneRenderPass : public RenderPass
 {
@@ -12,7 +16,7 @@ public:
   ~SceneRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
 
-  void SetCamera(Camera* cam) { camera = cam; }
+  void OnResize(glm::uvec2 size);
 
   void InitializeRenderPipeline();
 
@@ -20,7 +24,7 @@ public:
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
 private:
-  Camera* camera = nullptr;
+  Camera camera;
 
   struct Light
   {
