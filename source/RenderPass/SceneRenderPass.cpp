@@ -18,6 +18,7 @@ void SceneRenderPass::LoadOBJ()
   std::vector<glm::vec3> positions;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> texcoords;
+  std::vector<std::vector<std::array<int,3>>> faces;
 
   std::vector<glm::f32> vertexData;
 
@@ -64,12 +65,46 @@ void SceneRenderPass::LoadOBJ()
         }
         corners.push_back(idx);
       }
+      faces.push_back(corners);
+    }
+  }
 
+  // If the file had no vn lines, compute smooth normals from face geometry
+  if (normals.empty() && !positions.empty())
+  {
+    normals.resize(positions.size(), glm::vec3(0.0f));
+    for (const auto& corners : faces)
+    {
+      // Fan-triangulate and accumulate face normals onto each position
+      for (size_t i = 1; i + 1 < corners.size(); i++)
+      {
+        int i0 = corners[0][0], i1 = corners[i][0], i2 = corners[i+1][0];
+        if (i0 < 0 || i1 < 0 || i2 < 0) continue;
+        glm::vec3 edge1 = positions[i1] - positions[i0];
+        glm::vec3 edge2 = positions[i2] - positions[i0];
+        glm::vec3 faceNormal = glm::cross(edge1, edge2); // weighted by area
+        normals[i0] += faceNormal;
+        normals[i1] += faceNormal;
+        normals[i2] += faceNormal;
+      }
+    }
+    for (auto& n : normals) { if (glm::length(n) > 0.0f) n = glm::normalize(n); }
+  }
+
+  for (const auto& corners : faces)
+  {
       auto pushVertex = [&](const std::array<int,3>& c)
       {
         glm::vec3 pos = (c[0] >= 0 && c[0] < (int)positions.size()) ? positions[c[0]] : glm::vec3(0);
         glm::vec2 uv  = (c[1] >= 0 && c[1] < (int)texcoords.size()) ? texcoords[c[1]] : glm::vec2(0);
-        glm::vec3 nrm = (c[2] >= 0 && c[2] < (int)normals.size())   ? normals[c[2]]   : glm::vec3(0,0,1);
+        // if file had vn, use them; otherwise use the computed smooth normal keyed by position index
+        glm::vec3 nrm;
+        if (c[2] >= 0 && c[2] < (int)normals.size())
+          nrm = normals[c[2]];
+        else if (c[0] >= 0 && c[0] < (int)normals.size())
+          nrm = normals[c[0]];
+        else
+          nrm = glm::vec3(0, 0, 1);
         // pos(xyzw) normal(xyzw) color(rgba) uv(uv)
         vertexData.insert(vertexData.end(), { pos.x, pos.y, pos.z, 1.0f,
                                               nrm.x, nrm.y, nrm.z, 0.0f,
@@ -84,7 +119,6 @@ void SceneRenderPass::LoadOBJ()
         pushVertex(corners[i]);
         pushVertex(corners[i + 1]);
       }
-    }
   }
 
   if (vertexData.empty())
@@ -156,9 +190,9 @@ SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
   };
 
   this->light = {
-    .position = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f),
+    .position = glm::vec4(-1.0f, 2.0f, 0.0f, 1.0f),
     .color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-    .power = 5.0f
+    .power = 1.0f
   };
 
   std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts {

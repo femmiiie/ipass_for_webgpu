@@ -15,7 +15,7 @@ public:
   static inline glm::vec3 rotation    = { 0.0f, 0.0f, 0.0f }; // Euler degrees
   static inline glm::vec3 scale       = { 1.0f, 1.0f, 1.0f };
 
-  static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.2f, 1.0f };
+  static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
 
   static void checkUpdates();
 
