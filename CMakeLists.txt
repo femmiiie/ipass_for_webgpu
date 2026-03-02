@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.10)
 project(ipass_webgpu)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -29,6 +29,11 @@ FetchContent_Declare(glfw3webgpu
 FetchContent_Declare(glm
   GIT_REPOSITORY https://github.com/g-truc/glm.git
   GIT_TAG 0af55ccecd98d4e5a8d1fad7de25ba429d60e863
+)
+
+FetchContent_Declare(nfd
+  GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended
+  GIT_TAG v1.2.1
 )
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
@@ -93,7 +98,7 @@ else() # WGPU or DAWN backend
   set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(GLFW3WEBGPU_BACKEND ${BACKEND} CACHE STRING "" FORCE)
 
-  FetchContent_MakeAvailable(webgpu nuklear glfw glfw3webgpu glm)
+  FetchContent_MakeAvailable(webgpu nuklear glfw glfw3webgpu glm nfd)
 
   if(WIN32)
     target_compile_definitions(glfw3webgpu PRIVATE GLFW_EXPOSE_NATIVE_WIN32)
@@ -163,6 +168,9 @@ foreach(SHADER_FILE ${SHADER_FILES})
 endforeach()
 
 target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::glm)
+if(NOT EMSCRIPTEN)
+  target_link_libraries(ipass_webgpu PRIVATE nfd)
+endif()
 
 file(GLOB_RECURSE _all_source_children LIST_DIRECTORIES true "${CMAKE_CURRENT_SOURCE_DIR}/source/*")
 set(_source_include_dirs ${CMAKE_CURRENT_SOURCE_DIR}/source)
@@ -196,6 +204,8 @@ if(EMSCRIPTEN)
   target_link_options(ipass_webgpu PRIVATE
     "-sUSE_GLFW=3"
     "-sASYNCIFY"
+    "-sFORCE_FILESYSTEM=1"
+    "-sEXPORTED_RUNTIME_METHODS=dynCall"
     ${PRELOAD_OPTIONS}
   )
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
