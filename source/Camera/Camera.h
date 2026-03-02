@@ -5,10 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-// #include "Settings.h"
-
-// View matrix is updated immediately on position change.
-// Projection matrix is recomputed lazily via update().
 class Camera
 {
 public:
@@ -36,16 +32,20 @@ public:
   float& getFar_M()    { return farClip; }
 
   void deferUpdate()        { needsUpdate = true; }
-  bool requiresUpdate() { return needsUpdate; }
+  bool requiresUpdate() const { return needsUpdate; }
   void update(); // recomputes projection matrix
 
-  // Input callbacks
+  bool consumeViewUpdate()       { bool d = viewNeedsUpdate; viewNeedsUpdate = false; return d; }
+  bool consumeProjectionUpdate() { bool d = needsUpdate; return d; } // cleared by update()
+
+  // input callbacks
   void OnScroll(double xoffset, double yoffset);
   void OnMouseButton(int action, int mods);
 
 private:
   float scrollScaling = 0.5f;
-  bool  needsUpdate   = true;
+  bool  needsUpdate      = true;
+  bool  viewNeedsUpdate  = true;
 
   glm::vec3 positionSPH = glm::vec3(5.0f, 0.0f, glm::half_pi<float>());
   glm::vec3 positionCAR = glm::vec3(0.0f);

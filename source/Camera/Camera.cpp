@@ -58,6 +58,7 @@ void Camera::convertCARtoSPH()
 void Camera::setViewMatrix()
 {
   viewMatrix = glm::lookAt(positionCAR, eyeVector, glm::vec3(0.0f, 1.0f, 0.0f));
+  viewNeedsUpdate  = true;
 }
 
 
@@ -78,7 +79,7 @@ void Camera::update()
 }
 
 
-// Input Callbacks
+// input callbacks
 void Camera::OnScroll(double, double yoffset)
 {
   glm::vec3 pos = getPosSPH();
