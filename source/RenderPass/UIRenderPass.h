@@ -24,6 +24,9 @@ public:
   static constexpr uint64_t MAX_VERTEX_BUFFER_SIZE = MAX_VERTEX_COUNT * sizeof(Vertex);
   static constexpr uint64_t MAX_INDEX_BUFFER_SIZE = MAX_INDEX_COUNT * sizeof(glm::u16);
 
+  static constexpr float BASE_FONT_SIZE  = 13.0f;
+  static constexpr float MAX_FONT_SCALE  = 4.0f;
+
   UIRenderPass(RenderContext& context);
   ~UIRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
@@ -44,7 +47,13 @@ private:
   nk_buffer cmds, verts, idx;
   nk_convert_config convertConfig;
 
+  float uiScale = 1.0f;
+  nk_font* scaledFont = nullptr;
+
   std::string current_filename = "No Object Loaded";
+
+  glm::uvec2 lastScreenSize = glm::uvec2(0, 0);
+  bool screenResized = false;
 
   wgpu::Sampler sampler;
   wgpu::Texture texture;

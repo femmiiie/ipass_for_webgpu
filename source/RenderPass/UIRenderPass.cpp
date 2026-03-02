@@ -1,16 +1,19 @@
 #include "UIRenderPass.h"
 #include "Renderer.h"
+#include "Settings.h"
 
+#include <cstdio>
 #include <cstring>
 #include <vector>
 
 UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
 {
+  this->uiScale = glm::max(1.0f, (float)context.size.y / 1080.0f);
 
 	nk_font_atlas_init_default(&this->atlas);
 	nk_font_atlas_begin(&this->atlas);
 
-	nk_font* default_font = nk_font_atlas_add_default(&atlas, 13.0f, nullptr);
+	this->scaledFont = nk_font_atlas_add_default(&atlas, BASE_FONT_SIZE * MAX_FONT_SCALE, nullptr);
 
 	int img_w, img_h;
 	const void* image = nk_font_atlas_bake(&atlas, &img_w, &img_h, NK_FONT_ATLAS_RGBA32);
@@ -21,7 +24,9 @@ UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
 
   struct nk_draw_null_texture nullTex;
 	nk_font_atlas_end(&this->atlas, nk_handle_id(0), &nullTex);
-	nk_init_default(&this->uiContext, &default_font->handle);
+
+  this->scaledFont->handle.height = BASE_FONT_SIZE * this->uiScale;
+	nk_init_default(&this->uiContext, &this->scaledFont->handle);
 
   nk_buffer_init_default(&this->cmds);
   nk_buffer_init_default(&this->verts);
@@ -93,16 +98,14 @@ UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
   size_t imageSize = (size_t)(img_w * img_h * 4);
   this->context.queue.writeTexture(destination, imageCopy.data(), imageSize, source, textureDesc.size);
 
-  // Create projection uniform buffer (mat4x4f = 64 bytes)
   wgpu::BufferDescriptor projDesc;
   projDesc.size = 64;
   projDesc.usage = wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform));
   projDesc.mappedAtCreation = false;
   this->projectionBuffer = this->context.device.createBuffer(projDesc);
 
-  this->UpdateProjection(this->context.screenSize);
+  this->UpdateProjection(this->context.size);
 
-  // Bind group layout: sampler, texture, projection uniform
   wgpu::SamplerBindingType samplerType = wgpu::SamplerBindingType::Filtering;
   std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts {
     this->CreateBindingLayout(0, wgpu::ShaderStage::Fragment, samplerType),
@@ -172,7 +175,6 @@ void UIRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
     encoder.setIndexBuffer(this->indexBuffer, wgpu::IndexFormat::Uint16, 0, alignedIdxSize);
     encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
 
-    // Iterate draw commands and issue indexed draws
     uint32_t indexOffset = 0;
     const nk_draw_command* cmd;
     nk_draw_foreach(cmd, &this->uiContext, &this->cmds)
@@ -294,24 +296,47 @@ void UIRenderPass::InitSampler()
 
 void UIRenderPass::UpdateProjection(glm::uvec2 size)
 {
-  this->context.screenSize = size;
+  this->context.size = size;
+  this->uiScale = glm::max(1.0f, (float)size.y / 1080.0f);
+
+  if (this->scaledFont)
+  {
+    this->scaledFont->handle.height = BASE_FONT_SIZE * this->uiScale;
+    nk_style_set_font(&this->uiContext, &this->scaledFont->handle);
+  }
 
   glm::mat4 projection = glm::ortho(0.0f, (float)size.x, (float)size.y, 0.0f, -1.0f, 1.0f);
   this->context.queue.writeBuffer(this->projectionBuffer, 0, &projection, sizeof(projection));
+
+  this->screenResized = true;
+  this->lastScreenSize = size;
 }
 
 void UIRenderPass::RenderUI()
 {
   nk_context* ctx = &this->uiContext; //alias for simpler code
 
-  nk_color bg = nk_rgb(200, 0, 0);
+  float s = this->uiScale;
+  ctx->style.window.padding          = nk_vec2(4.0f * s, 4.0f * s);
+  ctx->style.window.spacing          = nk_vec2(4.0f * s, 4.0f * s);
+  ctx->style.window.scrollbar_size   = nk_vec2(10.0f * s, 10.0f * s);
+  ctx->style.window.min_row_height_padding = (8.0f * s);
+  ctx->style.button.padding          = nk_vec2(4.0f * s, 4.0f * s);
+  ctx->style.text.padding            = nk_vec2(4.0f * s, 4.0f * s);
+  ctx->style.checkbox.padding        = nk_vec2(2.0f * s, 2.0f * s);
+  ctx->style.tab.padding             = nk_vec2(4.0f * s, 4.0f * s);
+  ctx->style.tab.indent              = 10.0f * s;
+  ctx->style.window.rounding         = 0.0f;
+
+  nk_color bg = nk_rgb(20, 20, 20);
   ctx->style.window.background = bg;
   ctx->style.window.fixed_background = nk_style_item_color(bg);
 
   static nk_flags flags = NK_WINDOW_BORDER;
-  glm::vec2 menu_size(this->context.screenSize);
+  glm::vec2 menu_size(this->context.size);
   menu_size.x /= 4;
 
+  //main side window
   if (nk_begin(ctx, "Test Window", nk_rect(0, 0, menu_size.x, menu_size.y), flags))
   {
     nk_layout_row_dynamic(ctx, 0, 2);
@@ -319,48 +344,131 @@ void UIRenderPass::RenderUI()
     nk_label(ctx, this->current_filename.c_str(), NK_TEXT_LEFT);
     if (nk_button_label(ctx, "Open File"))
     {
-      // utils::OpenFile("")
+      //not adding utils::OpenFile here until the file type we accept is clarified
     }
 
-    static nk_bool active;
-    if (nk_checkbox_label(ctx, "Enable Tessellation", &active))
-    {
-      //send update to tess status: scene.TessStatus(active);
-      std::cout << "Test!" << "\n";
-    }
+    nk_checkbox_label(ctx, "Enable Tessellation", (nk_bool*)&Settings::tessEnabled);
 
     nk_spacer(ctx);
-    //add divider line here?
 
     if (nk_tree_push(ctx, NK_TREE_TAB, "Object Properties", NK_MINIMIZED))
     {
-      nk_label(ctx, "Rotation, Scale, etc. go here", NK_TEXT_LEFT);
-      nk_tree_pop(ctx);
-    }
+      nk_layout_row_dynamic(ctx, 0, 2);
 
-    //Profiling?
-    if (nk_tree_push(ctx, NK_TREE_TAB, "Profiling", NK_MINIMIZED))
-    {
-      static nk_bool perf_active;
-      if (nk_checkbox_label(ctx, "Show Performance Window", &perf_active))
+      nk_label(ctx, "Translation", NK_TEXT_RIGHT);
+      nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::translation.x, 1000.0f, 0.01f, 0.01f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::translation.y, 1000.0f, 0.01f, 0.01f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Trans Z:", -1000.0f, &Settings::translation.z, 1000.0f, 0.01f, 0.01f);
+
+      nk_layout_row_static(ctx, 10, 0, 1);
+      nk_spacer(ctx);
+      nk_layout_row_dynamic(ctx, 0, 2);
+
+      nk_label(ctx, "Rotation (degrees)", NK_TEXT_RIGHT);
+      nk_property_float(ctx, "Rot X:", -360.0f, &Settings::rotation.x, 360.0f, 1.0f, 0.5f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::rotation.y, 360.0f, 1.0f, 0.5f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Rot Z:", -360.0f, &Settings::rotation.z, 360.0f, 1.0f, 0.5f);
+
+      nk_layout_row_static(ctx, 10, 0, 1);
+      nk_spacer(ctx);
+      nk_layout_row_dynamic(ctx, 0, 2);
+
+      nk_label(ctx, "Scale", NK_TEXT_RIGHT);
+      nk_property_float(ctx, "Scale X:", 0.001f, &Settings::scale.x, 1000.0f, 0.05f, 0.01f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::scale.y, 1000.0f, 0.05f, 0.01f);
+      nk_spacer(ctx);
+      nk_property_float(ctx, "Scale Z:", 0.001f, &Settings::scale.z, 1000.0f, 0.05f, 0.01f);
+
+      nk_layout_row_static(ctx, 10, 0, 1);
+      nk_spacer(ctx);
+
+      nk_layout_row_static(ctx, 0, this->context.size.x / 10, 1);
+
+      if (nk_button_label(ctx, "Reset Transform"))
       {
-
+        Settings::translation = { 0.0f, 0.0f, 0.0f };
+        Settings::rotation    = { 0.0f, 0.0f, 0.0f };
+        Settings::scale       = { 1.0f, 1.0f, 1.0f };
       }
 
-      nk_label(ctx, "", NK_TEXT_LEFT);
+      nk_layout_row_static(ctx, 10, 0, 1);
+      nk_spacer(ctx);
+
       nk_tree_pop(ctx);
     }
 
-    //Environment Settings
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Profiling", NK_MINIMIZED))
+    {
+      nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::showPerformanceWindow);
+      //extra settings, what to measure, etc.
+      nk_tree_pop(ctx);
+    }
+
     if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
     {
+      nk_layout_row_dynamic(ctx, 0, 1);
       nk_label(ctx, "Background Color", NK_TEXT_LEFT);
-      nk_label(ctx, "Background Color", NK_TEXT_LEFT);
+
+      nk_colorf color = {
+        Settings::clearColor.r,
+        Settings::clearColor.g,
+        Settings::clearColor.b,
+        Settings::clearColor.a
+      };
+
+      float pickerSize = glm::min(menu_size.x - 16.0f * s, 200.0f * s);
+      nk_layout_row_dynamic(ctx, pickerSize, 1);
+      color = nk_color_picker(ctx, color, NK_RGBA);
+
+      Settings::clearColor = { color.r, color.g, color.b, color.a };
+
       nk_tree_pop(ctx);
     }
 
   }
   nk_end(&this->uiContext);
+
+  if (Settings::showPerformanceWindow)
+  {
+    char fpsBuf[64];
+    std::snprintf(fpsBuf, sizeof(fpsBuf), "FPS: %.1f", this->context.performance.fps);
+
+    char ftBuf[64];
+    std::snprintf(ftBuf, sizeof(ftBuf), "Frame: %.2f ms", this->context.performance.avg_frametime);
+
+    const auto& font = *ctx->style.font;
+    const auto& win  = ctx->style.window;
+
+    const char* widthTemplate = "FPS: 0000.0";
+    float perf_width = font.width(font.userdata, font.height, widthTemplate, (int)strlen(widthTemplate)) * 2.0f;
+
+    float row_height    = font.height * 1.1f;
+    float header_height = font.height + win.header.padding.y * 2.0f + win.header.label_padding.y * 2.0f;
+    float perf_height   = header_height + row_height * 3.0f;
+
+    float margin = 8.0f * s;
+    float perf_x  = (float)this->context.size.x - perf_width - margin;
+
+    if (this->screenResized)
+    {
+      nk_window_set_bounds(ctx, "Performance", nk_rect(perf_x, margin, perf_width, perf_height));
+      this->screenResized = false;
+    }
+
+    nk_flags perfFlags = NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE;
+    if (nk_begin(ctx, "Performance", nk_rect(perf_x, margin, perf_width, perf_height), perfFlags))
+    {
+      nk_layout_row_static(ctx, row_height, (int)perf_width, 1);
+      nk_label(ctx, fpsBuf, NK_TEXT_LEFT);
+      nk_label(ctx, ftBuf, NK_TEXT_LEFT);
+    }
+    nk_end(ctx);
+  }
 
   nk_buffer_clear(&this->verts);
   nk_buffer_clear(&this->idx);
