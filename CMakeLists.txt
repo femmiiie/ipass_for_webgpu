@@ -210,3 +210,9 @@ if(EMSCRIPTEN)
   )
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
 endif()
+
+
+if(NOT EMSCRIPTEN)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
