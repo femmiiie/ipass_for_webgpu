@@ -8,7 +8,8 @@ static const char* tess_scan_shader = R"WGSL(
     @group(0) @binding(1) var<storage, read_write> triOffset : array<u32>;
     @group(0) @binding(2) var<storage, read_write> blockSums : array<u32>;
 
-    var<workgroup> shared_ls : array<u32, 256>;
+    struct WG256 { data: array<u32, 256> }
+    var<workgroup> shared_ls : WG256;
 
     // level 1 scan
     // lid.x = thread id within workgroup
@@ -19,7 +20,7 @@ static const char* tess_scan_shader = R"WGSL(
         let i = gid.x;
         let n = arrayLength(&triCount);
 
-        shared_ls[lid.x] = select(0u, triCount[i], i < n);
+        shared_ls.data[lid.x] = select(0u, triCount[i], i < n);
 
         workgroupBarrier();
 
@@ -27,43 +28,41 @@ static const char* tess_scan_shader = R"WGSL(
         var stride = 1u;
         // it looks like while(stride < 256u) would be unsafe for internal sync
         loop {
-            if (stride >= 256u) { break; }
+            if (stride >= 256u) {
+                break;
+            }
             if ((lid.x + 1u) % (stride * 2u) == 0u) {
-                shared_ls[lid.x] += shared_ls[lid.x - stride];
+                let rhs_ls = shared_ls.data[lid.x - stride];
+                shared_ls.data[lid.x] += rhs_ls;
             }
             stride *= 2u;
             workgroupBarrier();
         }
 
         if (lid.x == 255u) {
-            blockSums[wid.x] = shared_ls[255u];
-            shared_ls[255u] = 0u;
+            blockSums[wid.x] = shared_ls.data[255u];
+            shared_ls.data[255u] = 0u;
         }
         workgroupBarrier();
 
         // down sweep
         stride = 128u;
         loop {
-            if (stride == 0u) { break; }
+            if (stride == 0u) {
+                break;
+            }
             if ((lid.x + 1u) % (stride * 2u) == 0u) {
-                // lid.x = right
-                // lid.x - stride = left
-                // left -> right
-                // right -> left + right
-
-                // tmp = right
-                // right = left + right
-                // left = tmp
-                let tmp = shared_ls[lid.x];
-                shared_ls[lid.x] += shared_ls[lid.x - stride];
-                shared_ls[lid.x - stride] = tmp;
+                let tmp = shared_ls.data[lid.x];
+                let rhs_ls = shared_ls.data[lid.x - stride];
+                shared_ls.data[lid.x] = tmp + rhs_ls;
+                shared_ls.data[lid.x - stride] = tmp;
             }
             stride /= 2u;
             workgroupBarrier();
         }
 
         if (i < n) {
-            triOffset[i] = shared_ls[lid.x];
+            triOffset[i] = shared_ls.data[lid.x];
         }
     }
 
@@ -72,27 +71,30 @@ static const char* tess_scan_shader = R"WGSL(
     @group(0) @binding(0) var<storage, read_write> bs_blockSums : array<u32>;
     @group(0) @binding(1) var<storage, read_write> bs_total : array<u32>;
 
-    var<workgroup> shared_bs : array<u32, 256>;
+    var<workgroup> shared_bs : WG256;
 
     @compute @workgroup_size(256)
     fn lvl2_scan(@builtin(local_invocation_id) lid : vec3u) {
-        shared_bs[lid.x] = bs_blockSums[lid.x];
+        shared_bs.data[lid.x] = bs_blockSums[lid.x];
         workgroupBarrier();
 
         // upsweep
         var stride = 1u;
         loop {
-            if (stride >= 256u) { break; }
+            if (stride >= 256u) {
+                break;
+            }
             if ((lid.x + 1u) % (stride * 2u) == 0u) {
-                shared_bs[lid.x] += shared_bs[lid.x - stride];
+                let rhs_bs = shared_bs.data[lid.x - stride];
+                shared_bs.data[lid.x] += rhs_bs;
             }
             stride *= 2u;
             workgroupBarrier();
         }
 
         if (lid.x == 255u) {
-            bs_total[0] = shared_bs[255u]; // need sum since this is level 2
-            shared_bs[255u] = 0u;
+            bs_total[0] = shared_bs.data[255u]; // need sum since this is level 2
+            shared_bs.data[255u] = 0u;
         }
 
         workgroupBarrier();
@@ -100,17 +102,20 @@ static const char* tess_scan_shader = R"WGSL(
         // downsweep
         stride = 128u;
         loop {
-            if (stride == 0u) { break; }
+            if (stride == 0u) {
+                break;
+            }
             if ((lid.x + 1u) % (stride * 2u) == 0u) {
-                let tmp = shared_bs[lid.x];
-                shared_bs[lid.x] += shared_bs[lid.x - stride];
-                shared_bs[lid.x - stride] = tmp;
+                let tmp = shared_bs.data[lid.x];
+                let rhs_bs = shared_bs.data[lid.x - stride];
+                shared_bs.data[lid.x] = tmp + rhs_bs;
+                shared_bs.data[lid.x - stride] = tmp;
             }
             stride /= 2u;
             workgroupBarrier();
         }
 
-        bs_blockSums[lid.x] = shared_bs[lid.x];
+        bs_blockSums[lid.x] = shared_bs.data[lid.x];
     }
 
     // combine
@@ -118,7 +123,9 @@ static const char* tess_scan_shader = R"WGSL(
     @compute @workgroup_size(256)
     fn comb(@builtin(global_invocation_id) gid : vec3u, @builtin(workgroup_id) wid : vec3u) {
         let i = gid.x;
-        if (i >= arrayLength(&triOffset)) { return; }
+        if (i >= arrayLength(&triOffset)) {
+            return;
+        }
         triOffset[i] += blockSums[wid.x];
     }
 )WGSL";
@@ -183,8 +190,11 @@ wgpu::BindGroupLayout TessScanPass::get_comb_bgl() {
 
 bool TessScanPass::set_bindgroups(wgpu::BindGroup lvl1, wgpu::BindGroup lvl2, wgpu::BindGroup comb) {
     bg_lvl1 = lvl1;
+    bg_lvl1.addRef();
     bg_lvl2 = lvl2;
+    bg_lvl2.addRef();
     bg_comb = comb;
+    bg_comb.addRef();
     return true;
 }
 
