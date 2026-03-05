@@ -12,7 +12,7 @@
 using std::chrono::steady_clock;
 using std::chrono::duration;
 
-struct RenderContext
+struct Context
 {
   glm::uvec2 size;
 
@@ -47,9 +47,9 @@ struct RenderContext
   } performance;
 };
 
-inline void RenderContext::tick()
+inline void Context::tick()
 {
-  RenderContext::PerformanceMetrics& perf = this->performance;
+  Context::PerformanceMetrics& perf = this->performance;
   steady_clock::time_point now = steady_clock::now();
   perf.since_last += duration<float>(now - perf.prev_frametime).count();
   perf.prev_frametime = now;
@@ -66,9 +66,9 @@ inline void RenderContext::tick()
   }
 }
 
-inline void RenderContext::measure()
+inline void Context::measure()
 {
-  RenderContext::PerformanceMetrics& perf = this->performance;
+  Context::PerformanceMetrics& perf = this->performance;
   auto frame_start = perf.prev_frametime;
   auto frame_end   = steady_clock::now();
 

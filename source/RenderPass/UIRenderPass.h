@@ -27,7 +27,7 @@ public:
   static constexpr float BASE_FONT_SIZE  = 13.0f;
   static constexpr float MAX_FONT_SCALE  = 4.0f;
 
-  UIRenderPass(RenderContext& context);
+  UIRenderPass(Context& context);
   ~UIRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
   void RenderUI();

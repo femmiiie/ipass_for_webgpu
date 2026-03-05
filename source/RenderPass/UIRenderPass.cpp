@@ -6,7 +6,7 @@
 #include <cstring>
 #include <vector>
 
-UIRenderPass::UIRenderPass(RenderContext& context) : RenderPass(context)
+UIRenderPass::UIRenderPass(Context& context) : RenderPass(context)
 {
   this->uiScale = glm::max(1.0f, (float)context.size.y / 1080.0f);
 

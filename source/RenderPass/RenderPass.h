@@ -12,11 +12,11 @@
 class RenderPass
 {
 public:
-  RenderPass(RenderContext& ctx) : context(ctx) {};
+  RenderPass(Context& ctx) : context(ctx) {};
   virtual ~RenderPass() = default;
   virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
 
-  RenderContext &context;
+  Context &context;
 
   wgpu::RenderPipeline pipeline;
   uint32_t vertexCount;

@@ -28,7 +28,7 @@
 class Renderer
 {
 public:
-  RenderContext context;
+  Context context;
 
   GLFWwindow *window;
   GLFWwindow *getWindow() { return this->window; }

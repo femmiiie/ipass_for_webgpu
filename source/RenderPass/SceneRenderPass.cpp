@@ -168,7 +168,7 @@ void SceneRenderPass::LoadOBJ()
   std::cout << "[LoadOBJ] Loaded " << this->vertexCount << " vertices from " << filepath << std::endl;
 }
 
-SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
+SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
 {
   camera.setScrollScaling(0.5f);
   float vp_width = context.sceneViewport.width;
@@ -239,7 +239,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 {
   bool mvpNeedsUpdate = false;
 
-  const RenderContext::Viewport& vp = context.sceneViewport;
+  const Context::Viewport& vp = context.sceneViewport;
   encoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0f, 1.0f);
   encoder.setScissorRect((uint32_t)vp.x, (uint32_t)vp.y,
                          (uint32_t)vp.width, (uint32_t)vp.height);
@@ -292,7 +292,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 
 void SceneRenderPass::OnResize(glm::uvec2 size)
 {
-  const RenderContext::Viewport& vp = context.sceneViewport;
+  const Context::Viewport& vp = context.sceneViewport;
   camera.getAspect_M() = (vp.height > 0.0f) ? vp.width / vp.height : 1.0f;
   camera.deferUpdate();
   this->CreateDepthTexture(size);
