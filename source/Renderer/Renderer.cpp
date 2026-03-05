@@ -220,6 +220,19 @@ void Renderer::MainLoop()
   encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
+  wgpu::ComputePassDescriptor computePassDesc;
+  computePassDesc.timestampWrites = nullptr;
+  wgpu::ComputePassEncoder computeEncoder = encoder.beginComputePass(computePassDesc);
+
+  for (ComputePass* pass : this->computePasses)
+  {
+    pass->Execute(computeEncoder);
+  }
+
+  computeEncoder.end();
+  computeEncoder.release();
+
+
   wgpu::RenderPassColorAttachment renderPassColorAttachment;
   renderPassColorAttachment.view = targetView;
   renderPassColorAttachment.resolveTarget = nullptr;
@@ -250,18 +263,17 @@ void Renderer::MainLoop()
 
   renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
   renderPassDesc.timestampWrites = nullptr;
+  wgpu::RenderPassEncoder renderEncoder = encoder.beginRenderPass(renderPassDesc);
 
-  wgpu::RenderPassEncoder passEncoder = encoder.beginRenderPass(renderPassDesc);
+  this->scenePass->Execute(renderEncoder);
 
-  this->scenePass->Execute(passEncoder);
+  renderEncoder.setViewport(0, 0, (float)context.size.x, (float)context.size.y, 0.0f, 1.0f);
+  renderEncoder.setScissorRect(0, 0, context.size.x, context.size.y);
 
-  passEncoder.setViewport(0, 0, (float)context.size.x, (float)context.size.y, 0.0f, 1.0f);
-  passEncoder.setScissorRect(0, 0, context.size.x, context.size.y);
+  this->uiPass->Execute(renderEncoder);
 
-  this->uiPass->Execute(passEncoder);
-
-  passEncoder.end();
-  passEncoder.release();
+  renderEncoder.end();
+  renderEncoder.release();
 
   wgpu::CommandBufferDescriptor cmdBufferDescriptor = {};
   cmdBufferDescriptor.label = WGPU_STRING_VIEW_INIT;

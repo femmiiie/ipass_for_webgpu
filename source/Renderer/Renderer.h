@@ -19,7 +19,8 @@
 #include <exception>
 #include <functional>
 
-#include "RenderContext.h"
+#include "Context.h"
+#include "ComputePass.h"
 #include "RenderPass.h"
 #include "SceneRenderPass.h"
 #include "UIRenderPass.h"
@@ -51,7 +52,7 @@ private:
   SceneRenderPass *scenePass = nullptr;
   UIRenderPass *uiPass = nullptr;
 
-
+  std::vector<ComputePass*> computePasses;
 
   void UpdateSceneViewport();
 

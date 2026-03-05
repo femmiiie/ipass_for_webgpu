@@ -9,8 +9,27 @@
 
 #include <webgpu/webgpu.hpp>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace utils
 {
+  struct Vertex3D
+  {
+    glm::vec4 pos;
+    glm::vec4 color;
+    glm::vec2 tex;
+    glm::vec2 _pad; // padding
+  };
+
+  struct Vertex2D
+  {
+    glm::vec2 pos;
+    glm::vec2 tex;
+    glm::vec4 color;
+  };
+
   inline void SetEntryPoint(WGPUStringView& entryPoint, const char* name)
   {
     entryPoint.data = name;
@@ -27,7 +46,7 @@ namespace utils
     return ((size + alignment - 1) / alignment) * alignment;
   }
 
-  inline wgpu::ShaderModule LoadShader(wgpu::Device device, std::string filepath)
+  inline wgpu::ShaderModule LoadShader(wgpu::Device& device, std::string filepath)
   {
     std::ifstream fs(filepath);
 

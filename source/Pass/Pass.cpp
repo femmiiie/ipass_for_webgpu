@@ -108,10 +108,10 @@ wgpu::BindGroup Pass::CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings
   return this->context.device.createBindGroup(desc);
 }
 
-wgpu::BindGroup Pass::CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& layout)
+wgpu::BindGroup Pass::CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& bindLayout)
 {
   wgpu::BindGroupDescriptor desc;
-  desc.layout = layout;
+  desc.layout = bindLayout;
   desc.entryCount = bindings.size();
   desc.entries = bindings.data();
   return this->context.device.createBindGroup(desc);

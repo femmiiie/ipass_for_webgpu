@@ -10,14 +10,12 @@
 #include "RenderPass.h"
 #include "Utils.h"
 
+using Vertex = utils::Vertex2D;
+
 class UIRenderPass : public RenderPass
 {
 public:
-  struct Vertex {
-    glm::vec2 pos;
-    glm::vec2 tex;
-    glm::vec4 col;
-  };
+
 
   static constexpr uint32_t MAX_VERTEX_COUNT = 65536;
   static constexpr uint32_t MAX_INDEX_COUNT = 131072;

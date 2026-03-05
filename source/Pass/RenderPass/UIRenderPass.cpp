@@ -35,7 +35,7 @@ UIRenderPass::UIRenderPass(Context& context) : RenderPass(context)
   static const struct nk_draw_vertex_layout_element vertex_layout[] = {
     {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, offsetof(Vertex, pos)},
     {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, offsetof(Vertex, tex)},
-    {NK_VERTEX_COLOR,    NK_FORMAT_R32G32B32A32_FLOAT, offsetof(Vertex, col)},
+    {NK_VERTEX_COLOR,    NK_FORMAT_R32G32B32A32_FLOAT, offsetof(Vertex, color)},
     {NK_VERTEX_LAYOUT_END}
   };
 
