@@ -6,9 +6,9 @@ const group_size        : u32 = 32;  // verts_per_patch * patches_per_group
 
 struct vert
 {
-  pos: vec4<f32>,
+  pos:   vec4<f32>,
   color: vec4<f32>,
-  tex: vec2<f32>
+  tex:   vec2<f32>
 }
 
 @group(0) @binding(0) var<storage, read>       vertices:   array<vert>;

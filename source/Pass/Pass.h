@@ -1,26 +1,21 @@
-#ifndef RENDERPASS_H_
-#define RENDERPASS_H_
+#ifndef PASS_H_
+#define PASS_H_
 
 #include "Utils.h"
-#include "RenderContext.h"
+#include "Context.h"
 
 #include <vector>
 #include <string>
 #include <exception>
 
 
-class RenderPass
+class Pass
 {
 public:
-  RenderPass(Context& ctx) : context(ctx) {};
-  virtual ~RenderPass() = default;
-  virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
+  Pass(Context& ctx) : context(ctx) {}
+  virtual ~Pass() = default;
 
-  Context &context;
-
-  wgpu::RenderPipeline pipeline;
-  uint32_t vertexCount;
-  wgpu::Buffer vertexBuffer;
+  Context& context;
 
   wgpu::PipelineLayout layout;
   wgpu::BindGroup bindGroup;
@@ -31,23 +26,27 @@ public:
   wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, uint64_t minBindingSize);
   wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility);
   wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type);
-  wgpu::BindGroupLayout CreateBindGroupLayout(std::vector<wgpu::BindGroupLayoutEntry>& entries);
+  wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type);
+  wgpu::BindGroupLayout CreateBindGroupLayout(std::vector<wgpu::BindGroupLayoutEntry> entries);
 
   wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer& buffer, glm::u32 size);
+  wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer& buffer, uint64_t size, wgpu::BufferUsage usage);
   wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::TextureView& view);
   wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Sampler& sampler);
-  wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry>& bindings);
+  wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings);
+  wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& layout);
 };
 
-class RenderPassException : public std::exception
+
+class PassException : public std::exception
 {
 private:
   std::string message;
 
 public:
-  RenderPassException(std::string m) : message(m) {}
-  RenderPassException(const char *m) { this->message = m; }
-  const char *what() const noexcept override { return this->message.c_str(); }
+  PassException(std::string m) : message(m) {}
+  PassException(const char* m) { this->message = m; }
+  const char* what() const noexcept override { return this->message.c_str(); }
 };
 
 #endif
