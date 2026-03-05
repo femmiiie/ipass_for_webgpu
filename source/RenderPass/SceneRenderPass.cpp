@@ -140,6 +140,31 @@ void SceneRenderPass::LoadOBJ()
 
   this->context.queue.writeBuffer(this->vertexBuffer, 0, vertexData.data(), vertexData.size() * sizeof(glm::f32));
 
+  glm::u32 numTriangles = this->vertexCount / 3;
+  std::vector<glm::u32> wireframeIndices;
+  wireframeIndices.reserve(numTriangles * 6);
+  for (glm::u32 i = 0; i < numTriangles; i++)
+  {
+    glm::u32 base = i * 3;
+    wireframeIndices.push_back(base + 0);
+    wireframeIndices.push_back(base + 1);
+    wireframeIndices.push_back(base + 1);
+    wireframeIndices.push_back(base + 2);
+    wireframeIndices.push_back(base + 2);
+    wireframeIndices.push_back(base + 0);
+  }
+  this->wireframeIndexCount = (glm::u32)wireframeIndices.size();
+
+  if (this->wireframeIndexBuffer)
+    this->wireframeIndexBuffer.destroy();
+
+  this->wireframeIndexBuffer = this->CreateBuffer(
+    wireframeIndices.size() * sizeof(glm::u32),
+    wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index)),
+    false
+  );
+  this->context.queue.writeBuffer(this->wireframeIndexBuffer, 0, wireframeIndices.data(), wireframeIndices.size() * sizeof(glm::u32));
+
   std::cout << "[LoadOBJ] Loaded " << this->vertexCount << " vertices from " << filepath << std::endl;
 }
 
@@ -158,22 +183,6 @@ SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
     GLFW_MOUSE_BUTTON_MIDDLE,
     [this](int action, int mods) { camera.OnMouseButton(action, mods); }
   );
-
-  // std::vector<glm::f32> data { // basic test triangle
-  //   // position          normal               color                tex
-  //   0.0, 0.0, 0.0, 1.0,  0.0, 0.0, 1.0, 0.0,  1.0, 0.0, 0.0, 1.0,  0.0, 0.0,
-  //   0.5, 0.5, 0.0, 1.0,  0.0, 0.0, 1.0, 0.0,  0.0, 1.0, 0.0, 1.0,  0.0, 0.0,
-  //   1.0, 0.0, 0.0, 1.0,  0.0, 0.0, 1.0, 0.0,  0.0, 0.0, 1.0, 1.0,  0.0, 0.0,
-  // };
-  // this->vertexCount = (glm::u32)data.size() / 14;
-
-  // this->vertexBuffer = this->CreateBuffer(
-  //   data.size() * sizeof(glm::f32),
-  //   wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex)),
-  //   false
-  // );
-
-  // this->context.queue.writeBuffer(this->vertexBuffer, 0, data.data(), data.size() * sizeof(glm::f32));
 
   this->LoadOBJ();
   this->CreateDepthTexture(context.size);
@@ -216,11 +225,13 @@ SceneRenderPass::SceneRenderPass(RenderContext& context) : RenderPass(context)
 SceneRenderPass::~SceneRenderPass()
 {
   this->pipeline.release();
+  this->wireframePipeline.release();
   this->layout.release();
   this->bindGroupLayout.release();
   this->bindGroup.release();
   if (this->depthTextureView) this->depthTextureView.release();
   if (this->depthTexture)     this->depthTexture.destroy();
+  if (this->wireframeIndexBuffer) this->wireframeIndexBuffer.destroy();
 }
 
 
@@ -263,10 +274,20 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
     context.queue.writeBuffer(mvpBuffer, 0, &mvp, sizeof(MVP));
   }
 
-  encoder.setPipeline(this->pipeline);
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
-  encoder.draw(this->vertexCount, 1, 0, 0);
+
+  if (Settings::wireframeEnabled)
+  {
+    encoder.setPipeline(this->wireframePipeline);
+    encoder.setIndexBuffer(this->wireframeIndexBuffer, wgpu::IndexFormat::Uint32, 0, this->wireframeIndexBuffer.getSize());
+    encoder.drawIndexed(this->wireframeIndexCount, 1, 0, 0, 0);
+  }
+  else
+  {
+    encoder.setPipeline(this->pipeline);
+    encoder.draw(this->vertexCount, 1, 0, 0);
+  }
 }
 
 void SceneRenderPass::OnResize(glm::uvec2 size)
@@ -349,6 +370,12 @@ void SceneRenderPass::InitializeRenderPipeline()
   pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
   this->pipeline = this->context.device.createRenderPipeline(pipelineDesc);
+
+  // duplicate regular pipeline, just render lines instead of tris
+  pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::LineList;
+  pipelineDesc.primitive.cullMode = wgpu::CullMode::None;
+  this->wireframePipeline = this->context.device.createRenderPipeline(pipelineDesc);
+
   shaderModule.release();
 }
 

@@ -33,6 +33,11 @@ private:
   wgpu::TextureView depthTextureView;
   void CreateDepthTexture(glm::uvec2 size);
 
+  wgpu::RenderPipeline wireframePipeline;
+
+  wgpu::Buffer wireframeIndexBuffer;
+  glm::u32 wireframeIndexCount = 0;
+
   struct Light
   {
     glm::vec4 position;

@@ -419,6 +419,8 @@ void UIRenderPass::RenderUI()
     if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
     {
       nk_layout_row_dynamic(ctx, 0, 1);
+      nk_checkbox_label(ctx, "Wireframe", (nk_bool*)&Settings::wireframeEnabled);
+     
       nk_label(ctx, "Background Color", NK_TEXT_LEFT);
 
       nk_colorf color = {
