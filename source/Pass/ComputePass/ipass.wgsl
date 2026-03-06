@@ -1,8 +1,8 @@
 const f32_max           : f32 = 10000.0f;
 const verts_per_patch   : u32 = 16;
-const patches_per_group : u32 = 2;
+const patches_per_group : u32 = 16;
 const tiles_per_patch   : u32 = 9;
-const group_size        : u32 = 32;  // verts_per_patch * patches_per_group
+const group_size        : u32 = 256;  // verts_per_patch * patches_per_group
 
 struct vert
 {
@@ -132,7 +132,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   var final_lower : vec4<f32>;
   var final_upper : vec4<f32>;
 
-  if (thread_id == 0) { atomicStore(&tess_level[group_id], 0); }
+  if (thread_id == 0) { atomicStore(&tess_level[group_id], 0u); }
 
   // panel_width_upper[group_id*3 + thread_id%3] = 0;
   // panel_width_lower[group_id*3 + thread_id%3] = 0;
@@ -164,8 +164,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   for (var i: u32 = 0; i < 2; i++)
   {
     add_up_basis(
-      seg_upper,
-      seg_lower,
+      &seg_upper,
+      &seg_lower,
       d2b[4*row + i + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],
@@ -198,8 +198,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   for (var i: u32 = 0; i < 2; i++)
   {
     add_up_basis(
-      seg_upper,
-      seg_lower,
+      &seg_upper,
+      &seg_lower,
       d2b[4*i + col + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],
@@ -229,8 +229,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   for (var i: u32 = 0; i < 2; i++)
   {
     add_up_basis(
-      seg_upper,
-      seg_lower,
+      &seg_upper,
+      &seg_lower,
       d2b[4*i + col + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],

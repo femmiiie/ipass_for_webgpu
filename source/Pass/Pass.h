@@ -23,10 +23,9 @@ public:
 
   wgpu::Buffer CreateBuffer(uint64_t size, wgpu::BufferUsage usage, bool mapped = false);
 
-  wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, uint64_t minBindingSize);
-  wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility);
-  wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type);
-  wgpu::BindGroupLayoutEntry CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type);
+  wgpu::BindGroupLayoutEntry CreateTextureLayout(uint16_t binding, wgpu::ShaderStage visibility);
+  wgpu::BindGroupLayoutEntry CreateSamplerLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type);
+  wgpu::BindGroupLayoutEntry CreateBufferLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type, uint64_t minBindingSize);
   wgpu::BindGroupLayout CreateBindGroupLayout(std::vector<wgpu::BindGroupLayoutEntry> entries);
 
   wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer& buffer);

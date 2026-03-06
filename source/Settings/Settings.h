@@ -1,6 +1,8 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
+#include <functional>
+#include <vector>
 #include <variant>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -20,6 +22,7 @@ public:
   private:
     T value;
     bool needsUpdate = false;
+    std::vector<std::function<void(const T&)>> subscribers;
 
   public:
     Setting(T val) : value(val) {} 
@@ -29,12 +32,23 @@ public:
     T& modify()  {
       this->needsUpdate = true;
       return this->value;
-    }  
+    }
 
     bool observe() {
       bool state = this->needsUpdate;
       this->needsUpdate = false;
       return state;
+    }
+
+    void subscribe(std::function<void(const T&)> callback) {
+      this->subscribers.push_back(std::move(callback));
+    }
+
+    void notify() {
+      if (!this->needsUpdate) return;
+      this->needsUpdate = false;
+      for (auto& cb : this->subscribers)
+        cb(this->value);
     }
 
   };

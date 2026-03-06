@@ -1,0 +1,95 @@
+#include "iPass.h"
+#include "Utils.h"
+#include "Settings.h"
+#include <webgpu/webgpu.h>
+
+using Vertex = utils::Vertex3D;
+
+// placeholder vertex/patch counts
+// resize these buffers
+static constexpr uint32_t INITIAL_VERTEX_COUNT = 512;
+static constexpr uint32_t INITIAL_PATCH_COUNT  = 1024;
+
+iPass::iPass(Context& ctx) : ComputePass(ctx)
+{
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/ComputePass/ipass.wgsl");
+  if (!shaderModule)
+  {
+    throw new ComputePassException("Failed to load shader module.");
+  }
+
+  const wgpu::BufferUsage storageReadUsage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+  const wgpu::BufferUsage storageReadWriteUsage = storageReadUsage | wgpu::BufferUsage::CopySrc;
+
+  const uint64_t verticesSize = INITIAL_VERTEX_COUNT * sizeof(Vertex);
+  const uint64_t patchesSize  = INITIAL_PATCH_COUNT  * sizeof(float);
+
+  this->verticesBuffer = this->CreateBuffer(verticesSize, storageReadUsage, false);
+  this->patchesBuffer  = this->CreateBuffer(patchesSize,  storageReadWriteUsage, false);
+
+  std::vector<wgpu::BindGroupEntry> storageBindings = {
+    this->CreateBinding(0, this->verticesBuffer),
+    this->CreateBinding(1, this->patchesBuffer),
+  };
+
+  wgpu::BindGroupLayout storageLayout = this->CreateBindGroupLayout({
+    this->CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::ReadOnlyStorage, verticesSize),
+    this->CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Storage, patchesSize),
+  });
+
+  this->storageBindGroup = this->CreateBindGroup(storageBindings, storageLayout);
+
+
+  const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
+
+  wgpu::BindGroupLayout uniformLayout = this->CreateBindGroupLayout({
+    this->CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(glm::mat4))),
+    this->CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(uint32_t))),
+    this->CreateBufferLayout(2, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(float))),
+  });
+
+  this->mvpBuffer       = this->CreateBuffer(sizeof(MVP::GPUData), uniformUsage, false);
+  this->vertCountBuffer = this->CreateBuffer(sizeof(glm::u32), uniformUsage, false);
+  this->pixelSizeBuffer = this->CreateBuffer(sizeof(glm::f32), uniformUsage, false);
+
+  std::vector<wgpu::BindGroupEntry> uniformBindings = {
+    this->CreateBinding(0, this->mvpBuffer),
+    this->CreateBinding(1, this->vertCountBuffer),
+    this->CreateBinding(2, this->pixelSizeBuffer),
+  };
+
+  this->uniformBindGroup = this->CreateBindGroup(uniformBindings, uniformLayout);
+
+  const std::vector<wgpu::BindGroupLayout> bindGroupLayouts = { storageLayout, uniformLayout };
+
+  wgpu::PipelineLayoutDescriptor layoutDesc;
+  layoutDesc.bindGroupLayoutCount = 2;
+  layoutDesc.bindGroupLayouts = reinterpret_cast<WGPUBindGroupLayout const*>(bindGroupLayouts.data());
+
+  wgpu::PipelineLayout pipelineLayout = this->context.device.createPipelineLayout(layoutDesc);
+
+  wgpu::ComputePipelineDescriptor pipelineDesc;
+  pipelineDesc.layout = pipelineLayout;
+  pipelineDesc.compute.module = shaderModule;
+  pipelineDesc.compute.entryPoint = {"ipass", 5};
+  this->pipeline = this->context.device.createComputePipeline(pipelineDesc);
+
+  Settings::mvp.subscribe([this](const MVP& m) {
+    this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
+  });
+}
+
+iPass::~iPass()
+{
+  this->storageBindGroup.release();
+  this->uniformBindGroup.release();
+  this->layout.release();
+}
+
+void iPass::Execute(wgpu::ComputePassEncoder& encoder)
+{
+  encoder.setPipeline(this->pipeline);
+  encoder.setBindGroup(0, this->storageBindGroup, 0, nullptr);
+  encoder.setBindGroup(1, this->uniformBindGroup, 0, nullptr);
+  encoder.dispatchWorkgroups(1, 1, 1);
+}

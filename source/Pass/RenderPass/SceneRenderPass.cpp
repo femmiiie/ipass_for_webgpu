@@ -199,23 +199,25 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
 
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
 
-  std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts {
-    this->CreateBindingLayout(0, wgpu::ShaderStage(static_cast<WGPUShaderStage>(wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment)), utils::aligned_size(Settings::mvp.get().data)),
-    this->CreateBindingLayout(1, wgpu::ShaderStage::Fragment, utils::aligned_size(this->light)),
-  };
-  this->bindGroupLayout = this->CreateBindGroupLayout(bindingLayouts);
+  this->bindGroupLayout = this->CreateBindGroupLayout({
+    this->CreateBufferLayout(0, wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get().data)),
+    this->CreateBufferLayout(1, wgpu::ShaderStage::Fragment, wgpu::BufferBindingType::Uniform, utils::aligned_size(this->light)),
+  });
 
   this->mvpBuffer   = this->CreateBuffer(utils::aligned_size(Settings::mvp.get().data), uniformUsage);
   this->lightBuffer = this->CreateBuffer(utils::aligned_size(this->light), uniformUsage);
 
-  std::vector<wgpu::BindGroupEntry> bindings {
+  this->bindGroup = this->CreateBindGroup({
     this->CreateBinding(0, this->mvpBuffer),
     this->CreateBinding(1, this->lightBuffer)
-  };
-  this->bindGroup = this->CreateBindGroup(bindings);
+  });
 
   this->context.queue.writeBuffer(this->mvpBuffer, 0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
   this->context.queue.writeBuffer(this->lightBuffer, 0, &this->light, sizeof(Light));
+
+  Settings::mvp.subscribe([this](const MVP& m) {
+    this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
+  });
 
   this->InitializeRenderPipeline();
 }
@@ -249,8 +251,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   if (camera.consumeViewUpdate())
     Settings::mvp.modify().setView(camera.getViewMatrix());
 
-  if (Settings::mvp.observe())
-    context.queue.writeBuffer(mvpBuffer, 0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
+  Settings::mvp.notify();
 
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);

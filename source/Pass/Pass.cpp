@@ -9,17 +9,7 @@ wgpu::Buffer Pass::CreateBuffer(uint64_t size, wgpu::BufferUsage usage, bool map
   return this->context.device.createBuffer(desc);
 }
 
-wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, uint64_t minBindingSize)
-{
-  wgpu::BindGroupLayoutEntry entry;
-  entry.binding = binding;
-  entry.visibility = visibility;
-  entry.buffer.type = wgpu::BufferBindingType::Uniform;
-  entry.buffer.minBindingSize = minBindingSize;
-  return entry;
-}
-
-wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility)
+wgpu::BindGroupLayoutEntry Pass::CreateTextureLayout(uint16_t binding, wgpu::ShaderStage visibility)
 {
   wgpu::BindGroupLayoutEntry entry;
   entry.binding = binding;
@@ -29,12 +19,22 @@ wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::Sha
   return entry;
 }
 
-wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type)
+wgpu::BindGroupLayoutEntry Pass::CreateSamplerLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type)
 {
   wgpu::BindGroupLayoutEntry entry;
   entry.binding = binding;
   entry.visibility = visibility;
   entry.sampler.type = type;
+  return entry;
+}
+
+wgpu::BindGroupLayoutEntry Pass::CreateBufferLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type, uint64_t minBindingSize)
+{
+  wgpu::BindGroupLayoutEntry entry;
+  entry.binding = binding;
+  entry.visibility = visibility;
+  entry.buffer.type = type;
+  entry.buffer.minBindingSize = minBindingSize;
   return entry;
 }
 
@@ -60,15 +60,6 @@ wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::Sampler& sampler)
   binding.binding = entry;
   binding.sampler = sampler;
   return binding;
-}
-
-wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type)
-{
-  wgpu::BindGroupLayoutEntry entry;
-  entry.binding = binding;
-  entry.visibility = visibility;
-  entry.buffer.type = type;
-  return entry;
 }
 
 wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::Buffer& buffer)

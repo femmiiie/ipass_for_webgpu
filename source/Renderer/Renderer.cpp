@@ -3,10 +3,10 @@
 #include <vector>
 #include <cstring>
 
-
 #include "Renderer.h"
 #include "Camera.h"
 #include "Settings.h"
+#include "iPass.h"
 
 Renderer::Renderer()
 {
@@ -34,6 +34,9 @@ Renderer::Renderer()
 
   this->uiPass = new UIRenderPass(this->context);
   this->scenePass = new SceneRenderPass(this->context);
+  this->computePasses = {
+    new iPass(this->context)
+  };
 
   glfwSetWindowUserPointer(this->window, this);
   glfwSetFramebufferSizeCallback(this->window, [](GLFWwindow* w, int width, int height) {

@@ -11,6 +11,7 @@ void Settings::checkUpdates()
     prevRotation    = m.rotation;
     prevScale       = m.scale;
     mvp.modify().setModel();
+    mvp.notify();
   }
 
   if (clearColor != prevClearColor)
