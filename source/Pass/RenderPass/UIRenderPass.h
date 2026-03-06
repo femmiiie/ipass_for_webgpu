@@ -16,7 +16,6 @@ class UIRenderPass : public RenderPass
 {
 public:
 
-
   static constexpr uint32_t MAX_VERTEX_COUNT = 65536;
   static constexpr uint32_t MAX_INDEX_COUNT = 131072;
   static constexpr uint64_t MAX_VERTEX_BUFFER_SIZE = MAX_VERTEX_COUNT * sizeof(Vertex);

@@ -46,13 +46,6 @@ private:
   } light;
   wgpu::Buffer lightBuffer;
 
-  struct MVP
-  {
-    glm::mat4 M;
-    glm::mat4 M_inv;
-    glm::mat4 V;
-    glm::mat4 P;
-  } mvp;  
   wgpu::Buffer mvpBuffer;
 };
 

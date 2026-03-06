@@ -2,14 +2,15 @@
 
 void Settings::checkUpdates()
 {
-  if (translation != prevTranslation ||
-      rotation    != prevRotation    ||
-      scale       != prevScale)
+  MVP& m = mvp.get();
+  if (m.translation != prevTranslation ||
+      m.rotation    != prevRotation    ||
+      m.scale       != prevScale)
   {
-    transformNeedsUpdate  = true;
-    prevTranslation = translation;
-    prevRotation    = rotation;
-    prevScale       = scale;
+    prevTranslation = m.translation;
+    prevRotation    = m.rotation;
+    prevScale       = m.scale;
+    mvp.modify().setModel();
   }
 
   if (clearColor != prevClearColor)
@@ -17,18 +18,4 @@ void Settings::checkUpdates()
     clearColorNeedsUpdate = true;
     prevClearColor  = clearColor;
   }
-}
-
-bool Settings::resetTransformUpdate()
-{
-  bool d = transformNeedsUpdate;
-  transformNeedsUpdate = false;
-  return d;
-}
-
-bool Settings::resetClearColorUpdate()
-{
-  bool d = clearColorNeedsUpdate;
-  clearColorNeedsUpdate = false;
-  return d;
 }

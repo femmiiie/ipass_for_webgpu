@@ -191,7 +191,7 @@ void UIRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 
 void UIRenderPass::InitializeRenderPipeline()
 {
-  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "ui.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/RenderPass/ui.wgsl");
   if (!shaderModule)
   {
     throw new RenderPassException("Failed to load shader module.");
@@ -350,11 +350,10 @@ void UIRenderPass::RenderUI()
     
     nk_label(ctx, this->current_filename.c_str(), NK_TEXT_LEFT);
     if (nk_button_label(ctx, "Open File"))
-    {
-      //not adding utils::OpenFile here until the file type we accept is clarified
-    }
+      utils::OpenFile("BezierView File", "bv", [this](std::string s){Settings::parser.Parse(s);});
 
-    nk_checkbox_label(ctx, "Enable Tessellation", (nk_bool*)&Settings::tessEnabled);
+    if (nk_checkbox_label(ctx, "Enable Tessellation", (nk_bool*)&Settings::tessellation.get()))
+      Settings::tessellation.mark();
 
     nk_spacer(ctx);
 
@@ -363,33 +362,33 @@ void UIRenderPass::RenderUI()
       nk_layout_row_dynamic(ctx, 0, 2);
 
       nk_label(ctx, "Translation", NK_TEXT_RIGHT);
-      nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::translation.x, 1000.0f, 0.01f, 0.01f);
+      nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::mvp.get().translation.x, 1000.0f, 0.01f, 0.01f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::translation.y, 1000.0f, 0.01f, 0.01f);
+      nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::mvp.get().translation.y, 1000.0f, 0.01f, 0.01f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Trans Z:", -1000.0f, &Settings::translation.z, 1000.0f, 0.01f, 0.01f);
+      nk_property_float(ctx, "Trans Z:", -1000.0f, &Settings::mvp.get().translation.z, 1000.0f, 0.01f, 0.01f);
 
       nk_layout_row_static(ctx, 10, 0, 1);
       nk_spacer(ctx);
       nk_layout_row_dynamic(ctx, 0, 2);
 
       nk_label(ctx, "Rotation (degrees)", NK_TEXT_RIGHT);
-      nk_property_float(ctx, "Rot X:", -360.0f, &Settings::rotation.x, 360.0f, 1.0f, 0.5f);
+      nk_property_float(ctx, "Rot X:", -360.0f, &Settings::mvp.get().rotation.x, 360.0f, 1.0f, 0.5f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::rotation.y, 360.0f, 1.0f, 0.5f);
+      nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::mvp.get().rotation.y, 360.0f, 1.0f, 0.5f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Rot Z:", -360.0f, &Settings::rotation.z, 360.0f, 1.0f, 0.5f);
+      nk_property_float(ctx, "Rot Z:", -360.0f, &Settings::mvp.get().rotation.z, 360.0f, 1.0f, 0.5f);
 
       nk_layout_row_static(ctx, 10, 0, 1);
       nk_spacer(ctx);
       nk_layout_row_dynamic(ctx, 0, 2);
 
       nk_label(ctx, "Scale", NK_TEXT_RIGHT);
-      nk_property_float(ctx, "Scale X:", 0.001f, &Settings::scale.x, 1000.0f, 0.05f, 0.01f);
+      nk_property_float(ctx, "Scale X:", 0.001f, &Settings::mvp.get().scale.x, 1000.0f, 0.05f, 0.01f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::scale.y, 1000.0f, 0.05f, 0.01f);
+      nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::mvp.get().scale.y, 1000.0f, 0.05f, 0.01f);
       nk_spacer(ctx);
-      nk_property_float(ctx, "Scale Z:", 0.001f, &Settings::scale.z, 1000.0f, 0.05f, 0.01f);
+      nk_property_float(ctx, "Scale Z:", 0.001f, &Settings::mvp.get().scale.z, 1000.0f, 0.05f, 0.01f);
 
       nk_layout_row_static(ctx, 10, 0, 1);
       nk_spacer(ctx);
@@ -398,9 +397,9 @@ void UIRenderPass::RenderUI()
 
       if (nk_button_label(ctx, "Reset Transform"))
       {
-        Settings::translation = { 0.0f, 0.0f, 0.0f };
-        Settings::rotation    = { 0.0f, 0.0f, 0.0f };
-        Settings::scale       = { 1.0f, 1.0f, 1.0f };
+        Settings::mvp.get().translation = { 0.0f, 0.0f, 0.0f };
+        Settings::mvp.get().rotation    = { 0.0f, 0.0f, 0.0f };
+        Settings::mvp.get().scale       = { 1.0f, 1.0f, 1.0f };
       }
 
       nk_layout_row_static(ctx, 10, 0, 1);
@@ -411,7 +410,8 @@ void UIRenderPass::RenderUI()
 
     if (nk_tree_push(ctx, NK_TREE_TAB, "Profiling", NK_MINIMIZED))
     {
-      nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::showPerformanceWindow);
+      if (nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::perfWindow.get()))
+        Settings::perfWindow.mark();
       //extra settings, what to measure, etc.
       nk_tree_pop(ctx);
     }
@@ -419,7 +419,8 @@ void UIRenderPass::RenderUI()
     if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
     {
       nk_layout_row_dynamic(ctx, 0, 1);
-      nk_checkbox_label(ctx, "Wireframe", (nk_bool*)&Settings::wireframeEnabled);
+      if (nk_checkbox_label(ctx, "Wireframe", (nk_bool*)&Settings::wireframe.get()))
+        Settings::wireframe.mark();
      
       nk_label(ctx, "Background Color", NK_TEXT_LEFT);
 
@@ -442,7 +443,7 @@ void UIRenderPass::RenderUI()
   }
   nk_end(&this->uiContext);
 
-  if (Settings::showPerformanceWindow)
+  if (Settings::perfWindow.get())
   {
     char fpsBuf[64];
     std::snprintf(fpsBuf, sizeof(fpsBuf), "FPS: %.1f", this->context.performance.fps);

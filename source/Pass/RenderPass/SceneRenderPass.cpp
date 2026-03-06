@@ -6,7 +6,7 @@
 
 void SceneRenderPass::LoadOBJ()
 {
-  const std::string filepath = "C:/Users/Sandro/Personal/Downloads/objects/horse.obj"; // hardcoded - change as needed
+  const std::string filepath = "C:/Users/Sandro/Personal/Downloads/objects/icosahedron.obj"; // hardcoded - change as needed
 
   std::ifstream file(filepath);
   if (!file.is_open())
@@ -187,16 +187,9 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   this->LoadOBJ();
   this->CreateDepthTexture(context.size);
 
-  this->mvp = {
-    .M = glm::mat4(1),
-    .M_inv = glm::inverse(glm::mat4(1)),
-    .V = glm::lookAt(
-            glm::vec3(0, -2, 0),
-            glm::vec3(0, 0, 0),
-            glm::vec3(0, 1, 0)
-            ),
-    .P = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f)
-  };
+  Settings::mvp.modify().setModel();
+  Settings::mvp.modify().setLookAt(glm::vec3(0, -2, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+  Settings::mvp.modify().setPerspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 
   this->light = {
     .position = glm::vec4(-1.0f, 2.0f, 0.0f, 1.0f),
@@ -204,19 +197,24 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     .power = 1.0f
   };
 
+  const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
+
   std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts {
-    this->CreateBindingLayout(0, wgpu::ShaderStage(static_cast<WGPUShaderStage>(wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment)), utils::aligned_size(this->mvp)),
+    this->CreateBindingLayout(0, wgpu::ShaderStage(static_cast<WGPUShaderStage>(wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment)), utils::aligned_size(Settings::mvp.get().data)),
     this->CreateBindingLayout(1, wgpu::ShaderStage::Fragment, utils::aligned_size(this->light)),
   };
   this->bindGroupLayout = this->CreateBindGroupLayout(bindingLayouts);
 
+  this->mvpBuffer   = this->CreateBuffer(utils::aligned_size(Settings::mvp.get().data), uniformUsage);
+  this->lightBuffer = this->CreateBuffer(utils::aligned_size(this->light), uniformUsage);
+
   std::vector<wgpu::BindGroupEntry> bindings {
-    this->CreateBinding(0, this->mvpBuffer, utils::aligned_size(this->mvp)),
-    this->CreateBinding(1, this->lightBuffer, utils::aligned_size(this->light))
+    this->CreateBinding(0, this->mvpBuffer),
+    this->CreateBinding(1, this->lightBuffer)
   };
   this->bindGroup = this->CreateBindGroup(bindings);
 
-  this->context.queue.writeBuffer(this->mvpBuffer, 0, &this->mvp, sizeof(MVP));
+  this->context.queue.writeBuffer(this->mvpBuffer, 0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
   this->context.queue.writeBuffer(this->lightBuffer, 0, &this->light, sizeof(Light));
 
   this->InitializeRenderPipeline();
@@ -237,47 +235,27 @@ SceneRenderPass::~SceneRenderPass()
 
 void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
 {
-  bool mvpNeedsUpdate = false;
-
   const Context::Viewport& vp = context.sceneViewport;
   encoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0f, 1.0f);
   encoder.setScissorRect((uint32_t)vp.x, (uint32_t)vp.y,
                          (uint32_t)vp.width, (uint32_t)vp.height);
 
-  if (Settings::resetTransformUpdate())
-  {
-    glm::mat4 T  = glm::translate(glm::mat4(1.0f), Settings::translation);
-    glm::mat4 Rx = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.x), glm::vec3(1, 0, 0));
-    glm::mat4 Ry = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.y), glm::vec3(0, 1, 0));
-    glm::mat4 Rz = glm::rotate(glm::mat4(1.0f), glm::radians(Settings::rotation.z), glm::vec3(0, 0, 1));
-    glm::mat4 S  = glm::scale(glm::mat4(1.0f), Settings::scale);
-    mvp.M     = T * Rz * Ry * Rx * S;
-    mvp.M_inv = glm::inverse(mvp.M);
-    mvpNeedsUpdate  = true;
-  }
-
   if (camera.requiresUpdate())
   {
     camera.update();
-    mvp.P = camera.getProjectionMatrix();
-    mvpNeedsUpdate = true;
+    Settings::mvp.modify().setProjection(camera.getProjectionMatrix());
   }
 
   if (camera.consumeViewUpdate())
-  {
-    mvp.V = camera.getViewMatrix();
-    mvpNeedsUpdate = true;
-  }
+    Settings::mvp.modify().setView(camera.getViewMatrix());
 
-  if (mvpNeedsUpdate)
-  {
-    context.queue.writeBuffer(mvpBuffer, 0, &mvp, sizeof(MVP));
-  }
+  if (Settings::mvp.observe())
+    context.queue.writeBuffer(mvpBuffer, 0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
 
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
 
-  if (Settings::wireframeEnabled)
+  if (Settings::wireframe.get())
   {
     encoder.setPipeline(this->wireframePipeline);
     encoder.setIndexBuffer(this->wireframeIndexBuffer, wgpu::IndexFormat::Uint32, 0, this->wireframeIndexBuffer.getSize());
@@ -300,7 +278,7 @@ void SceneRenderPass::OnResize(glm::uvec2 size)
 
 void SceneRenderPass::InitializeRenderPipeline()
 {
-  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "shader.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/RenderPass/scene.wgsl");
   if (!shaderModule)
   {
     throw new RenderPassException("Failed to load shader module.");
