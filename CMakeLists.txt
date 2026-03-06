@@ -156,16 +156,29 @@ if(EMSCRIPTEN)
 endif()
 
 # Copy shader files to output directory
-file(GLOB SHADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/source/*.wgsl")
+file(GLOB_RECURSE SHADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/source/*.wgsl")
+
+set(SHADER_STAMP_DIR "${CMAKE_BINARY_DIR}/shader_stamps")
+set(SHADER_STAMP_FILES "")
 
 foreach(SHADER_FILE ${SHADER_FILES})
-  add_custom_command(TARGET ipass_webgpu POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${SHADER_FILE}"
-    "$<TARGET_FILE_DIR:ipass_webgpu>"
-    COMMENT "Copying shader file: ${SHADER_FILE}"
+  file(RELATIVE_PATH SHADER_RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/source" "${SHADER_FILE}")
+  string(REPLACE "/" "_" SHADER_STAMP_NAME "${SHADER_RELATIVE}")
+  set(STAMP_FILE "${SHADER_STAMP_DIR}/${SHADER_STAMP_NAME}.stamp")
+
+  add_custom_command(
+    OUTPUT "${STAMP_FILE}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy "${SHADER_FILE}" "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${STAMP_FILE}"
+    DEPENDS "${SHADER_FILE}"
+    COMMENT "Copying shader: ${SHADER_RELATIVE}"
   )
+  list(APPEND SHADER_STAMP_FILES "${STAMP_FILE}")
 endforeach()
+
+add_custom_target(copy_shaders ALL DEPENDS ${SHADER_STAMP_FILES})
+add_dependencies(ipass_webgpu copy_shaders)
 
 target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::glm)
 if(NOT EMSCRIPTEN)
