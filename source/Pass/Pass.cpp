@@ -46,22 +46,6 @@ wgpu::BindGroupLayout Pass::CreateBindGroupLayout(std::vector<wgpu::BindGroupLay
   return this->context.device.createBindGroupLayout(desc);
 }
 
-wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::Buffer& buffer, glm::u32 size)
-{
-  buffer = this->CreateBuffer(
-    size,
-    wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform)),
-    false
-  );
-
-  wgpu::BindGroupEntry binding = wgpu::Default;
-  binding.binding = entry;
-  binding.buffer = buffer;
-  binding.offset = 0;
-  binding.size = size;
-  return binding;
-}
-
 wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::TextureView& view)
 {
   wgpu::BindGroupEntry binding = wgpu::Default;
@@ -87,15 +71,13 @@ wgpu::BindGroupLayoutEntry Pass::CreateBindingLayout(uint16_t binding, wgpu::Sha
   return entry;
 }
 
-wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::Buffer& buffer, uint64_t size, wgpu::BufferUsage usage)
+wgpu::BindGroupEntry Pass::CreateBinding(uint16_t entry, wgpu::Buffer& buffer)
 {
-  buffer = this->CreateBuffer(size, usage, false);
-
   wgpu::BindGroupEntry binding = wgpu::Default;
   binding.binding = entry;
   binding.buffer = buffer;
   binding.offset = 0;
-  binding.size = size;
+  binding.size = WGPU_WHOLE_SIZE;
   return binding;
 }
 
