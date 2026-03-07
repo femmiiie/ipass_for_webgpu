@@ -301,6 +301,11 @@ void UIRenderPass::InitSampler()
   this->sampler = this->context.device.createSampler(samplerDesc);
 }
 
+void UIRenderPass::SetDebugData(const std::vector<float>& data)
+{
+  this->debugData = data;
+}
+
 void UIRenderPass::UpdateProjection(glm::uvec2 size)
 {
   this->context.size = size;
@@ -350,7 +355,10 @@ void UIRenderPass::RenderUI()
     
     nk_label(ctx, this->current_filename.c_str(), NK_TEXT_LEFT);
     if (nk_button_label(ctx, "Open File"))
-      utils::OpenFile("BezierView File", "bv", [this](std::string s){Settings::parser.Parse(s);});
+      utils::OpenFile("BezierView File", "bv", [](std::string s){
+        Settings::parser.modify().Parse(s);
+        Settings::parser.notify();
+      });
 
     if (nk_checkbox_label(ctx, "Enable Tessellation", (nk_bool*)&Settings::tessellation.get()))
       Settings::tessellation.mark();
@@ -416,6 +424,32 @@ void UIRenderPass::RenderUI()
     {
       nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::perfWindow.get());
       //extra settings, what to measure, etc.
+      nk_tree_pop(ctx);
+    }
+
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Debug Output", NK_MINIMIZED))
+    {
+      nk_layout_row_dynamic(ctx, 0, 1);
+      if (this->debugData.empty())
+      {
+        nk_label(ctx, "No data available", NK_TEXT_LEFT);
+      }
+      else
+      {
+        char buf[64];
+        constexpr size_t MAX_DISPLAY = 256;
+        size_t displayCount = std::min(this->debugData.size(), MAX_DISPLAY);
+        for (size_t i = 0; i < displayCount; ++i)
+        {
+          std::snprintf(buf, sizeof(buf), "[%3zu]: %f", i, this->debugData[i]);
+          nk_label(ctx, buf, NK_TEXT_LEFT);
+        }
+        if (this->debugData.size() > MAX_DISPLAY)
+        {
+          std::snprintf(buf, sizeof(buf), "... (%zu more)", this->debugData.size() - MAX_DISPLAY);
+          nk_label(ctx, buf, NK_TEXT_LEFT);
+        }
+      }
       nk_tree_pop(ctx);
     }
 

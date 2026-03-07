@@ -1,129 +1,73 @@
 #include "SceneRenderPass.h"
+#include "Settings.h"
 
-#include <array>
-#include <fstream>
-#include <sstream>
+#include <cmath>
 
-void SceneRenderPass::LoadOBJ()
+void SceneRenderPass::LoadBV(const BVParser& parser)
 {
-  const std::string filepath = "C:/Users/Sandro/Personal/Downloads/objects/icosahedron.obj"; // hardcoded - change as needed
-
-  std::ifstream file(filepath);
-  if (!file.is_open())
-  {
-    std::cerr << "[LoadOBJ] Failed to open: " << filepath << std::endl;
-    return;
-  }
-
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec3> normals;
-  std::vector<glm::vec2> texcoords;
-  std::vector<std::vector<std::array<int,3>>> faces;
+  const std::vector<Patch>& patches = parser.Get();
+  const std::vector<std::pair<glm::u32,glm::u32>>& dims = parser.GetDims();
 
   std::vector<glm::f32> vertexData;
 
-  std::string line;
-  while (std::getline(file, line))
+  for (size_t patchIdx = 0; patchIdx < patches.size(); patchIdx++)
   {
-    std::istringstream ss(line);
-    std::string token;
-    ss >> token;
+    const Patch& patch = patches[patchIdx];
+    if (patch.empty()) continue;
 
-    if (token == "v")
-    {
-      glm::vec3 p;
-      ss >> p.x >> p.y >> p.z;
-      positions.push_back(p);
-    }
-    else if (token == "vn")
-    {
-      glm::vec3 n;
-      ss >> n.x >> n.y >> n.z;
-      normals.push_back(n);
-    }
-    else if (token == "vt")
-    {
-      glm::vec2 uv;
-      ss >> uv.x >> uv.y;
-      texcoords.push_back(uv);
-    }
-    else if (token == "f")
-    {
-      // Collect face corners, then fan-triangulate
-      std::vector<std::array<int,3>> corners; // [posIdx, uvIdx, normIdx] (0-based, -1 if absent)
-      std::string corner;
-      while (ss >> corner)
-      {
-        std::array<int, 3> idx {-1, -1, -1};
-        std::istringstream cs(corner);
-        std::string part;
-        int slot = 0;
-        while (std::getline(cs, part, '/') && slot < 3)
-        {
-          if (!part.empty()) idx[slot] = std::stoi(part) - 1;
-          slot++;
-        }
-        corners.push_back(idx);
-      }
-      faces.push_back(corners);
-    }
-  }
+    // Use stored grid dimensions from the parser
+    glm::u32 rows = dims[patchIdx].first;
+    glm::u32 cols = dims[patchIdx].second;
+    if (rows < 2 || cols < 2) continue; // skip degenerate patches
 
-  // If the file had no vn lines, compute smooth normals from face geometry
-  if (normals.empty() && !positions.empty())
-  {
-    normals.resize(positions.size(), glm::vec3(0.0f));
-    for (const auto& corners : faces)
+    auto getVert = [&](glm::u32 r, glm::u32 c) -> const utils::Vertex3D& {
+      return patch[r * cols + c];
+    };
+
+    // Triangulate: each quad cell (i,j) -> two CCW triangles
+    for (glm::u32 i = 0; i + 1 < rows; i++)
     {
-      // Fan-triangulate and accumulate face normals onto each position
-      for (size_t i = 1; i + 1 < corners.size(); i++)
+      for (glm::u32 j = 0; j + 1 < cols; j++)
       {
-        int i0 = corners[0][0], i1 = corners[i][0], i2 = corners[i+1][0];
-        if (i0 < 0 || i1 < 0 || i2 < 0) continue;
-        glm::vec3 edge1 = positions[i1] - positions[i0];
-        glm::vec3 edge2 = positions[i2] - positions[i0];
-        glm::vec3 faceNormal = glm::cross(edge1, edge2); // weighted by area
-        normals[i0] += faceNormal;
-        normals[i1] += faceNormal;
-        normals[i2] += faceNormal;
+        const utils::Vertex3D& tl = getVert(i,     j);
+        const utils::Vertex3D& tr = getVert(i,     j + 1);
+        const utils::Vertex3D& bl = getVert(i + 1, j);
+        const utils::Vertex3D& br = getVert(i + 1, j + 1);
+
+        glm::vec3 ptl = glm::vec3(tl.pos);
+        glm::vec3 ptr_ = glm::vec3(tr.pos);
+        glm::vec3 pbl = glm::vec3(bl.pos);
+        glm::vec3 pbr = glm::vec3(br.pos);
+
+        // Triangle 1: tl, tr, br  |  Triangle 2: tl, br, bl
+        glm::vec3 e1a = ptr_ - ptl, e1b = pbr - ptl;
+        glm::vec3 n1 = glm::cross(e1a, e1b);
+        if (glm::length(n1) > 0.0f) n1 = glm::normalize(n1);
+
+        glm::vec3 e2a = pbr - ptl, e2b = pbl - ptl;
+        glm::vec3 n2 = glm::cross(e2a, e2b);
+        if (glm::length(n2) > 0.0f) n2 = glm::normalize(n2);
+
+        // pos(xyzw) normal(xyzw) color(rgba) uv(uv) — 14 floats per vertex
+        auto pushVert = [&](const utils::Vertex3D& v, const glm::vec3& normal) {
+          vertexData.insert(vertexData.end(), {
+            v.pos.x,   v.pos.y,   v.pos.z,   v.pos.w,
+            normal.x,  normal.y,  normal.z,  0.0f,
+            v.color.r, v.color.g, v.color.b, v.color.a,
+            v.tex.x,   v.tex.y
+          });
+        };
+
+        pushVert(tl, n1); pushVert(tr, n1); pushVert(br, n1); // tri 1
+        pushVert(tl, n2); pushVert(br, n2); pushVert(bl, n2); // tri 2
       }
     }
-    for (auto& n : normals) { if (glm::length(n) > 0.0f) n = glm::normalize(n); }
-  }
-
-  for (const auto& corners : faces)
-  {
-      auto pushVertex = [&](const std::array<int,3>& c)
-      {
-        glm::vec3 pos = (c[0] >= 0 && c[0] < (int)positions.size()) ? positions[c[0]] : glm::vec3(0);
-        glm::vec2 uv  = (c[1] >= 0 && c[1] < (int)texcoords.size()) ? texcoords[c[1]] : glm::vec2(0);
-        // if file had vn, use them; otherwise use the computed smooth normal keyed by position index
-        glm::vec3 nrm;
-        if (c[2] >= 0 && c[2] < (int)normals.size())
-          nrm = normals[c[2]];
-        else if (c[0] >= 0 && c[0] < (int)normals.size())
-          nrm = normals[c[0]];
-        else
-          nrm = glm::vec3(0, 0, 1);
-        // pos(xyzw) normal(xyzw) color(rgba) uv(uv)
-        vertexData.insert(vertexData.end(), { pos.x, pos.y, pos.z, 1.0f,
-                                              nrm.x, nrm.y, nrm.z, 0.0f,
-                                              1.0f, 1.0f, 1.0f, 1.0f,
-                                              uv.x, uv.y });
-      };
-
-      // Fan triangulation: (0,1,2), (0,2,3), ...
-      for (size_t i = 1; i + 1 < corners.size(); i++)
-      {
-        pushVertex(corners[0]);
-        pushVertex(corners[i]);
-        pushVertex(corners[i + 1]);
-      }
   }
 
   if (vertexData.empty())
   {
-    std::cerr << "[LoadOBJ] No vertex data parsed from: " << filepath << std::endl;
+    std::cerr << "[LoadBV] No vertex data generated (no valid patches)." << std::endl;
+    this->vertexCount = 0;
     return;
   }
 
@@ -165,7 +109,7 @@ void SceneRenderPass::LoadOBJ()
   );
   this->context.queue.writeBuffer(this->wireframeIndexBuffer, 0, wireframeIndices.data(), wireframeIndices.size() * sizeof(glm::u32));
 
-  std::cout << "[LoadOBJ] Loaded " << this->vertexCount << " vertices from " << filepath << std::endl;
+  std::cout << "[LoadBV] Generated " << this->vertexCount << " vertices from " << patches.size() << " patches." << std::endl;
 }
 
 SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
@@ -184,7 +128,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     [this](int action, int mods) { camera.OnMouseButton(action, mods); }
   );
 
-  this->LoadOBJ();
+  this->LoadBV(Settings::parser.get());
   this->CreateDepthTexture(context.size);
 
   Settings::mvp.modify().setModel();
@@ -217,6 +161,10 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
 
   Settings::mvp.subscribe([this](const MVP& m) {
     this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
+  });
+
+  Settings::parser.subscribe([this](const BVParser& p) {
+    this->LoadBV(p);
   });
 
   this->InitializeRenderPipeline();
@@ -252,6 +200,8 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
     Settings::mvp.modify().setView(camera.getViewMatrix());
 
   Settings::mvp.notify();
+
+  if (!this->vertexBuffer || this->vertexCount == 0) return;
 
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
@@ -316,7 +266,7 @@ void SceneRenderPass::InitializeRenderPipeline()
 
   pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
   pipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
-  pipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
+  pipelineDesc.primitive.frontFace = wgpu::FrontFace::CW;
   pipelineDesc.primitive.cullMode = wgpu::CullMode::Back;
 
   wgpu::BlendState blend = this->GetBlendState();

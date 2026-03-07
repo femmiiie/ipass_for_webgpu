@@ -18,6 +18,7 @@
 #include <string>
 #include <exception>
 #include <functional>
+#include <optional>
 
 #include "Context.h"
 #include "ComputePass.h"
@@ -55,10 +56,20 @@ private:
   std::vector<ComputePass*> computePasses;
 
   void UpdateSceneViewport();
-
+  wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,
+    wgpu::RenderPassColorAttachment& colorAttachment,
+    wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment);
   void Initialize();
   void ConfigureSurface();
   void GetSurfaceFormat();
+
+  struct DebugInspect {
+    wgpu::Buffer buffer;
+    uint64_t size = 0;
+  };
+  std::optional<DebugInspect> pendingDebugInspect;
+  bool debugMapped = false;
+  std::vector<float> debugReadback;
 };
 
 class RendererException : public std::exception

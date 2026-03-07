@@ -37,6 +37,7 @@ public:
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
   nk_context* getUIContext() { return &uiContext; }
+  void SetDebugData(const std::vector<float>& data);
 
 private:
   nk_context uiContext;
@@ -48,6 +49,7 @@ private:
   nk_font* scaledFont = nullptr;
 
   std::string current_filename = "No Object Loaded";
+  std::vector<float> debugData;
 
   glm::uvec2 lastScreenSize = glm::uvec2(0, 0);
   bool screenResized = false;

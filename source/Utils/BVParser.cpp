@@ -1,23 +1,26 @@
 #include "BVParser.h"
 
-std::vector<Patch> BVParser::Get() { return this->patches; }
+const std::vector<Patch>& BVParser::Get() const { return this->patches; }
+const std::vector<std::pair<glm::u32,glm::u32>>& BVParser::GetDims() const { return this->dims; }
 
 using utils::Vertex3D;
-std::vector<Vertex3D> BVParser::GetFlat()
+const std::vector<Vertex3D> BVParser::GetFlat() const
 {
   std::vector<Vertex3D> vec;
-  for (Patch& patch : this->patches) { vec.insert(vec.end(), patch.begin(), patch.end()); }
+  for (Patch patch : this->patches) { vec.insert(vec.end(), patch.begin(), patch.end()); }
   return vec;
 }
 
 void BVParser::Parse(std::string filepath)
 {
   this->patches.clear();
+  this->dims.clear();
   this->file = std::ifstream(filepath);
   //check opens properly?
 
   while (!this->file.eof()) { this->ParsePatch(); }
-  this->patches.emplace_back(Patch());
+  // this->patches.emplace_back(Patch());
+  // this->dims.emplace_back(0, 0);
 }
 
 void BVParser::ParsePatch()
@@ -52,6 +55,7 @@ void BVParser::ParseRectTensorPatch()
 
 void BVParser::ParseTensorPatch(glm::u32 degU, glm::u32 degV)
 {
+  this->dims.emplace_back(degU + 1, degV + 1);
   Patch patch;
   for (glm::u32 i = 0; i <= degU; i++)
   {

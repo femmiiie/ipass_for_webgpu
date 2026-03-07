@@ -2,6 +2,7 @@
 #define BVPARSER_H_
 
 #include <vector>
+#include <utility>
 #include <fstream>
 #include <iostream>
 
@@ -16,15 +17,17 @@ class BVParser
 {
 public:
 
-  BVParser() {};
+  // BVParser() {};
   void Parse(std::string filepath);
-  std::vector<Patch>    Get();
-  std::vector<Vertex3D> GetFlat();
+  const std::vector<Patch>&    Get() const;
+  const std::vector<Vertex3D> GetFlat() const;
+  const std::vector<std::pair<glm::u32,glm::u32>>& GetDims() const;
 
 
 private:  
   std::ifstream file;
   std::vector<Patch> patches;
+  std::vector<std::pair<glm::u32,glm::u32>> dims;
 
   void ParsePatch();
   // void ParsePolyhedron();

@@ -19,7 +19,7 @@ public:
   void OnResize(glm::uvec2 size);
 
   void InitializeRenderPipeline();
-  void LoadOBJ();
+  void LoadBV(const BVParser& parser);
 
   wgpu::TextureView GetDepthTextureView() { return this->depthTextureView; }
 

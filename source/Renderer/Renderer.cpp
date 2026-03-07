@@ -216,6 +216,23 @@ void Renderer::MainLoop()
   this->context.tick();
   Settings::checkUpdates();
 
+  // --- Process previous frame's debug readback ---
+  if (this->pendingDebugInspect.has_value() && this->debugMapped)
+  {
+    auto& di = this->pendingDebugInspect.value();
+    const void* mapped = di.buffer.getMappedRange(0, di.size);
+    if (mapped)
+    {
+      const float* data = static_cast<const float*>(mapped);
+      this->debugReadback.assign(data, data + di.size / sizeof(float));
+      this->uiPass->SetDebugData(this->debugReadback);
+    }
+    di.buffer.unmap();
+    di.buffer.release();
+    this->pendingDebugInspect.reset();
+    this->debugMapped = false;
+  }
+
   wgpu::TextureView targetView = this->GetNextTextureView();
   if (!targetView) { return; }
 
@@ -227,45 +244,36 @@ void Renderer::MainLoop()
   computePassDesc.timestampWrites = nullptr;
   wgpu::ComputePassEncoder computeEncoder = encoder.beginComputePass(computePassDesc);
 
+  struct OutputRef { wgpu::Buffer* buffer; uint64_t size; };
+  std::vector<OutputRef> debugOutputs;
+
   for (ComputePass* pass : this->computePasses)
   {
-    pass->Execute(computeEncoder);
+    wgpu::Buffer& buffer = pass->Execute(computeEncoder);
+
+    debugOutputs.push_back({&buffer, buffer.getSize()});
   }
 
   computeEncoder.end();
   computeEncoder.release();
 
+  wgpu::Buffer stagingBuffer;
+  uint64_t stagingSize = 0;
+  if (!debugOutputs.empty() && !this->pendingDebugInspect.has_value())
+  {
+    stagingSize = debugOutputs[0].size;
+    wgpu::BufferDescriptor desc;
+    desc.size = stagingSize;
+    desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
+    desc.mappedAtCreation = false;
+    stagingBuffer = this->context.device.createBuffer(desc);
+    encoder.copyBufferToBuffer(*debugOutputs[0].buffer, 0, stagingBuffer, 0, stagingSize);
+  }
 
-  wgpu::RenderPassColorAttachment renderPassColorAttachment;
-  renderPassColorAttachment.view = targetView;
-  renderPassColorAttachment.resolveTarget = nullptr;
-  renderPassColorAttachment.loadOp = wgpu::LoadOp::Clear;
-  renderPassColorAttachment.storeOp = wgpu::StoreOp::Store;
-  renderPassColorAttachment.clearValue = WGPUColor{
-    Settings::clearColor.r, 
-    Settings::clearColor.g, 
-    Settings::clearColor.b, 
-    Settings::clearColor.a
-  };
-#ifndef WEBGPU_BACKEND_WGPU
-  renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-#endif // NOT WEBGPU_BACKEND_WGPU
 
-  wgpu::RenderPassDescriptor renderPassDesc;
-  renderPassDesc.colorAttachmentCount = 1;
-  renderPassDesc.colorAttachments = &renderPassColorAttachment;
+  wgpu::RenderPassColorAttachment colorAttachment;
   wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
-  depthStencilAttachment.view              = this->scenePass->GetDepthTextureView();
-  depthStencilAttachment.depthLoadOp       = wgpu::LoadOp::Clear;
-  depthStencilAttachment.depthStoreOp      = wgpu::StoreOp::Store;
-  depthStencilAttachment.depthClearValue   = 1.0f;
-  depthStencilAttachment.depthReadOnly     = false;
-  depthStencilAttachment.stencilLoadOp     = wgpu::LoadOp::Undefined;
-  depthStencilAttachment.stencilStoreOp    = wgpu::StoreOp::Undefined;
-  depthStencilAttachment.stencilReadOnly   = true;
-
-  renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
-  renderPassDesc.timestampWrites = nullptr;
+  wgpu::RenderPassDescriptor renderPassDesc = this->GetRenderDescriptor(targetView, colorAttachment, depthStencilAttachment);
   wgpu::RenderPassEncoder renderEncoder = encoder.beginRenderPass(renderPassDesc);
 
   this->scenePass->Execute(renderEncoder);
@@ -287,9 +295,69 @@ void Renderer::MainLoop()
   this->context.queue.submit(1, &command);
   command.release();
 
+  // Initiate async readback after submission
+  // The DevicePoll() call below will trigger the callback when the GPU finishes
+  if (stagingSize > 0)
+  {
+    this->pendingDebugInspect = DebugInspect{stagingBuffer, stagingSize};
+    bool* mappedFlag = &this->debugMapped;
+    wgpu::BufferMapCallbackInfo callbackInfo;
+    callbackInfo.nextInChain = nullptr;
+    callbackInfo.mode = wgpu::CallbackMode::AllowProcessEvents;
+    callbackInfo.userdata1 = mappedFlag;
+    callbackInfo.userdata2 = nullptr;
+    callbackInfo.callback = [](
+      WGPUMapAsyncStatus status,
+      WGPUStringView /*message*/,
+      void* userdata1,
+      void* /*userdata2*/
+    ) {
+      bool* flag = static_cast<bool*>(userdata1);
+      *flag = (status == WGPUMapAsyncStatus_Success);
+    };
+    this->pendingDebugInspect.value().buffer.mapAsync(
+      wgpu::MapMode::Read, 0, stagingSize, callbackInfo
+    );
+  }
+
   targetView.release();
   this->Present();
   this->DevicePoll();
 
   this->context.measure();
+}
+
+wgpu::RenderPassDescriptor Renderer::GetRenderDescriptor(wgpu::TextureView& view,
+  wgpu::RenderPassColorAttachment& renderPassColorAttachment,
+  wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment)
+{
+  renderPassColorAttachment.view = view;
+  renderPassColorAttachment.resolveTarget = nullptr;
+  renderPassColorAttachment.loadOp = wgpu::LoadOp::Clear;
+  renderPassColorAttachment.storeOp = wgpu::StoreOp::Store;
+  renderPassColorAttachment.clearValue = WGPUColor{
+    Settings::clearColor.r, 
+    Settings::clearColor.g, 
+    Settings::clearColor.b, 
+    Settings::clearColor.a
+  };
+#ifndef WEBGPU_BACKEND_WGPU
+  renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif // NOT WEBGPU_BACKEND_WGPU
+
+  depthStencilAttachment.view              = this->scenePass->GetDepthTextureView();
+  depthStencilAttachment.depthLoadOp       = wgpu::LoadOp::Clear;
+  depthStencilAttachment.depthStoreOp      = wgpu::StoreOp::Store;
+  depthStencilAttachment.depthClearValue   = 1.0f;
+  depthStencilAttachment.depthReadOnly     = false;
+  depthStencilAttachment.stencilLoadOp     = wgpu::LoadOp::Undefined;
+  depthStencilAttachment.stencilStoreOp    = wgpu::StoreOp::Undefined;
+  depthStencilAttachment.stencilReadOnly   = true;
+
+  wgpu::RenderPassDescriptor renderPassDesc;
+  renderPassDesc.colorAttachmentCount = 1;
+  renderPassDesc.colorAttachments = &renderPassColorAttachment;
+  renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+  renderPassDesc.timestampWrites = nullptr;
+  return renderPassDesc;
 }

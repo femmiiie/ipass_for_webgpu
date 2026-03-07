@@ -14,8 +14,6 @@
 class Settings
 {
 public:
-  static inline BVParser parser;
-
   template<typename T>
   struct Setting
   {
@@ -25,6 +23,7 @@ public:
     std::vector<std::function<void(const T&)>> subscribers;
 
   public:
+    Setting() {};
     Setting(T val) : value(val) {} 
     T& get() { return this->value; }
     void mark() { this->needsUpdate = true; }
@@ -57,7 +56,10 @@ public:
   static inline Setting<bool> tessellation = {false};
   static inline Setting<bool> perfWindow   = {false};
 
-  static inline Setting<MVP> mvp = {MVP()};  // use modify()/observe()/get().data
+  static inline Setting<BVParser> parser;
+
+
+  static inline Setting<MVP> mvp = {MVP()};
 
   static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
 
