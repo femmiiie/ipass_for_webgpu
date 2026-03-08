@@ -4,13 +4,13 @@
 #include "ComputePass.h"
 
 
-class iPass : public ComputePass
+class IPass : public ComputePass
 {
 public:
   const int MAX_PATCHES = 65536; //double check this
 
-  iPass(Context& ctx);
-  ~iPass();
+  IPass(Context& ctx);
+  ~IPass();
   wgpu::Buffer& Execute(wgpu::ComputePassEncoder& pass) override;
 
   // group 0 storage buffers

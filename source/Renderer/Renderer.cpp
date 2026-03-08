@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "Settings.h"
 #include "iPass.h"
+#include "TessellatorPass.h"
 
 Renderer::Renderer()
 {
@@ -15,7 +16,7 @@ Renderer::Renderer()
     throw RendererException("Failed to initialize GLFW!");
   }
 
-  //sets initial size to 2/3 monitor resolution
+  // sets initial size to 2/3 monitor resolution
   const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
   this->context.size = glm::uvec2(mode->width / 1.5, mode->height / 1.5);
 
@@ -29,14 +30,34 @@ Renderer::Renderer()
 
   this->Initialize();
 
-  // Compute the initial scene viewport (to the right of the UI panel).
+  // compute initial viewport (to the right of the ui panel)
   this->UpdateSceneViewport();
 
-  this->uiPass = new UIRenderPass(this->context);
+  this->iPass = new IPass(this->context);
+  this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer);
   this->scenePass = new SceneRenderPass(this->context);
-  this->computePasses = {
-    new iPass(this->context)
+  this->uiPass = new UIRenderPass(this->context);
+
+  this->tessPass->onGeometryReady = [this](wgpu::Buffer buf, uint32_t count) {
+    this->tessGPUBuffer = buf;
+    this->tessGPUCount  = count;
+    if (Settings::tessellation.get())
+      this->scenePass->UseGPUTessellated(buf, count);
   };
+
+  // swap active vertex buffer for tessellation setting toggle
+  Settings::tessellation.subscribe([this](const bool& enabled) {
+    this->pendingBufferSwap = [this, enabled]() {
+      if (enabled && this->tessGPUBuffer && this->tessGPUCount > 0)
+        this->scenePass->UseGPUTessellated(this->tessGPUBuffer, this->tessGPUCount);
+      else
+        this->scenePass->LoadBV(Settings::parser.get());
+    };
+  });
+
+  if (!Settings::parser.get().Get().empty()) {
+    this->tessPass->LoadBV(Settings::parser.get());
+  }
 
   glfwSetWindowUserPointer(this->window, this);
   glfwSetFramebufferSizeCallback(this->window, [](GLFWwindow* w, int width, int height) {
@@ -51,8 +72,10 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
-  delete this->uiPass;
+  delete this->iPass;
+  delete this->tessPass;
   delete this->scenePass;
+  delete this->uiPass;
 
   glfwDestroyWindow(this->window);
   glfwTerminate();
@@ -216,7 +239,11 @@ void Renderer::MainLoop()
   this->context.tick();
   Settings::checkUpdates();
 
-  // --- Process previous frame's debug readback ---
+  if (this->pendingBufferSwap) {
+    this->pendingBufferSwap();
+    this->pendingBufferSwap = nullptr;
+  }
+
   if (this->pendingDebugInspect.has_value() && this->debugMapped)
   {
     auto& di = this->pendingDebugInspect.value();
@@ -247,15 +274,16 @@ void Renderer::MainLoop()
   struct OutputRef { wgpu::Buffer* buffer; uint64_t size; };
   std::vector<OutputRef> debugOutputs;
 
-  for (ComputePass* pass : this->computePasses)
-  {
-    wgpu::Buffer& buffer = pass->Execute(computeEncoder);
-
-    debugOutputs.push_back({&buffer, buffer.getSize()});
-  }
+  wgpu::Buffer& buffer = this->iPass->Execute(computeEncoder);
+  debugOutputs.push_back({&buffer, buffer.getSize()});
 
   computeEncoder.end();
   computeEncoder.release();
+
+  if (this->tessPass)
+  {
+    this->tessPass->Execute(encoder);
+  }
 
   wgpu::Buffer stagingBuffer;
   uint64_t stagingSize = 0;

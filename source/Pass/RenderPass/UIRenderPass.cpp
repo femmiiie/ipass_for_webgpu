@@ -360,8 +360,13 @@ void UIRenderPass::RenderUI()
         Settings::parser.notify();
       });
 
-    if (nk_checkbox_label(ctx, "Enable Tessellation", (nk_bool*)&Settings::tessellation.get()))
-      Settings::tessellation.mark();
+    {
+      nk_bool tess = Settings::tessellation.get() ? nk_true : nk_false;
+      if (nk_checkbox_label(ctx, "Enable Tessellation", &tess)) {
+        Settings::tessellation.modify() = (tess == nk_true);
+        Settings::tessellation.notify();
+      }
+    }
 
     nk_spacer(ctx);
 

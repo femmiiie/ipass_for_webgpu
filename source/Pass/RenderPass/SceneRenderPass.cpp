@@ -15,7 +15,6 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
     const Patch& patch = patches[patchIdx];
     if (patch.empty()) continue;
 
-    // Use stored grid dimensions from the parser
     glm::u32 rows = dims[patchIdx].first;
     glm::u32 cols = dims[patchIdx].second;
     if (rows < 2 || cols < 2) continue; // skip degenerate patches
@@ -24,7 +23,7 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
       return patch[r * cols + c];
     };
 
-    // Triangulate: each quad cell (i,j) -> two CCW triangles
+    // convert quad cell to 2 tris
     for (glm::u32 i = 0; i + 1 < rows; i++)
     {
       for (glm::u32 j = 0; j + 1 < cols; j++)
@@ -39,7 +38,7 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
         glm::vec3 pbl = glm::vec3(bl.pos);
         glm::vec3 pbr = glm::vec3(br.pos);
 
-        // Triangle 1: tl, tr, br  |  Triangle 2: tl, br, bl
+        // tri 1: tl, tr, br - tri 2: tl, br, bl
         glm::vec3 e1a = ptr_ - ptl, e1b = pbr - ptl;
         glm::vec3 n1 = glm::cross(e1a, e1b);
         if (glm::length(n1) > 0.0f) n1 = glm::normalize(n1);
@@ -48,13 +47,13 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
         glm::vec3 n2 = glm::cross(e2a, e2b);
         if (glm::length(n2) > 0.0f) n2 = glm::normalize(n2);
 
-        // pos(xyzw) normal(xyzw) color(rgba) uv(uv) — 14 floats per vertex
+        // pos(xyzw) normal(xyzw) color(rgba) uv(uv) pad(00) - 16f size
         auto pushVert = [&](const utils::Vertex3D& v, const glm::vec3& normal) {
           vertexData.insert(vertexData.end(), {
             v.pos.x,   v.pos.y,   v.pos.z,   v.pos.w,
             normal.x,  normal.y,  normal.z,  0.0f,
             v.color.r, v.color.g, v.color.b, v.color.a,
-            v.tex.x,   v.tex.y
+            v.tex.x,   v.tex.y,   0.0f,      0.0f
           });
         };
 
@@ -71,10 +70,12 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
     return;
   }
 
-  this->vertexCount = (glm::u32)vertexData.size() / 14;
+  this->vertexCount = (glm::u32)vertexData.size() / 16;
 
-  if (this->vertexBuffer)
+  if (this->vertexBuffer && this->ownsVertexBuffer)
     this->vertexBuffer.destroy();
+  this->vertexBuffer = nullptr;
+  this->ownsVertexBuffer = true;
 
   this->vertexBuffer = this->CreateBuffer(
     vertexData.size() * sizeof(glm::f32),
@@ -206,7 +207,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, this->bindGroup, 0, nullptr);
 
-  if (Settings::wireframe.get())
+  if (!Settings::tessellation.get() && Settings::wireframe.get())
   {
     encoder.setPipeline(this->wireframePipeline);
     encoder.setIndexBuffer(this->wireframeIndexBuffer, wgpu::IndexFormat::Uint32, 0, this->wireframeIndexBuffer.getSize());
@@ -253,7 +254,7 @@ void SceneRenderPass::InitializeRenderPipeline()
   wgpu::VertexBufferLayout vertexBufferLayout;
   vertexBufferLayout.attributeCount = vertexAttrs.size();
   vertexBufferLayout.attributes = vertexAttrs.data();
-  vertexBufferLayout.arrayStride = 14 * sizeof(glm::f32);
+  vertexBufferLayout.arrayStride = 16 * sizeof(glm::f32);
   vertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
 
   pipelineDesc.vertex.bufferCount = 1;
@@ -267,7 +268,7 @@ void SceneRenderPass::InitializeRenderPipeline()
   pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
   pipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
   pipelineDesc.primitive.frontFace = wgpu::FrontFace::CW;
-  pipelineDesc.primitive.cullMode = wgpu::CullMode::Back;
+  pipelineDesc.primitive.cullMode = wgpu::CullMode::None;
 
   wgpu::BlendState blend = this->GetBlendState();
 
@@ -327,6 +328,16 @@ wgpu::BlendState SceneRenderPass::GetBlendState()
   state.alpha.dstFactor = wgpu::BlendFactor::One;
   state.alpha.operation = wgpu::BlendOperation::Add;
   return state;
+}
+
+void SceneRenderPass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
+{
+  if (this->vertexBuffer && this->ownsVertexBuffer)
+    this->vertexBuffer.destroy();
+
+  this->ownsVertexBuffer = false;
+  this->vertexBuffer    = buf;
+  this->vertexCount     = count;
 }
 
 void SceneRenderPass::CreateDepthTexture(glm::uvec2 size)

@@ -21,6 +21,8 @@ public:
   void InitializeRenderPipeline();
   void LoadBV(const BVParser& parser);
 
+  void UseGPUTessellated(wgpu::Buffer buf, uint32_t count);
+
   wgpu::TextureView GetDepthTextureView() { return this->depthTextureView; }
 
   wgpu::BlendState GetBlendState();
@@ -38,6 +40,8 @@ private:
   wgpu::Buffer wireframeIndexBuffer;
   glm::u32 wireframeIndexCount = 0;
 
+  bool ownsVertexBuffer = false;
+
   struct Light
   {
     glm::vec4 position;
@@ -45,7 +49,6 @@ private:
     glm::f32 power;
   } light;
   wgpu::Buffer lightBuffer;
-
   wgpu::Buffer mvpBuffer;
 };
 

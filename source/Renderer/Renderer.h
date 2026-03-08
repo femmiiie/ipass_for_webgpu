@@ -25,6 +25,7 @@
 #include "RenderPass.h"
 #include "SceneRenderPass.h"
 #include "UIRenderPass.h"
+#include "TessellatorPass.h"
 #include "Utils.h"
 
 class Renderer
@@ -52,8 +53,13 @@ public:
 private:
   SceneRenderPass *scenePass = nullptr;
   UIRenderPass *uiPass = nullptr;
+  IPass *iPass = nullptr;
+  TessellatorPass *tessPass = nullptr;
 
-  std::vector<ComputePass*> computePasses;
+  wgpu::Buffer tessGPUBuffer;
+  uint32_t     tessGPUCount = 0;
+
+  std::function<void()> pendingBufferSwap;
 
   void UpdateSceneViewport();
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,

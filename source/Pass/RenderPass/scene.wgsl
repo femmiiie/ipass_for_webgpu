@@ -30,49 +30,58 @@ struct lightData {
 @group(0) @binding(0) var<uniform> mvp: MVP;
 @group(0) @binding(1) var<uniform> light: lightData;
 
-@vertex
-fn vs_main(input: vsInput) -> fsInput {
-  var output: fsInput;
-
-  output.position     = mvp.P * mvp.V * mvp.M * input.position;
-  output.normal       = transpose(mvp.M_inv) * input.normal;
-  output.color        = input.color;
-  output.tex          = input.tex;
-  output.eyevector    = -(mvp.V * mvp.M * input.position);
-  output.viewPosition = mvp.M * input.position;
-
-  return output;
+fn cameraWorldPos() -> vec3f {
+  return vec3f(
+    -dot(mvp.V[0].xyz, mvp.V[3].xyz),
+    -dot(mvp.V[1].xyz, mvp.V[3].xyz),
+    -dot(mvp.V[2].xyz, mvp.V[3].xyz)
+  );
 }
 
+@vertex
+fn vs_main(input: vsInput) -> fsInput {
+  var out: fsInput;
+  let worldPos     = mvp.M * input.position;
+  out.position     = mvp.P * mvp.V * worldPos;
+  out.normal       = transpose(mvp.M_inv) * input.normal;
+  out.color        = input.color;
+  out.tex          = input.tex;
+  out.eyevector    = vec4f(cameraWorldPos() - worldPos.xyz, 0.0);
+  out.viewPosition = worldPos;
 
+  return out;
+}
 
 @fragment
 fn fs_main(input: fsInput) -> @location(0) vec4f {
-  let base_color: vec4f  = input.color;
-  let spec_color: vec4f  = 0.1 * base_color;
+  var n = normalize(input.normal);
+  let e = normalize(input.eyevector);
+  if (dot(n, e) < 0.0f) { n = -n; } //flip back facing normals
+  let lit = blinn_phong(input.color, 0.1, 10.0, n, e, input.viewPosition);
+  return vec4f(lit, 1.0);
+}
 
-  let light_direction: vec4f = light.position - input.viewPosition;
-  let light_distance: f32    = length(light_direction);
+fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,
+               n: vec4f, e: vec4f, world_pos: vec4f              ) -> vec3f 
+{
+  let spec_color: vec4f      = spec_scale * base_color;
+  let light_direction: vec4f = light.position - world_pos;
+  let light_distance: f32    = max(length(light_direction), 0.001);
+  let l: vec4f               = normalize(light_direction);
 
-//diffuse
-  let n: vec4f = normalize(input.normal);
-  let l: vec4f = normalize(light_direction);
-  var diffuse: vec4f = input.color * light.color * light.power * clamp(dot(n, l), 0.0, 1.0) / (light_distance * light_distance);
+  var diffuse: vec4f  = base_color * light.color * light.power
+                        * clamp(dot(n, l), 0.0, 1.0)
+                        / (light_distance * light_distance);
+  var ambient: vec4f  = 0.2 * base_color;
+  let r: vec4f        = reflect(-l, n);
+  var specular: vec4f = spec_color * light.color * light.power
+                        * pow(clamp(dot(e, r), 0.0, 1.0), spec_exp)
+                        / (light_distance * light_distance);
 
-//ambient
-  var ambient: vec4f = 0.1 * input.color;
-
-//specular
-  let e: vec4f = normalize(input.eyevector);
-  let r: vec4f = reflect(-l, n);
-  var specular: vec4f = spec_color * light.color * light.power * pow(clamp(dot(e, r), 0.0, 1.0), 10.0) / (light_distance * light_distance);
-
-//attenuation
   let attenuation: f32 = 1.0 / (1.0 + 0.22 * light_distance + 0.20 * (light_distance * light_distance));
   diffuse  *= attenuation;
   specular *= attenuation;
   ambient  *= attenuation;
 
-  let lit = clamp(diffuse + ambient + specular, vec4f(0), vec4f(1)).xyz;
-  return vec4f(lit, 1.0);
+  return clamp(diffuse + ambient + specular, vec4f(0.0), vec4f(1.0)).xyz;
 }

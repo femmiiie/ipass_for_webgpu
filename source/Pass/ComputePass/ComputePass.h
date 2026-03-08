@@ -9,7 +9,7 @@ class ComputePass : public Pass
 public:
   ComputePass(Context& ctx) : Pass(ctx) {}
   virtual ~ComputePass() = default;
-  virtual void Execute(wgpu::ComputePassEncoder& pass) = 0;
+  virtual wgpu::Buffer& Execute(wgpu::ComputePassEncoder& pass) = 0;
 
   wgpu::ComputePipeline pipeline;
 };
