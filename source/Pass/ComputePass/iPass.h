@@ -11,7 +11,7 @@ public:
 
   iPass(Context& ctx);
   ~iPass();
-  void Execute(wgpu::ComputePassEncoder& pass) override;
+  wgpu::Buffer& Execute(wgpu::ComputePassEncoder& pass) override;
 
   // group 0 storage buffers
   wgpu::Buffer verticesBuffer;

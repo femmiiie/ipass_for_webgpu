@@ -254,7 +254,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   if (thread_id < 9)
   {
-    let i : vec4<u32> = tile_indices[thread_id];
+    let i : vec4<u32> = tile_indices[thread_id] + vec4u(base_index);
     
     let u1 = (upper[i.x] + upper[i.w]) / 2.0f;
     let u2 = (upper[i.y] + upper[i.z]) / 2.0f;
