@@ -80,7 +80,7 @@ int main() {
     const uint32_t num_quads = 1;
 
     Tesselator tess;
-    if (!tess.init(device, queue, num_quads)) {
+    if (!tess.init(device, queue, num_quads, wgpu::Buffer())) { // needs to be fixed to setup ipass buffer
         std::cerr << "Failed to init Tesselator\n";
         return 1;
     }
