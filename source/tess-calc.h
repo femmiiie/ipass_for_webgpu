@@ -4,8 +4,7 @@
 // probably not best design, but we can fix later
 
 static const char* tess_factor_shader = R"WGSL(
-    const TESS_LEVEL: f32 = 4.0;
-
+    @group(0) @binding(0) var<storage, read>       ipassLevels : array<f32>;
     @group(0) @binding(1) var<storage, read_write> tessFactors : array<f32>;
 
     @compute @workgroup_size(256)
@@ -14,8 +13,8 @@ static const char* tess_factor_shader = R"WGSL(
         if (i >= arrayLength(&tessFactors)) {
             return;
         }
-        tessFactors[i] = TESS_LEVEL;
-        //TODO: iPASS :)
+        // ipass should guarantee this bound, but good to guard regardless
+        tessFactors[i] = clamp(ipassLevels[i], 1.0, 64.0);
     }
 )WGSL";
 

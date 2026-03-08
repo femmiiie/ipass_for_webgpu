@@ -43,14 +43,14 @@ class Tesselator {
 public:
     static constexpr uint32_t MAX_TRIS_PER_PATCH = 8192;
 
-    bool init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads);
+    bool init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads, wgpu::Buffer ipass_levels);
     void upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
     bool exec(wgpu::CommandEncoder encoder, uint32_t num_quads);
     wgpu::Buffer get_verts_out() const { return buf_verts_out; }
     void terminate();
 };
 
-bool Tesselator::init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads) {
+bool Tesselator::init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads, wgpu::Buffer ipass_levels) {
     this->device = device;
     this->queue = queue;
     this->max_quads = max_quads;
@@ -69,13 +69,18 @@ bool Tesselator::init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads
     buf_connectivity = create_buffer((uint64_t)max_quads * 2 * sizeof(glm::ivec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst, this->device);
     buf_block_sums = create_buffer(256 * sizeof(uint32_t), wgpu::BufferUsage::Storage, this->device);
     buf_bs_total = create_buffer(sizeof(uint32_t), wgpu::BufferUsage::Storage, this->device);
-    buf_verts_out = create_buffer((uint64_t)max_quads * MAX_TRIS_PER_PATCH * 3 * sizeof(glm::vec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc, this->device);
+    // set output to be vertex buffer, can directly pass into scene
+    buf_verts_out = create_buffer((uint64_t)max_quads * MAX_TRIS_PER_PATCH * 3 * 2 * sizeof(glm::vec4),
+        wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::Vertex, this->device);
 
     {
-        wgpu::BindGroupEntry tf_entries[1] = { create_bindgroupentry(1, buf_tess_factors) };
+        wgpu::BindGroupEntry tf_entries[2] = {
+            create_bindgroupentry(0, ipass_levels),
+            create_bindgroupentry(1, buf_tess_factors)
+        };
         wgpu::BindGroupDescriptor desc = {};
         desc.layout = calc_pass.get_tess_factor_bgl();
-        desc.entryCount = 1;
+        desc.entryCount = 2;
         desc.entries = tf_entries;
         auto bg_tf = device.createBindGroup(desc);
 

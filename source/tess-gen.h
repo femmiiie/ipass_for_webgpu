@@ -7,7 +7,13 @@ static const char* tess_gen_shader = R"WGSL(
     @group(0) @binding(3) var<storage, read> tg_connectivity : array<vec4<i32>>;
     @group(0) @binding(4) var<storage, read_write> tg_vertsOut : array<vec4f>;
 
-    fn eval_bicubic(patch_offset: u32, uv: vec2f) -> vec4f {
+    struct Vertex { // vert with position and norm only
+        pos:  vec4f,
+        norm: vec4f,
+    }
+
+    // evaluate position analytic surface normal via partial derivatives.
+    fn eval_bicubic_vert(patch_offset: u32, uv: vec2f) -> Vertex {
         let u = uv.x;
         let v = uv.y;
 
@@ -15,18 +21,65 @@ static const char* tess_gen_shader = R"WGSL(
         let u3 = u2 * u;
         let v2 = v * v;
         let v3 = v2 * v;
-        var bu = array<f32, 4>(1.0 - 3.0*u + 3.0*u2 - u3, 3.0*u - 6.0*u2 + 3.0*u3, 3.0*u2 - 3.0*u3, u3);
-        var bv = array<f32, 4>(1.0 - 3.0*v + 3.0*v2 - v3, 3.0*v - 6.0*v2 + 3.0*v3, 3.0*v2 - 3.0*v3, v3);
-        var result = vec4f(0.0);
+
+        var bu  = array<f32, 4>(1.0 - 3.0*u + 3.0*u2 -     u3,
+                                      3.0*u - 6.0*u2 + 3.0*u3,
+                                      3.0*u2 - 3.0*u3,
+                                      u3);
+        var bv  = array<f32, 4>(1.0 - 3.0*v + 3.0*v2 -     v3,
+                                      3.0*v - 6.0*v2 + 3.0*v3,
+                                      3.0*v2 - 3.0*v3,
+                                      v3);
+        var dbu = array<f32, 4>(-3.0 + 6.0*u - 3.0*u2,
+                                 3.0 - 12.0*u + 9.0*u2,
+                                 6.0*u - 9.0*u2,
+                                 3.0*u2);
+        var dbv = array<f32, 4>(-3.0 + 6.0*v - 3.0*v2,
+                                 3.0 - 12.0*v + 9.0*v2,
+                                 6.0*v - 9.0*v2,
+                                 3.0*v2);
+
+        var pos  = vec4f(0.0);  // (N_x, N_y, N_z, W)
+        var du_h = vec4f(0.0);  // d/du of (N_x, N_y, N_z, W)
+        var dv_h = vec4f(0.0);  // d/dv of (N_x, N_y, N_z, W)
         for (var row = 0u; row < 4u; row++) {
             for (var col = 0u; col < 4u; col++) {
-                let bu_r = bu[row];
-                let bv_c = bv[col];
                 let cp = tg_quadsIn[patch_offset + row * 4u + col];
-                result += bu_r * bv_c * cp;
+                pos  += bu[row]  * bv[col]  * cp;
+                du_h += dbu[row] * bv[col]  * cp;
+                dv_h += bu[row]  * dbv[col] * cp;
             }
         }
-        return result;
+
+        let W    = pos.w;
+        let N    = pos.xyz;
+        let dNdu = du_h.xyz;
+        let dWdu = du_h.w;
+        let dNdv = dv_h.xyz;
+        let dWdv = dv_h.w;
+
+        let tan_u = W * dNdu - N * dWdu;
+        let tan_v = W * dNdv - N * dWdv;
+
+        var n = cross(tan_u, tan_v);
+        let len = length(n);
+        if (len > 1e-7) {
+            n = n / len;
+        }
+
+        var out: Vertex; // w is not guaranteed to be 1, normalize here
+        out.pos  = vec4f(N / W, 1.0);
+        out.norm = vec4f(n, 0.0);
+        return out;
+    }
+
+    // Write a vertex into the output buffer
+    fn write_vert(vi: u32, vert: Vertex) {
+        let base = vi * 4u;
+        tg_vertsOut[base]      = vert.pos;
+        tg_vertsOut[base + 1u] = vert.norm;
+        tg_vertsOut[base + 2u] = vec4f(0.8, 0.85, 0.9, 1.0);  // default color
+        tg_vertsOut[base + 3u] = vec4f(0.0);                  // uv + padding
     }
 
     fn st_to_uv(st: vec2f, side: u32) -> vec2f {
@@ -77,19 +130,17 @@ static const char* tess_gen_shader = R"WGSL(
         var k = 0u;
         let patch_offset = i * 16u;
 
-        var curr_outer = vec4f(0.0);
-        var curr_inner = vec4f(0.0);
         var outer_i = 0u;
         var inner_i = 0u;
 
         // degenerate case
         if (IL0 == 1u && IL1 == 1u && OL0 == 1u && OL1 == 1u && OL2 == 1u && OL3 == 1u) {
-            tg_vertsOut[(tri_offset + k) * 3u] = eval_bicubic(patch_offset, vec2f(0.0, 0.0));
-            tg_vertsOut[(tri_offset + k) * 3u + 1u] = eval_bicubic(patch_offset, vec2f(0.0, 1.0));
-            tg_vertsOut[(tri_offset + k) * 3u + 2u] = eval_bicubic(patch_offset, vec2f(1.0, 1.0));
-            tg_vertsOut[(tri_offset + k + 1u) * 3u] = eval_bicubic(patch_offset, vec2f(1.0, 1.0));
-            tg_vertsOut[(tri_offset + k + 1u) * 3u + 1u] = eval_bicubic(patch_offset, vec2f(1.0, 0.0));
-            tg_vertsOut[(tri_offset + k + 1u) * 3u + 2u] = eval_bicubic(patch_offset, vec2f(0.0, 0.0));
+            write_vert((tri_offset + k) * 3u,      eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)));
+            write_vert((tri_offset + k) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(0.0, 1.0)));
+            write_vert((tri_offset + k) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)));
+            write_vert((tri_offset + k + 1u) * 3u,      eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)));
+            write_vert((tri_offset + k + 1u) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(1.0, 0.0)));
+            write_vert((tri_offset + k + 1u) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)));
             return;
         }
 
@@ -104,18 +155,18 @@ static const char* tess_gen_shader = R"WGSL(
                 let BOTTOM = f32(jj) / f32(IL1e);
                 let TOP = f32(jj + 1u) / f32(IL1e);
 
-                let BL = eval_bicubic(patch_offset, vec2f(LEFT, BOTTOM));
-                let BR = eval_bicubic(patch_offset, vec2f(RIGHT, BOTTOM));
-                let TL = eval_bicubic(patch_offset, vec2f(LEFT, TOP));
-                let TR = eval_bicubic(patch_offset, vec2f(RIGHT, TOP));
+                let BL = eval_bicubic_vert(patch_offset, vec2f(LEFT, BOTTOM));
+                let BR = eval_bicubic_vert(patch_offset, vec2f(RIGHT, BOTTOM));
+                let TL = eval_bicubic_vert(patch_offset, vec2f(LEFT, TOP));
+                let TR = eval_bicubic_vert(patch_offset, vec2f(RIGHT, TOP));
 
-                tg_vertsOut[(tri_offset + k) * 3u] = BL;
-                tg_vertsOut[(tri_offset + k) * 3u + 1u] = BR;
-                tg_vertsOut[(tri_offset + k) * 3u + 2u] = TR;
+                write_vert((tri_offset + k) * 3u,      BL);
+                write_vert((tri_offset + k) * 3u + 1u, BR);
+                write_vert((tri_offset + k) * 3u + 2u, TR);
                 k += 1u;
-                tg_vertsOut[(tri_offset + k) * 3u] = TR;
-                tg_vertsOut[(tri_offset + k) * 3u + 1u] = TL;
-                tg_vertsOut[(tri_offset + k) * 3u + 2u] = BL;
+                write_vert((tri_offset + k) * 3u,      TR);
+                write_vert((tri_offset + k) * 3u + 1u, TL);
+                write_vert((tri_offset + k) * 3u + 2u, BL);
                 k += 1u;
             }
         }
@@ -140,8 +191,8 @@ static const char* tess_gen_shader = R"WGSL(
 
             let outer_t = 0.0;
             let inner_t = 1.0 / f32(inner_height);
-            curr_outer = eval_bicubic(patch_offset, st_to_uv(vec2f(0.0, outer_t), side));
-            curr_inner = eval_bicubic(patch_offset, st_to_uv(vec2f(1.0 / f32(inner_max), inner_t), side));
+            var curr_outer = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(0.0, outer_t), side));
+            var curr_inner = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(1.0 / f32(inner_max), inner_t), side));
             outer_i = 0u;
             inner_i = 1u;
 
@@ -150,18 +201,18 @@ static const char* tess_gen_shader = R"WGSL(
                 let next_inner_s = select(1.0, f32(inner_i + 1u) / f32(inner_max), inner_i < inner_max - 1u);
 
                 if (outer_i < outer_max && (inner_i == inner_max - 1u || next_outer_s <= next_inner_s)) {
-                    let next_outer = eval_bicubic(patch_offset, st_to_uv(vec2f(f32(outer_i + 1u) / f32(outer_max), outer_t), side));
-                    tg_vertsOut[(tri_offset + k) * 3u] = curr_outer;
-                    tg_vertsOut[(tri_offset + k) * 3u + 1u] = curr_inner;
-                    tg_vertsOut[(tri_offset + k) * 3u + 2u] = next_outer;
+                    let next_outer = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(f32(outer_i + 1u) / f32(outer_max), outer_t), side));
+                    write_vert((tri_offset + k) * 3u,      curr_outer);
+                    write_vert((tri_offset + k) * 3u + 1u, curr_inner);
+                    write_vert((tri_offset + k) * 3u + 2u, next_outer);
                     k += 1u;
                     curr_outer = next_outer;
                     outer_i += 1u;
                 } else {
-                    let next_inner = eval_bicubic(patch_offset, st_to_uv(vec2f(f32(inner_i + 1u) / f32(inner_max), inner_t), side));
-                    tg_vertsOut[(tri_offset + k) * 3u] = curr_outer;
-                    tg_vertsOut[(tri_offset + k) * 3u + 1u] = next_inner;
-                    tg_vertsOut[(tri_offset + k) * 3u + 2u] = curr_inner;
+                    let next_inner = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(f32(inner_i + 1u) / f32(inner_max), inner_t), side));
+                    write_vert((tri_offset + k) * 3u,      curr_outer);
+                    write_vert((tri_offset + k) * 3u + 1u, next_inner);
+                    write_vert((tri_offset + k) * 3u + 2u, curr_inner);
                     k += 1u;
                     curr_inner = next_inner;
                     inner_i += 1u;
