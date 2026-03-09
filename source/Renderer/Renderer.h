@@ -21,11 +21,10 @@
 #include <optional>
 
 #include "Context.h"
-#include "ComputePass.h"
-#include "RenderPass.h"
+#include "IPass.h"
+#include "TessellatorPass.h"
 #include "SceneRenderPass.h"
 #include "UIRenderPass.h"
-#include "TessellatorPass.h"
 #include "Utils.h"
 
 class Renderer
