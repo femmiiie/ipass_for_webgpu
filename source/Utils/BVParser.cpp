@@ -113,18 +113,10 @@ std::vector<glm::f32> BVParser::getRowF32(int cols)
 
 std::vector<glm::f32> BVParser::getRowF32()
 {
-  std::vector<glm::f32> vec;
-  char buffer[64];
+  std::string line;
   this->file >> std::ws;
-  this->file.getline(buffer, 64, '\n');
-  
-  char* token = strtok(buffer, " ");
-  while (token)
-  {
-    
-    vec.emplace_back(std::stof(token));
-    token = strtok(NULL, " ");
-  }
+  std::getline(this->file, line);
 
-  return vec;
+  std::istringstream iss(line);
+  return { std::istream_iterator<glm::f32>(iss), std::istream_iterator<glm::f32>() };
 }
