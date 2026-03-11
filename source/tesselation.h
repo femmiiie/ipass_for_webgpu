@@ -50,10 +50,10 @@ public:
     void terminate();
 };
 
-bool Tesselator::init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads, wgpu::Buffer ipass_levels) {
-    this->device = device;
-    this->queue = queue;
-    this->max_quads = max_quads;
+bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buffer ipass_levels) {
+    this->device = dev;
+    this->queue = que;
+    this->max_quads = max;
 
     if (!calc_pass.init(device))
         return false;

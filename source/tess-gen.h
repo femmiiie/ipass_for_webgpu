@@ -236,8 +236,8 @@ public:
     bool exec(wgpu::CommandEncoder encoder, uint32_t num_quads);
 };
 
-bool TessGenPass::init(wgpu::Device &device) {
-    this->device = device;
+bool TessGenPass::init(wgpu::Device &dev) {
+    this->device = dev;
 
     wgpu::ShaderModuleDescriptor shaderDesc;
     wgpu::ShaderSourceWGSL wgsl;
