@@ -1,5 +1,4 @@
-#ifndef RENDERPASS_H_
-#define RENDERPASS_H_
+#pragma once
 
 #include "Pass.h"
 
@@ -29,5 +28,3 @@ public:
   RenderPassException(const char* m) { this->message = m; }
   const char* what() const noexcept override { return this->message.c_str(); }
 };
-
-#endif

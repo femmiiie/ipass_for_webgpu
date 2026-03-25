@@ -1,5 +1,4 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#pragma once
 
 #include <cstdint>
 #include <cstring>
@@ -105,5 +104,3 @@ namespace utils
   // #endif
   }
 }
-
-#endif

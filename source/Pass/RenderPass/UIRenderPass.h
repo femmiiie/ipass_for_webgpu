@@ -1,5 +1,4 @@
-#ifndef UIRENDERPASS_H_
-#define UIRENDERPASS_H_
+#pragma once
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -59,5 +58,3 @@ private:
   wgpu::Buffer indexBuffer;
   wgpu::Buffer projectionBuffer;
 };
-
-#endif

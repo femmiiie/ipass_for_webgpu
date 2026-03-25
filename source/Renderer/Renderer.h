@@ -1,5 +1,4 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#pragma once
 
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
@@ -87,5 +86,3 @@ public:
   RendererException(const char *m) { this->message = m; }
   const char *what() const noexcept override { return this->message.c_str(); }
 };
-
-#endif

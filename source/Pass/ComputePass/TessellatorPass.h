@@ -1,5 +1,4 @@
-#ifndef TESSELLATORPASS_H_
-#define TESSELLATORPASS_H_
+#pragma once
 
 #include "Context.h"
 
@@ -42,5 +41,3 @@ private:
   uint32_t num_quads    = 0;  // actual patch count after last LoadBV
   bool     initialized  = false;
 };
-
-#endif // TESSELLATORPASS_H_

@@ -1,5 +1,4 @@
-#ifndef PASS_H_
-#define PASS_H_
+#pragma once
 
 #include "Utils.h"
 #include "Context.h"
@@ -46,5 +45,3 @@ public:
   PassException(const char* m) { this->message = m; }
   const char* what() const noexcept override { return this->message.c_str(); }
 };
-
-#endif

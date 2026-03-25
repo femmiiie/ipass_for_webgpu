@@ -1,5 +1,4 @@
-#ifndef INPUTMANAGER_H_
-#define INPUTMANAGER_H_
+#pragma once
 
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -61,5 +60,3 @@ private:
   static inline glm::dvec2 lastCursorPos = {0.0, 0.0};
   static inline glm::dvec2 cursorDelta   = {0.0, 0.0};
 };
-
-#endif

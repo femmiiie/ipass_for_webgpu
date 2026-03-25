@@ -1,5 +1,4 @@
-#ifndef SCENERENDERPASS_H_
-#define SCENERENDERPASS_H_
+#pragma once
 
 #include "Camera.h"
 #include "InputManager.h"
@@ -51,5 +50,3 @@ private:
   wgpu::Buffer lightBuffer;
   wgpu::Buffer mvpBuffer;
 };
-
-#endif

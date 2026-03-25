@@ -1,5 +1,4 @@
-#ifndef RENDERCONTEXT_H_
-#define RENDERCONTEXT_H_
+#pragma once
 
 #include <chrono>
 
@@ -76,5 +75,3 @@ inline void Context::measure()
 
   perf.acc_frametime += duration<float, std::milli>(frame_end - frame_start).count();
 }
-
-#endif

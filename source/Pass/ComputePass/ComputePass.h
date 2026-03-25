@@ -1,5 +1,4 @@
-#ifndef COMPUTEPASS_H_
-#define COMPUTEPASS_H_
+#pragma once
 
 #include "Pass.h"
 
@@ -24,5 +23,3 @@ public:
   ComputePassException(const char* m) { this->message = m; }
   const char* what() const noexcept override { return this->message.c_str(); }
 };
-
-#endif

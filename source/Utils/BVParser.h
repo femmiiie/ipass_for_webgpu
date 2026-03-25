@@ -1,5 +1,4 @@
-#ifndef BVPARSER_H_
-#define BVPARSER_H_
+#pragma once
 
 #include <vector>
 #include <utility>
@@ -41,5 +40,3 @@ private:
   std::vector<glm::f32> getRowF32(int cols);
   std::vector<glm::f32> getRowF32();
 };
-
-#endif

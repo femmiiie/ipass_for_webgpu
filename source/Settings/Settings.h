@@ -1,5 +1,4 @@
-#ifndef SETTINGS_H_
-#define SETTINGS_H_
+#pragma once
 
 #include <functional>
 #include <vector>
@@ -76,5 +75,3 @@ private:
   static inline bool clearColorNeedsUpdate = true;
   static inline bool surfaceNeedsUpdate    = true;
 };
-
-#endif
