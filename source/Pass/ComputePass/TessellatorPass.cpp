@@ -15,66 +15,11 @@
 #include "BVParser.h"
 #include "Settings.h"
 #include "Utils.h"
+#include "Elevation.h"
 
 using Vertex3D = utils::Vertex3D;
 
-//these are taken straight from ipass.cpp,
-//likely provide this to be available to both as a utility namespace
-static std::vector<glm::vec4> tp_elevate1D(const std::vector<glm::vec4>& pts)
-{
-  uint32_t m = static_cast<uint32_t>(pts.size()) - 1;
-  std::vector<glm::vec4> result(m + 2);
-  result[0] = pts[0];
-  for (uint32_t i = 1; i <= m; i++) {
-    float t  = static_cast<float>(i) / static_cast<float>(m + 1);
-    result[i] = t * pts[i - 1] + (1.0f - t) * pts[i];
-  }
-  result[m + 1] = pts[m];
-  return result;
-}
-
-static std::vector<glm::vec4> tp_elevateTo(const std::vector<glm::vec4>& pts, uint32_t targetDeg)
-{
-  std::vector<glm::vec4> cur = pts;
-  while (static_cast<uint32_t>(cur.size()) - 1 < targetDeg)
-    cur = tp_elevate1D(cur);
-  return cur;
-}
-
-//only thing needed here is position
-static std::vector<glm::vec4> tp_elevatePatch(
-  const std::vector<Vertex3D>& patch,
-  uint32_t rows, uint32_t cols)
-{
-  std::vector<glm::vec4> pos(rows * cols);
-  for (uint32_t r = 0; r < rows; r++)
-    for (uint32_t c = 0; c < cols; c++)
-      pos[r * cols + c] = patch[r * cols + c].pos;
-
-  std::vector<glm::vec4> pos1(rows * 4);
-  for (uint32_t r = 0; r < rows; r++) {
-    std::vector<glm::vec4> row(cols);
-    for (uint32_t c = 0; c < cols; c++)
-      row[c] = pos[r * cols + c];
-    auto ep = tp_elevateTo(row, 3);
-    for (uint32_t c = 0; c < 4; c++)
-      pos1[r * 4 + c] = ep[c];
-  }
-
-  std::vector<glm::vec4> pos2(16);
-  for (uint32_t c = 0; c < 4; c++) {
-    std::vector<glm::vec4> col(rows);
-    for (uint32_t r = 0; r < rows; r++)
-      col[r] = pos1[r * 4 + c];
-    auto ep = tp_elevateTo(col, 3);
-    for (uint32_t r = 0; r < 4; r++)
-      pos2[r * 4 + c] = ep[r];
-  }
-
-  return pos2;
-}
-
-TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : context(ctx)
+TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
 {
   tess = new Tesselator();
 
@@ -121,7 +66,7 @@ void TessellatorPass::LoadBV(const BVParser& parser)
   uint32_t count = 0;
   for (size_t pi = 0; pi < patches.size() && count < MAX_PATCHES; pi++) {
     if (patches[pi].empty()) continue;
-    auto elevated = tp_elevatePatch(patches[pi], dims[pi].first, dims[pi].second);
+    auto elevated = elevation::elevatePatchPositions(patches[pi], dims[pi].first, dims[pi].second);
     bicubicControlPts.insert(bicubicControlPts.end(), elevated.begin(), elevated.end());
     count++;
   }
