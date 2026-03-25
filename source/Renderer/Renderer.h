@@ -16,7 +16,6 @@
 #include <array>
 #include <string>
 #include <exception>
-#include <functional>
 #include <optional>
 
 #include "Context.h"
@@ -53,11 +52,6 @@ private:
   UIRenderPass *uiPass = nullptr;
   IPass *iPass = nullptr;
   TessellatorPass *tessPass = nullptr;
-
-  wgpu::Buffer tessGPUBuffer;
-  uint32_t     tessGPUCount = 0;
-
-  std::function<void()> pendingBufferSwap;
 
   void UpdateSceneViewport();
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,

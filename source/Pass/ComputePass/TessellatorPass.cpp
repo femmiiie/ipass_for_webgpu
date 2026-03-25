@@ -9,7 +9,7 @@
 #include <vector>
 #include <iostream>
 
-#include "tesselation.h"
+#include "Tessellator.h"
 
 #include "TessellatorPass.h"
 #include "BVParser.h"
@@ -21,10 +21,10 @@ using Vertex3D = utils::Vertex3D;
 
 TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
 {
-  tess = new Tesselator();
+  tess = new Tessellator();
 
-  if (!tess->init(ctx.device, ctx.queue, MAX_PATCHES, ipass_levels_buf)) {
-    std::cerr << "[TessellatorPass] Failed to initialise Tesselator." << std::endl;
+  if (!tess->Init(ctx.device, ctx.queue, DEFAULT_PATCH_LIMIT, ipass_levels_buf)) {
+    std::cerr << "[TessellatorPass] Failed to initialise Tessellator." << std::endl;
     delete tess;
     tess = nullptr;
     return;
@@ -40,7 +40,7 @@ TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : 
 TessellatorPass::~TessellatorPass()
 {
   if (tess) {
-    tess->terminate();
+    tess->Terminate();
     delete tess;
     tess = nullptr;
   }
@@ -64,7 +64,7 @@ void TessellatorPass::LoadBV(const BVParser& parser)
   bicubicControlPts.reserve(patches.size() * 16);
 
   uint32_t count = 0;
-  for (size_t pi = 0; pi < patches.size() && count < MAX_PATCHES; pi++) {
+  for (size_t pi = 0; pi < patches.size() && count < DEFAULT_PATCH_LIMIT; pi++) {
     if (patches[pi].empty()) continue;
     auto elevated = elevation::elevatePatchPositions(patches[pi], dims[pi].first, dims[pi].second);
     bicubicControlPts.insert(bicubicControlPts.end(), elevated.begin(), elevated.end());
@@ -103,35 +103,31 @@ void TessellatorPass::LoadBV(const BVParser& parser)
     }
   }
 
-  tess->upload(bicubicControlPts.data(), indices.data(), num_quads);
+  tess->Upload(bicubicControlPts.data(), indices.data(), num_quads);
 
   std::cout << "[TessellatorPass] Uploaded " << num_quads
             << " bicubic patch(es) for GPU tessellation." << std::endl;
 
-  if (onGeometryReady)
-    onGeometryReady(tess->get_verts_out(), GetMaxVertexCount());
+  Settings::tessOutput.modify() = {tess->GetVertexOutput(), GetMaxVertexCount()};
+  Settings::tessOutput.notify();
 }
 
-uint32_t TessellatorPass::Execute(wgpu::CommandEncoder& encoder)
+void TessellatorPass::Execute(wgpu::CommandEncoder& encoder)
 {
-  if (!tess || !initialized || num_quads == 0)
-    return 0;
+  if (!tess || !initialized || num_quads == 0) { return; }
 
-  if (!tess->exec(encoder, num_quads)) {
-    std::cerr << "[TessellatorPass] exec() failed." << std::endl;
-    return 0;
+  if (!tess->Execute(encoder, num_quads)) {
+    std::cerr << "[TessellatorPass] Execute() failed." << std::endl;
   }
-
-  return GetMaxVertexCount();
 }
 
 wgpu::Buffer TessellatorPass::GetOutputBuffer() const
 {
   if (!tess) return nullptr;
-  return tess->get_verts_out();
+  return tess->GetVertexOutput();
 }
 
 uint32_t TessellatorPass::GetMaxVertexCount() const
 {
-  return num_quads * MAX_TRIS_PER_PATCH * 3;
+  return num_quads * tess::MAX_TRIS_PER_PATCH * 3;
 }

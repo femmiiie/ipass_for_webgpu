@@ -1,11 +1,9 @@
-#pragma once
+#include "Connectivity.h"
 
-#include <glm/glm.hpp>
-#include <cstdint>
-#include <vector>
 #include <map>
 #include <array>
 #include <utility>
+#include <cstdio>
 
 // (3)--[2]--(2)
 //  |         |
@@ -20,7 +18,7 @@ static Edge order(uint32_t a, uint32_t b) {
     return (a < b) ? Edge{a, b} : Edge{b, a};
 }
 
-inline std::vector<glm::ivec4> buildQuadConnectivity(const uint32_t * indices, int num_indices) {
+std::vector<glm::ivec4> buildQuadConnectivity(const uint32_t * indices, int num_indices) {
     const uint32_t num_quads = static_cast<uint32_t>(num_indices);
     std::vector<glm::ivec4> connections(num_quads*2, glm::ivec4(-1));
     // Usage Guide for contributors
@@ -47,7 +45,7 @@ inline std::vector<glm::ivec4> buildQuadConnectivity(const uint32_t * indices, i
                     fprintf(stderr, "WARNING: edge with indices (%u,%u) is shared by more than 2 quads!\n", key.first, key.second);
                     continue;
                 }
-                
+
                 connections[2*quad + 0][edge] = neighboring_quad;
                 connections[2*quad + 1][edge] = neighboring_edge;
 

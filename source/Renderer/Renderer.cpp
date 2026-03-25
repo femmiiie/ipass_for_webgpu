@@ -38,23 +38,6 @@ Renderer::Renderer()
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context);
 
-  this->tessPass->onGeometryReady = [this](wgpu::Buffer buf, uint32_t count) {
-    this->tessGPUBuffer = buf;
-    this->tessGPUCount  = count;
-    if (Settings::tessellation.get())
-      this->scenePass->UseGPUTessellated(buf, count);
-  };
-
-  // swap active vertex buffer for tessellation setting toggle
-  Settings::tessellation.subscribe([this](const bool& enabled) {
-    this->pendingBufferSwap = [this, enabled]() {
-      if (enabled && this->tessGPUBuffer && this->tessGPUCount > 0)
-        this->scenePass->UseGPUTessellated(this->tessGPUBuffer, this->tessGPUCount);
-      else
-        this->scenePass->LoadBV(Settings::parser.get());
-    };
-  });
-
   if (!Settings::parser.get().Get().empty()) {
     this->tessPass->LoadBV(Settings::parser.get());
   }
@@ -239,11 +222,6 @@ void Renderer::MainLoop()
   this->context.tick();
   Settings::checkUpdates();
 
-  if (this->pendingBufferSwap) {
-    this->pendingBufferSwap();
-    this->pendingBufferSwap = nullptr;
-  }
-
   if (this->pendingDebugInspect.has_value() && this->debugMapped)
   {
     auto& di = this->pendingDebugInspect.value();
@@ -267,18 +245,7 @@ void Renderer::MainLoop()
   encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
-  wgpu::ComputePassDescriptor computePassDesc;
-  computePassDesc.timestampWrites = nullptr;
-  wgpu::ComputePassEncoder computeEncoder = encoder.beginComputePass(computePassDesc);
-
-  struct OutputRef { wgpu::Buffer* buffer; uint64_t size; };
-  std::vector<OutputRef> debugOutputs;
-
-  wgpu::Buffer& buffer = this->iPass->Execute(computeEncoder);
-  debugOutputs.push_back({&buffer, buffer.getSize()});
-
-  computeEncoder.end();
-  computeEncoder.release();
+  this->iPass->Execute(encoder);
 
   if (this->tessPass)
   {
@@ -287,15 +254,16 @@ void Renderer::MainLoop()
 
   wgpu::Buffer stagingBuffer;
   uint64_t stagingSize = 0;
-  if (!debugOutputs.empty() && !this->pendingDebugInspect.has_value())
+  if (!this->pendingDebugInspect.has_value())
   {
-    stagingSize = debugOutputs[0].size;
+    wgpu::Buffer& debugBuf = this->iPass->GetOutputBuffer();
+    stagingSize = debugBuf.getSize();
     wgpu::BufferDescriptor desc;
     desc.size = stagingSize;
     desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
     desc.mappedAtCreation = false;
     stagingBuffer = this->context.device.createBuffer(desc);
-    encoder.copyBufferToBuffer(*debugOutputs[0].buffer, 0, stagingBuffer, 0, stagingSize);
+    encoder.copyBufferToBuffer(debugBuf, 0, stagingBuffer, 0, stagingSize);
   }
 
 

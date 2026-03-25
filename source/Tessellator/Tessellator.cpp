@@ -1,18 +1,16 @@
-#pragma once
+#include "Tessellator.h"
+#include "Connectivity.h"
 
-#include "tess-calc.h"
-#include "tess-scan.h"
-#include "tess-gen.h"
-#include "tess-connectivity.h"
+namespace {
 
-static wgpu::Buffer create_buffer(uint64_t size, wgpu::BufferUsage usage, const wgpu::Device &device) {
+wgpu::Buffer create_buffer(uint64_t size, wgpu::BufferUsage usage, const wgpu::Device &device) {
     wgpu::BufferDescriptor desc = {};
     desc.size = size;
     desc.usage = usage;
     return device.createBuffer(desc);
 }
 
-static wgpu::BindGroupEntry create_bindgroupentry(uint32_t binding, wgpu::Buffer buf) {
+wgpu::BindGroupEntry create_bindgroupentry(uint32_t binding, wgpu::Buffer buf) {
     wgpu::BindGroupEntry entry = {};
     entry.binding = binding;
     entry.buffer = buf;
@@ -21,45 +19,18 @@ static wgpu::BindGroupEntry create_bindgroupentry(uint32_t binding, wgpu::Buffer
     return entry;
 }
 
-class Tesselator {
-    wgpu::Device device;
-    wgpu::Queue queue;
+} // anonymous namespace
 
-    TessCalcPass calc_pass;
-    TessScanPass scan_pass;
-    TessGenPass gen_pass;
-
-    wgpu::Buffer buf_quads;
-    wgpu::Buffer buf_tess_factors;
-    wgpu::Buffer buf_tri_counts;
-    wgpu::Buffer buf_tri_offsets;
-    wgpu::Buffer buf_connectivity;
-    wgpu::Buffer buf_block_sums;
-    wgpu::Buffer buf_bs_total;
-    wgpu::Buffer buf_verts_out;
-
-    uint32_t max_quads = 0;
-
-public:
-    static constexpr uint32_t MAX_TRIS_PER_PATCH = 8192;
-
-    bool init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads, wgpu::Buffer ipass_levels);
-    void upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
-    bool exec(wgpu::CommandEncoder encoder, uint32_t num_quads);
-    wgpu::Buffer get_verts_out() const { return buf_verts_out; }
-    void terminate();
-};
-
-bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buffer ipass_levels) {
+bool Tessellator::Init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buffer ipass_levels) {
     this->device = dev;
     this->queue = que;
     this->max_quads = max;
 
-    if (!calc_pass.init(device))
+    if (!calc_pass.Init(device))
         return false;
-    if (!scan_pass.init(device))
+    if (!scan_pass.Init(device))
         return false;
-    if (!gen_pass.init(device)) 
+    if (!gen_pass.Init(device))
         return false;
 
     buf_quads = create_buffer((uint64_t)max_quads * 16 * sizeof(glm::vec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst, this->device);
@@ -70,7 +41,8 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
     buf_block_sums = create_buffer(256 * sizeof(uint32_t), wgpu::BufferUsage::Storage, this->device);
     buf_bs_total = create_buffer(sizeof(uint32_t), wgpu::BufferUsage::Storage, this->device);
     // set output to be vertex buffer, can directly pass into scene
-    buf_verts_out = create_buffer((uint64_t)max_quads * MAX_TRIS_PER_PATCH * 3 * 2 * sizeof(glm::vec4),
+    // tess-gen writes 4 vec4 values per output vertex: pos, normal, color, uv/pad
+    buf_verts_out = create_buffer((uint64_t)max_quads * tess::MAX_TRIS_PER_PATCH * 3 * 4 * sizeof(glm::vec4),
         wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::Vertex, this->device);
 
     {
@@ -79,7 +51,7 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(1, buf_tess_factors)
         };
         wgpu::BindGroupDescriptor desc = {};
-        desc.layout = calc_pass.get_tess_factor_bgl();
+        desc.layout = calc_pass.GetTessFactorBGL();
         desc.entryCount = 2;
         desc.entries = tf_entries;
         auto bg_tf = device.createBindGroup(desc);
@@ -89,12 +61,12 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(1, buf_tri_counts),
             create_bindgroupentry(2, buf_connectivity)
         };
-        desc.layout = calc_pass.get_calc_counts_bgl();
+        desc.layout = calc_pass.GetCalcCountsBGL();
         desc.entryCount = 3;
         desc.entries = cc_entries;
         auto bg_cc = device.createBindGroup(desc);
 
-        calc_pass.set_bindgroups(bg_tf, bg_cc);
+        calc_pass.SetBindGroups(bg_tf, bg_cc);
         bg_tf.release();
         bg_cc.release();
     }
@@ -106,7 +78,7 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(2, buf_block_sums)
         };
         wgpu::BindGroupDescriptor desc = {};
-        desc.layout = scan_pass.get_lvl1_bgl();
+        desc.layout = scan_pass.GetLevel1BGL();
         desc.entryCount = 3;
         desc.entries = l1_entries;
         auto bg_l1 = device.createBindGroup(desc);
@@ -115,7 +87,7 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(0, buf_block_sums),
             create_bindgroupentry(1, buf_bs_total)
         };
-        desc.layout = scan_pass.get_lvl2_bgl();
+        desc.layout = scan_pass.GetLevel2BGL();
         desc.entryCount = 2;
         desc.entries = l2_entries;
         auto bg_l2 = device.createBindGroup(desc);
@@ -124,12 +96,12 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(1, buf_tri_offsets),
             create_bindgroupentry(2, buf_block_sums)
         };
-        desc.layout = scan_pass.get_comb_bgl();
+        desc.layout = scan_pass.GetCombineBGL();
         desc.entryCount = 2;
         desc.entries = comb_entries;
         auto bg_comb = device.createBindGroup(desc);
 
-        scan_pass.set_bindgroups(bg_l1, bg_l2, bg_comb);
+        scan_pass.SetBindGroups(bg_l1, bg_l2, bg_comb);
         bg_l1.release();
         bg_l2.release();
         bg_comb.release();
@@ -144,34 +116,34 @@ bool Tesselator::init(wgpu::Device dev, wgpu::Queue que, uint32_t max, wgpu::Buf
             create_bindgroupentry(4, buf_verts_out),
         };
         wgpu::BindGroupDescriptor desc = {};
-        desc.layout = gen_pass.get_bgl();
+        desc.layout = gen_pass.GetBindGroupLayout();
         desc.entryCount = 5;
         desc.entries = entries;
         auto bg = device.createBindGroup(desc);
 
-        gen_pass.set_bindgroup(bg);
+        gen_pass.SetBindGroup(bg);
         bg.release();
     }
 
     return true;
 }
 
-void Tesselator::upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads) {
+void Tessellator::Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads) {
     queue.writeBuffer(buf_quads, 0, control_points, (uint64_t)num_quads * 16 * sizeof(glm::vec4));
 
     std::vector<glm::ivec4> connectivity = buildQuadConnectivity(indices, num_quads);
     queue.writeBuffer(buf_connectivity, 0, connectivity.data(), (uint64_t)num_quads * 2 * sizeof(glm::ivec4));
 }
 
-bool Tesselator::exec(wgpu::CommandEncoder encoder, uint32_t num_quads) {
+bool Tessellator::Execute(wgpu::CommandEncoder encoder, uint32_t num_quads) {
     if (num_quads == 0)
         return true;
-    if (!calc_pass.exec(encoder, num_quads) || !scan_pass.exec(encoder, num_quads) || !gen_pass.exec(encoder, num_quads))
+    if (!calc_pass.Execute(encoder, num_quads) || !scan_pass.Execute(encoder, num_quads) || !gen_pass.Execute(encoder, num_quads))
         return false;
     return true;
 }
 
-void Tesselator::terminate() {
+void Tessellator::Terminate() {
     buf_verts_out.release();
     buf_bs_total.release();
     buf_block_sums.release();

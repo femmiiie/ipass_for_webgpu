@@ -1,6 +1,3 @@
-#pragma once
-
-static const char* tess_gen_shader = R"WGSL(
     @group(0) @binding(0) var<storage, read> tg_quadsIn : array<vec4f>;
     @group(0) @binding(1) var<storage, read> tg_tessFactors : array<f32>;
     @group(0) @binding(2) var<storage, read> tg_triOffsets : array<u32>;
@@ -219,71 +216,4 @@ static const char* tess_gen_shader = R"WGSL(
                 }
             }
         }
-
-
     }
-)WGSL";
-
-class TessGenPass {
-    wgpu::Device device;
-    wgpu::ComputePipeline pipeline;
-    wgpu::BindGroup bg;
-
-public:
-    bool init(wgpu::Device &device);
-    wgpu::BindGroupLayout get_bgl();
-    bool set_bindgroup(wgpu::BindGroup bind_group);
-    bool exec(wgpu::CommandEncoder encoder, uint32_t num_quads);
-};
-
-bool TessGenPass::init(wgpu::Device &dev) {
-    this->device = dev;
-
-    wgpu::ShaderModuleDescriptor shaderDesc;
-    wgpu::ShaderSourceWGSL wgsl;
-    wgsl.chain.sType = wgpu::SType::ShaderSourceWGSL;
-    wgsl.code.data = tess_gen_shader;
-    wgsl.code.length = std::strlen(tess_gen_shader);
-    shaderDesc.nextInChain = &wgsl.chain;
-    wgpu::ShaderModule module = this->device.createShaderModule(shaderDesc);
-
-    wgpu::ComputePipelineDescriptor pd;
-    pd.compute.module = module;
-    
-    // printf("\n\n------------------------\n\n");
-
-    pd.compute.entryPoint = {"tess_gen", 8};
-    pipeline = this->device.createComputePipeline(pd);
-
-    module.release();
-    return true;
-}
-
-wgpu::BindGroupLayout TessGenPass::get_bgl() {
-    return pipeline.getBindGroupLayout(0);
-}
-
-bool TessGenPass::set_bindgroup(wgpu::BindGroup bind_group) {
-    bg = bind_group;
-    bg.addRef();
-    return true;
-}
-
-bool TessGenPass::exec(wgpu::CommandEncoder encoder, uint32_t num_quads) {
-    if (num_quads == 0)
-        return true;
-
-    const uint32_t workgroup_size = 256;
-    uint32_t num_workgroups = (num_quads + workgroup_size - 1) / workgroup_size;
-
-    wgpu::ComputePassDescriptor pd;
-
-    wgpu::ComputePassEncoder pass = encoder.beginComputePass(pd);
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bg, 0, nullptr);
-    pass.dispatchWorkgroups(num_workgroups, 1, 1);
-    pass.end();
-    pass.release();
-
-    return true;
-}

@@ -10,6 +10,11 @@
 #include "BVParser.h"
 #include "MVP.h"
 
+struct TessOutput {
+  wgpu::Buffer buffer = nullptr;
+  uint32_t vertexCount = 0;
+};
+
 class Settings
 {
 public:
@@ -57,6 +62,7 @@ public:
 
   static inline Setting<BVParser> parser;
 
+  static inline Setting<TessOutput> tessOutput;
 
   static inline Setting<MVP> mvp = {MVP()};
 
