@@ -1,17 +1,19 @@
-#ifndef IPASS_H_
-#define IPASS_H_
+#pragma once
 
 #include "ComputePass.h"
+#include "TessConstants.h"
+#include <cstdint>
 
 
 class IPass : public ComputePass
 {
 public:
-  const int MAX_PATCHES = 65536; //double check this
 
   IPass(Context& ctx);
   ~IPass();
-  wgpu::Buffer& Execute(wgpu::ComputePassEncoder& pass) override;
+  void Execute(wgpu::CommandEncoder& encoder) override;
+
+  wgpu::Buffer& GetOutputBuffer() { return patchesBuffer; }
 
   // group 0 storage buffers
   wgpu::Buffer verticesBuffer;
@@ -23,8 +25,13 @@ public:
   wgpu::Buffer pixelSizeBuffer;
 
 private:
+  void EnsureStorageCapacity(uint32_t requiredVertices);
+
+  wgpu::BindGroupLayout storageBindGroupLayout;
   wgpu::BindGroup storageBindGroup;
   wgpu::BindGroup uniformBindGroup;
-};
 
-#endif
+  uint32_t vertexCapacity = 0;
+  uint32_t patchCapacity = 0;
+  uint32_t currentVertCount = 0;
+};
