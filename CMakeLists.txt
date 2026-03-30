@@ -233,6 +233,7 @@ endif()
 
 
 if(NOT EMSCRIPTEN)
+  add_subdirectory(library)
   enable_testing()
   add_subdirectory(tests)
 endif()
