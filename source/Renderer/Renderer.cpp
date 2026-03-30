@@ -6,7 +6,7 @@
 #include "Renderer.h"
 #include "Camera.h"
 #include "Settings.h"
-#include "iPass.h"
+#include "IPass.h"
 #include "TessellatorPass.h"
 #include "Elevation.h"
 

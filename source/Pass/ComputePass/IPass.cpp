@@ -1,4 +1,4 @@
-#include "iPass.h"
+#include "IPass.h"
 #include "Shader.h"
 #include <webgpu/webgpu.h>
 #include <vector>
