@@ -24,12 +24,12 @@ public:
     LODPass(LODPass&&)                   noexcept;
     LODPass& operator=(LODPass&&)        noexcept;
 
-    bool UploadPatches(const PatchData& data);
+    Status UploadPatches(const PatchData& data);
 
     void SetMVP(const glm::mat4& mvp);
     void SetViewport(float width, float height);
 
-    void Dispatch(wgpu::CommandEncoder& encoder);
+    Status Dispatch(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetLODBuffer() const;
     uint32_t     GetPatchCount() const;

@@ -8,6 +8,16 @@
 
 namespace ipass {
 
+enum class Status {
+    Success,
+    EmptyInput,
+    GPUInitFailed,
+    NotInitialized,
+    PatchesNotLoaded,
+    LoadFailed,
+};
+
+
 struct PatchData {
     std::vector<glm::vec4> control_points;   // num_patches * 16
     std::vector<uint32_t>  corner_indices;   // num_patches * 4

@@ -24,8 +24,8 @@ public:
     TessellationPass(TessellationPass&&)                   noexcept;
     TessellationPass& operator=(TessellationPass&&)        noexcept;
 
-    bool UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
-    void Dispatch(wgpu::CommandEncoder& encoder);
+    Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
+    Status Dispatch(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetVertexBuffer() const;
     uint32_t GetMaxVertexCount() const;

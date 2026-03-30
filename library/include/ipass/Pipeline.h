@@ -26,14 +26,14 @@ public:
     Pipeline(Pipeline&&)                   noexcept;
     Pipeline& operator=(Pipeline&&)        noexcept;
 
-    bool LoadPatches(const PatchData& data);
+    Status LoadPatches(const PatchData& data);
 
     void SetMVP(const glm::mat4& mvp);
     void SetViewport(float width, float height);
 
-    void DispatchLOD(wgpu::CommandEncoder& encoder);
-    void DispatchTessellation(wgpu::CommandEncoder& encoder);
-    void Execute(wgpu::CommandEncoder& encoder);
+    Status DispatchLOD(wgpu::CommandEncoder& encoder);
+    Status DispatchTessellation(wgpu::CommandEncoder& encoder);
+    Status Execute(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetVertexBuffer() const;
     uint32_t     GetMaxVertexCount() const;
