@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Pass.h"
+#include "Context.h"
 
 #include <string>
 #include <exception>
@@ -9,7 +10,8 @@
 class RenderPass : public Pass
 {
 public:
-  RenderPass(Context& ctx) : Pass(ctx) {}
+  RenderPass(Context& ctx) : Pass(ctx), context(ctx) {}
+  Context& context;
   virtual ~RenderPass() = default;
   virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
 

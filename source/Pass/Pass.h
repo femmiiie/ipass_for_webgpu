@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Utils.h"
-#include "Context.h"
+#include "ShaderUtils.h"
+#include "GPUContext.h"
 
 #include <vector>
 #include <string>
@@ -11,10 +11,10 @@
 class Pass
 {
 public:
-  Pass(Context& ctx) : context(ctx) {}
+  Pass(GPUContext& ctx) : context(ctx) {}
   virtual ~Pass() = default;
 
-  Context& context;
+  GPUContext& context;
 
   wgpu::PipelineLayout layout;
   wgpu::BindGroup bindGroup;

@@ -4,7 +4,7 @@
 #include <cstdint>
 
 class TessCalcPass {
-    wgpu::Device& device;
+    wgpu::Device device;
 
     wgpu::ComputePipeline pipeline_tess_factor;
     wgpu::BindGroup bg_tess_factor;
@@ -13,7 +13,7 @@ class TessCalcPass {
     wgpu::BindGroup bg_calc_counts;
 
 public:
-    bool Init(wgpu::Device &device);
+    bool Init(wgpu::Device device);
     wgpu::BindGroupLayout GetTessFactorBGL();
     wgpu::BindGroupLayout GetCalcCountsBGL();
     bool SetBindGroups(wgpu::BindGroup tess_factor_bg, wgpu::BindGroup calc_counts_bg);

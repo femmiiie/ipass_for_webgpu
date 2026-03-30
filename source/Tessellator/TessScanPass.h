@@ -4,7 +4,7 @@
 #include <cstdint>
 
 class TessScanPass {
-    wgpu::Device& device;
+    wgpu::Device device;
 
     wgpu::ComputePipeline pipeline_lvl1;
     wgpu::BindGroup bg_lvl1;
@@ -16,7 +16,7 @@ class TessScanPass {
     wgpu::BindGroup bg_comb;
 
 public:
-    bool Init(wgpu::Device &device);
+    bool Init(wgpu::Device device);
     wgpu::BindGroupLayout GetLevel1BGL();
     wgpu::BindGroupLayout GetLevel2BGL();
     wgpu::BindGroupLayout GetCombineBGL();

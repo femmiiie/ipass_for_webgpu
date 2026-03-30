@@ -6,7 +6,7 @@
 class ComputePass : public Pass
 {
 public:
-  ComputePass(Context& ctx) : Pass(ctx) {}
+  ComputePass(GPUContext& ctx) : Pass(ctx) {}
   virtual ~ComputePass() = default;
   virtual void Execute(wgpu::CommandEncoder& encoder) = 0;
 

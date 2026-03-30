@@ -4,6 +4,7 @@
 #include "TessConstants.h"
 
 #include <cstdint>
+#include <functional>
 
 class Tessellator;
 class BVParser;
@@ -14,7 +15,7 @@ public:
   static constexpr uint32_t DEFAULT_PATCH_LIMIT = 128;
   static_assert(DEFAULT_PATCH_LIMIT <= tess::MAX_PATCHES);
 
-  TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf);
+  TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf);
   ~TessellatorPass();
 
   void LoadBV(const BVParser& parser);

@@ -168,6 +168,19 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     this->LoadBV(p);
   });
 
+  Settings::tessOutput.subscribe([this](const TessOutput& out) {
+    if (Settings::tessellation.get() && out.buffer && out.vertexCount > 0)
+      this->UseGPUTessellated(out.buffer, out.vertexCount);
+  });
+
+  Settings::tessellation.subscribe([this](const bool& enabled) {
+    const auto& out = Settings::tessOutput.get();
+    if (enabled && out.buffer && out.vertexCount > 0)
+      this->UseGPUTessellated(out.buffer, out.vertexCount);
+    else
+      this->LoadBV(Settings::parser.get());
+  });
+
   this->InitializeRenderPipeline();
 }
 
@@ -337,7 +350,17 @@ void SceneRenderPass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
 
   this->ownsVertexBuffer = false;
   this->vertexBuffer    = buf;
-  this->vertexCount     = count;
+
+  const uint64_t stride = 16ull * sizeof(glm::f32);
+  const uint64_t maxVertsByBuffer = stride > 0 ? (buf.getSize() / stride) : 0;
+  this->vertexCount = static_cast<glm::u32>(std::min<uint64_t>(count, maxVertsByBuffer));
+
+  if (this->vertexCount < count)
+  {
+    std::cerr << "[UseGPUTessellated] Clamped draw vertex count from " << count
+              << " to " << this->vertexCount
+              << " to fit the bound vertex buffer capacity." << std::endl;
+  }
 }
 
 void SceneRenderPass::CreateDepthTexture(glm::uvec2 size)

@@ -13,16 +13,14 @@
 
 #include "TessellatorPass.h"
 #include "BVParser.h"
-#include "Settings.h"
-#include "Utils.h"
+#include "ShaderUtils.h"
 #include "Elevation.h"
 
 using Vertex3D = utils::Vertex3D;
 
-TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
+TessellatorPass::TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
 {
   tess = new Tessellator();
-
   if (!tess->Init(ctx.device, ctx.queue, DEFAULT_PATCH_LIMIT, ipass_levels_buf)) {
     std::cerr << "[TessellatorPass] Failed to initialise Tessellator." << std::endl;
     delete tess;
@@ -31,10 +29,6 @@ TessellatorPass::TessellatorPass(Context& ctx, wgpu::Buffer ipass_levels_buf) : 
   }
 
   initialized = true;
-
-  Settings::parser.subscribe([this](const BVParser& p) {
-    this->LoadBV(p);
-  });
 }
 
 TessellatorPass::~TessellatorPass()
@@ -107,9 +101,6 @@ void TessellatorPass::LoadBV(const BVParser& parser)
 
   std::cout << "[TessellatorPass] Uploaded " << num_quads
             << " bicubic patch(es) for GPU tessellation." << std::endl;
-
-  Settings::tessOutput.modify() = {tess->GetVertexOutput(), GetMaxVertexCount()};
-  Settings::tessOutput.notify();
 }
 
 void TessellatorPass::Execute(wgpu::CommandEncoder& encoder)

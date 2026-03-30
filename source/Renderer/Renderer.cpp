@@ -8,6 +8,7 @@
 #include "Settings.h"
 #include "iPass.h"
 #include "TessellatorPass.h"
+#include "Elevation.h"
 
 Renderer::Renderer()
 {
@@ -34,9 +35,38 @@ Renderer::Renderer()
   this->UpdateSceneViewport();
 
   this->iPass = new IPass(this->context);
+  this->iPass->SetViewportWidth(this->context.sceneViewport.width);
   this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer);
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context);
+
+  // Wire up Settings subscriptions (previously inside IPass/TessellatorPass)
+  Settings::mvp.subscribe([this](const MVP& m) {
+    glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
+    this->iPass->SetMVP(mvp);
+  });
+
+  Settings::parser.subscribe([this](const BVParser& p) {
+    const auto& patches = p.Get();
+    const auto& dims    = p.GetDims();
+
+    // elevate to force all patches to be bi-cubic (for IPass)
+    std::vector<utils::Vertex3D> bicubicVerts;
+    bicubicVerts.reserve(patches.size() * 16);
+    for (size_t pi = 0; pi < patches.size(); pi++) {
+      if (patches[pi].empty()) continue;
+      auto elevated = elevation::elevatePatchFull(patches[pi], dims[pi].first, dims[pi].second);
+      bicubicVerts.insert(bicubicVerts.end(), elevated.begin(), elevated.end());
+    }
+    this->iPass->UploadVertices(bicubicVerts);
+
+    // TessellatorPass handles its own elevation internally
+    this->tessPass->LoadBV(p);
+
+    // Notify SceneRenderPass of new tessellation output
+    Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount()};
+    Settings::tessOutput.notify();
+  });
 
   if (!Settings::parser.get().Get().empty()) {
     this->tessPass->LoadBV(Settings::parser.get());
@@ -199,6 +229,7 @@ void Renderer::OnResize(int w, int h)
   this->context.size = { (uint32_t)w, (uint32_t)h };
   this->ConfigureSurface();
   this->UpdateSceneViewport();
+  if (this->iPass)     { this->iPass->SetViewportWidth(context.sceneViewport.width); }
   if (this->uiPass)    { this->uiPass->UpdateProjection(context.size); }
   if (this->scenePass) { this->scenePass->OnResize(context.size); }
 }

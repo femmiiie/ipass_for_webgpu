@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-#include <webgpu/webgpu.hpp>
+#include "GPUContext.h"
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -11,12 +11,10 @@
 using std::chrono::steady_clock;
 using std::chrono::duration;
 
-struct Context
+struct Context : GPUContext
 {
   glm::uvec2 size;
 
-  wgpu::Device device;
-  wgpu::Queue queue;
   wgpu::Surface surface;
   wgpu::TextureFormat surfaceFormat;
 

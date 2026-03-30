@@ -2,7 +2,7 @@
 #include "Utils.h"
 #include <cstring>
 
-bool TessCalcPass::Init(wgpu::Device &dev) {
+bool TessCalcPass::Init(wgpu::Device dev) {
     this->device = dev;
 
     wgpu::ShaderModule module = utils::LoadShader(this->device, "Tessellator/tess-calc.wgsl");

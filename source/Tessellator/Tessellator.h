@@ -12,8 +12,8 @@
 #include "TessConstants.h"
 
 class Tessellator {
-    wgpu::Device& device;
-    wgpu::Queue& queue;
+    wgpu::Device device;
+    wgpu::Queue queue;
 
     TessCalcPass calc_pass;
     TessScanPass scan_pass;
