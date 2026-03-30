@@ -9,7 +9,7 @@
 
 #include <glm/glm.hpp>
 
-#include "Utils.h"
+#include "Shader.h"
 
 using utils::Vertex3D;
 using Patch = std::vector<Vertex3D>;

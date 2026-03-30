@@ -6,7 +6,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
-#include "Utils.h"
+#include "Shader.h"
 
 namespace elevation {
 

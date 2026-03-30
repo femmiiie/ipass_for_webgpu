@@ -1,5 +1,5 @@
 #include "TessGenPass.h"
-#include "Utils.h"
+#include "Shader.h"
 #include <cstring>
 
 bool TessGenPass::Init(wgpu::Device dev) {

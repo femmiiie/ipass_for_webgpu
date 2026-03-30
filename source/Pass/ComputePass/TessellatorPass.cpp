@@ -13,7 +13,7 @@
 
 #include "TessellatorPass.h"
 #include "BVParser.h"
-#include "ShaderUtils.h"
+#include "Shader.h"
 #include "Elevation.h"
 
 using Vertex3D = utils::Vertex3D;

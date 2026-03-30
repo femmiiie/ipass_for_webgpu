@@ -1,7 +1,5 @@
 #include "iPass.h"
-#include "Utils.h"
-#include "Settings.h"
-#include "Elevation.h"
+#include "Shader.h"
 #include <webgpu/webgpu.h>
 #include <vector>
 
@@ -114,44 +112,32 @@ IPass::IPass(GPUContext& ctx) : ComputePass(ctx)
   pipelineDesc.compute.module = shaderModule;
   pipelineDesc.compute.entryPoint = {"ipass", 5};
   this->pipeline = this->context.device.createComputePipeline(pipelineDesc);
+}
 
-  Settings::mvp.subscribe([this](const MVP& m) {
-    glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
-    this->context.queue.writeBuffer(this->mvpBuffer, 0, &mvp, sizeof(glm::mat4));
-  });
+void IPass::SetMVP(const glm::mat4& mvp)
+{
+  this->context.queue.writeBuffer(this->mvpBuffer, 0, &mvp, sizeof(glm::mat4));
+}
 
-  Settings::parser.subscribe([this](const BVParser& p) {
-    const auto& patches = p.Get();
-    const auto& dims    = p.GetDims();
+void IPass::UploadVertices(const std::vector<Vertex3D>& bicubicVerts)
+{
+  uint32_t count = static_cast<uint32_t>(bicubicVerts.size());
+  uint32_t patchCount = (count + VERTS_PER_PATCH - 1) / VERTS_PER_PATCH;
 
-    // elevate to force all patches to be bi-cubic
-    std::vector<Vertex3D> bicubicVerts;
-    bicubicVerts.reserve(patches.size() * 16);
-    for (size_t pi = 0; pi < patches.size(); pi++) {
-      if (patches[pi].empty()) continue;
-      auto elevated = elevation::elevatePatchFull(patches[pi], dims[pi].first, dims[pi].second);
-      bicubicVerts.insert(bicubicVerts.end(), elevated.begin(), elevated.end());
-    }
+  if (patchCount > this->patchCapacity)
+  {
+    count = this->patchCapacity * VERTS_PER_PATCH;
+    patchCount = this->patchCapacity;
+    std::cerr << "[IPass] Clamped patches to " << this->patchCapacity
+              << " to match the fixed tessellation levels buffer capacity." << std::endl;
+  }
 
-    uint32_t count = static_cast<uint32_t>(bicubicVerts.size()); // == numPatches * 16
-    uint32_t patchCount = (count + VERTS_PER_PATCH - 1) / VERTS_PER_PATCH;
+  this->currentVertCount = count;
+  this->EnsureStorageCapacity(count);
 
-    if (patchCount > this->patchCapacity)
-    {
-      count = this->patchCapacity * VERTS_PER_PATCH;
-      patchCount = this->patchCapacity;
-      bicubicVerts.resize(count);
-      std::cerr << "[IPass] Clamped patches to " << this->patchCapacity
-                << " to match the fixed tessellation levels buffer capacity." << std::endl;
-    }
-
-    this->currentVertCount = count;
-    this->EnsureStorageCapacity(count);
-
-    if (count > 0)
-      this->context.queue.writeBuffer(this->verticesBuffer, 0, bicubicVerts.data(), sizeof(Vertex3D) * count);
-    this->context.queue.writeBuffer(this->vertCountBuffer, 0, &count, sizeof(uint32_t));
-  });
+  if (count > 0)
+    this->context.queue.writeBuffer(this->verticesBuffer, 0, bicubicVerts.data(), sizeof(Vertex3D) * count);
+  this->context.queue.writeBuffer(this->vertCountBuffer, 0, &count, sizeof(uint32_t));
 }
 
 IPass::~IPass()
@@ -166,7 +152,7 @@ void IPass::Execute(wgpu::CommandEncoder& encoder)
 {
   if (this->currentVertCount == 0) return;
 
-  float pixelSize = 2.0f / this->context.sceneViewport.width;
+  float pixelSize = 2.0f / this->viewportWidth;
   this->context.queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));
 
   wgpu::ComputePassDescriptor desc;

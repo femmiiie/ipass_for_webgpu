@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShaderUtils.h"
+#include "Shader.h"
 #include "GPUContext.h"
 
 #include <vector>
