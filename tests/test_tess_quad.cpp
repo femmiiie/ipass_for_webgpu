@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 
-#include "tesselation.h"
+#include "Tessellator.h"
 
 using namespace wgpu;
 
@@ -79,19 +79,19 @@ int main() {
 
     const uint32_t num_quads = 1;
 
-    Tesselator tess;
-    if (!tess.init(device, queue, num_quads, wgpu::Buffer())) { // needs to be fixed to setup ipass buffer
-        std::cerr << "Failed to init Tesselator\n";
+    Tessellator tess;
+    if (!tess.Init(device, queue, num_quads, wgpu::Buffer())) { // needs to be fixed to setup ipass buffer
+        std::cerr << "Failed to init Tessellator\n";
         return 1;
     }
 
-    tess.upload(control_points, indices, num_quads);
+    tess.Upload(control_points, indices, num_quads);
 
     CommandEncoderDescriptor ed = {};
     CommandEncoder encoder = device.createCommandEncoder(ed);
 
-    if (!tess.exec(encoder, num_quads)) {
-        std::cerr << "Failed to exec Tesselator\n";
+    if (!tess.Execute(encoder, num_quads)) {
+        std::cerr << "Failed to exec Tessellator\n";
         return 1;
     }
 
@@ -103,7 +103,7 @@ int main() {
     stagingDesc.usage = BufferUsage::MapRead | BufferUsage::CopyDst;
     Buffer staging = device.createBuffer(stagingDesc);
 
-    encoder.copyBufferToBuffer(tess.get_verts_out(), 0, staging, 0, readback_size);
+    encoder.copyBufferToBuffer(tess.GetVertexOutput(), 0, staging, 0, readback_size);
 
     CommandBufferDescriptor cbd = {};
     CommandBuffer cmd = encoder.finish(cbd);
@@ -132,7 +132,7 @@ int main() {
 
     wgpuBufferUnmap(staging);
 
-    tess.terminate();
+    tess.Terminate();
     staging.release();
     queue.release();
     device.release();

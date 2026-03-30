@@ -11,7 +11,7 @@
 #include <random>
 #include <vector>
 
-#include "tess-scan.h"
+#include "TessScanPass.h"
 
 using namespace wgpu;
 
@@ -79,7 +79,7 @@ int main() {
     queue.writeBuffer(buf_count, 0, h_in.data(), N * 4);
 
     TessScanPass scan;
-    scan.init(device);
+    scan.Init(device);
 
     auto bge = [](uint32_t binding, Buffer buf, uint64_t size) -> BindGroupEntry {
         BindGroupEntry e = {};
@@ -97,7 +97,7 @@ int main() {
         bge(2, buf_blocks, 256 * 4),
     };
     BindGroupDescriptor bgd = {};
-    bgd.layout = scan.get_lvl1_bgl();
+    bgd.layout = scan.GetLevel1BGL();
     bgd.entryCount = 3; bgd.entries = e1.data();
     BindGroup bg1 = device.createBindGroup(bgd);
 
@@ -106,7 +106,7 @@ int main() {
         bge(0, buf_blocks, 256 * 4),
         bge(1, buf_total,  4),
     };
-    bgd.layout = scan.get_lvl2_bgl();
+    bgd.layout = scan.GetLevel2BGL();
     bgd.entryCount = 2; bgd.entries = e2.data();
     BindGroup bg2 = device.createBindGroup(bgd);
 
@@ -115,16 +115,16 @@ int main() {
         bge(1, buf_offset, N * 4),
         bge(2, buf_blocks, 256 * 4),
     };
-    bgd.layout = scan.get_comb_bgl();
+    bgd.layout = scan.GetCombineBGL();
     bgd.entryCount = 2; bgd.entries = ec.data();
     BindGroup bgc = device.createBindGroup(bgd);
 
-    scan.set_bindgroups(bg1, bg2, bgc);
+    scan.SetBindGroups(bg1, bg2, bgc);
 
     CommandEncoderDescriptor ed = {};
     CommandEncoder encoder = device.createCommandEncoder(ed);
 
-    scan.exec(encoder, N);
+    scan.Execute(encoder, N);
     encoder.copyBufferToBuffer(buf_offset, 0, buf_staging, 0, N * 4);
 
     CommandBufferDescriptor cbd = {};
