@@ -9,6 +9,8 @@
 #include "RenderPass.h"
 #include "File.h"
 
+#include <string>
+
 using Vertex = utils::Vertex2D;
 
 class UIRenderPass : public RenderPass
@@ -23,7 +25,7 @@ public:
   static constexpr float BASE_FONT_SIZE  = 13.0f;
   static constexpr float MAX_FONT_SCALE  = 4.0f;
 
-  UIRenderPass(Context& context);
+  UIRenderPass(Context& context, const std::string& fontPath = "");
   ~UIRenderPass();
   void Execute(wgpu::RenderPassEncoder& encoder) override;
   void RenderUI();

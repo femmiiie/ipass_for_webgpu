@@ -187,6 +187,15 @@ endforeach()
 add_custom_target(copy_shaders ALL DEPENDS ${SHADER_STAMP_FILES})
 add_dependencies(ipass_webgpu copy_shaders)
 
+# Copy fonts directory to build directory
+add_custom_target(copy_fonts ALL
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+    "${CMAKE_BINARY_DIR}/fonts"
+  COMMENT "Copying fonts directory"
+)
+add_dependencies(ipass_webgpu copy_fonts)
+
 target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::glm)
 if(NOT EMSCRIPTEN)
   target_link_libraries(ipass_webgpu PRIVATE nfd)

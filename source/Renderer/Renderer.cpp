@@ -38,7 +38,7 @@ Renderer::Renderer()
   this->iPass->SetViewportWidth(this->context.sceneViewport.width);
   this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer);
   this->scenePass = new SceneRenderPass(this->context);
-  this->uiPass = new UIRenderPass(this->context);
+  this->uiPass = new UIRenderPass(this->context, "fonts/Inter-VariableFont.ttf");
 
   // Wire up Settings subscriptions (previously inside IPass/TessellatorPass)
   Settings::mvp.subscribe([this](const MVP& m) {

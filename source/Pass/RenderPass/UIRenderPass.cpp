@@ -6,17 +6,21 @@
 #include <cstring>
 #include <vector>
 
-UIRenderPass::UIRenderPass(Context& context) : RenderPass(context)
+UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : RenderPass(context)
 {
   this->uiScale = glm::max(1.0f, (float)context.size.y / 1080.0f);
 
 	nk_font_atlas_init_default(&this->atlas);
 	nk_font_atlas_begin(&this->atlas);
 
-	this->scaledFont = nk_font_atlas_add_default(&atlas, BASE_FONT_SIZE * MAX_FONT_SCALE, nullptr);
+  if (!fontPath.empty())
+    this->scaledFont = nk_font_atlas_add_from_file(&this->atlas, fontPath.c_str(), BASE_FONT_SIZE * MAX_FONT_SCALE, nullptr);
+
+  if (!this->scaledFont)
+    this->scaledFont = nk_font_atlas_add_default(&this->atlas, BASE_FONT_SIZE * MAX_FONT_SCALE, nullptr);
 
 	int img_w, img_h;
-	const void* image = nk_font_atlas_bake(&atlas, &img_w, &img_h, NK_FONT_ATLAS_RGBA32);
+	const void* image = nk_font_atlas_bake(&this->atlas, &img_w, &img_h, NK_FONT_ATLAS_RGBA32);
 
   size_t bakedSize = (size_t)(img_w * img_h * 4);
   std::vector<uint8_t> imageCopy(bakedSize);
