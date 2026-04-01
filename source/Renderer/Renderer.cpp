@@ -135,7 +135,7 @@ void Renderer::Initialize()
 
 
 #ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
-  this->surfaceFormat = wgpu::TextureFormat::BGRA8Unorm;
+  this->context.surfaceFormat = wgpu::TextureFormat::BGRA8Unorm;
 #else
   wgpu::SurfaceCapabilities capabilities;
   this->context.surface.getCapabilities(adapter, &capabilities);
