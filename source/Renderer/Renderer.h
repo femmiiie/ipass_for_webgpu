@@ -59,6 +59,7 @@ private:
     wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment);
   void Initialize();
   void ConfigureSurface();
+  void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag);
   void GetSurfaceFormat();
 
   struct DebugInspect {

@@ -337,24 +337,7 @@ void Renderer::MainLoop()
   if (stagingSize > 0)
   {
     this->pendingDebugInspect = DebugInspect{stagingBuffer, stagingSize};
-    bool* mappedFlag = &this->debugMapped;
-    wgpu::BufferMapCallbackInfo callbackInfo;
-    callbackInfo.nextInChain = nullptr;
-    callbackInfo.mode = wgpu::CallbackMode::AllowProcessEvents;
-    callbackInfo.userdata1 = mappedFlag;
-    callbackInfo.userdata2 = nullptr;
-    callbackInfo.callback = [](
-      WGPUMapAsyncStatus status,
-      WGPUStringView /*message*/,
-      void* userdata1,
-      void* /*userdata2*/
-    ) {
-      bool* flag = static_cast<bool*>(userdata1);
-      *flag = (status == WGPUMapAsyncStatus_Success);
-    };
-    this->pendingDebugInspect.value().buffer.mapAsync(
-      wgpu::MapMode::Read, 0, stagingSize, callbackInfo
-    );
+    this->MapBufferForRead(this->pendingDebugInspect.value().buffer, stagingSize, &this->debugMapped);
   }
 
   targetView.release();
@@ -397,4 +380,27 @@ wgpu::RenderPassDescriptor Renderer::GetRenderDescriptor(wgpu::TextureView& view
   renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
   renderPassDesc.timestampWrites = nullptr;
   return renderPassDesc;
+}
+
+void Renderer::MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag)
+{
+#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
+  buffer.mapAsync(wgpu::MapMode::Read, 0, size, wgpu::CallbackMode::AllowProcessEvents,
+    [outFlag](wgpu::MapAsyncStatus status, wgpu::StringView /*message*/) {
+      *outFlag = (status == wgpu::MapAsyncStatus::Success);
+    }
+  );
+#else
+  wgpu::BufferMapCallbackInfo callbackInfo;
+  callbackInfo.nextInChain = nullptr;
+  callbackInfo.mode        = wgpu::CallbackMode::AllowProcessEvents;
+  callbackInfo.userdata1   = outFlag;
+  callbackInfo.userdata2   = nullptr;
+  callbackInfo.callback    = [](WGPUMapAsyncStatus status, WGPUStringView /*message*/,
+                                void* userdata1, void* /*userdata2*/)
+  {
+    *static_cast<bool*>(userdata1) = (status == WGPUMapAsyncStatus_Success);
+  };
+  buffer.mapAsync(wgpu::MapMode::Read, 0, size, callbackInfo);
+#endif
 }
