@@ -237,7 +237,7 @@ void UIRenderPass::InitializeRenderPipeline()
   wgpu::BlendState blend = this->GetBlendState();
 
   wgpu::ColorTargetState colorTarget;
-  colorTarget.format = this->context.surfaceFormat;
+  colorTarget.format = this->context.colorFormat;
   colorTarget.blend = &blend;
   colorTarget.writeMask = wgpu::ColorWriteMask::All;
 

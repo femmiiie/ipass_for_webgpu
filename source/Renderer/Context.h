@@ -17,6 +17,7 @@ struct Context : GPUContext
 
   wgpu::Surface surface;
   wgpu::TextureFormat surfaceFormat;
+  wgpu::TextureFormat colorFormat;  // sRGB view format on emscripten, same as surfaceFormat on native
 
   void tick();
   void measure();

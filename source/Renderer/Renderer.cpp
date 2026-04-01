@@ -133,14 +133,14 @@ void Renderer::Initialize()
   }
   this->context.surface = wgpu::Surface(rawSurface);
 
-
-#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
-  this->context.surfaceFormat = wgpu::TextureFormat::BGRA8Unorm;
-#else
   wgpu::SurfaceCapabilities capabilities;
   this->context.surface.getCapabilities(adapter, &capabilities);
   this->context.surfaceFormat = capabilities.formats[0];
-#endif
+  #ifdef __EMSCRIPTEN__
+  this->context.colorFormat = wgpu::TextureFormat::BGRA8UnormSrgb;
+  #else
+  this->context.colorFormat = this->context.surfaceFormat;
+  #endif
 
   this->ConfigureSurface();
 
@@ -159,8 +159,14 @@ void Renderer::ConfigureSurface()
   surfConfig.usage = wgpu::TextureUsage::RenderAttachment;
   surfConfig.presentMode = wgpu::PresentMode::Fifo;
   surfConfig.alphaMode = wgpu::CompositeAlphaMode::Auto;
+
+  #ifdef __EMSCRIPTEN__
+  surfConfig.viewFormatCount = 1;
+  surfConfig.viewFormats = &this->context.colorFormat.m_raw;
+  #else
   surfConfig.viewFormatCount = 0;
   surfConfig.viewFormats = nullptr;
+  #endif
 
   this->context.surface.configure(surfConfig);
   this->context.queue = this->context.device.getQueue();
@@ -192,7 +198,11 @@ wgpu::TextureView Renderer::GetNextTextureView()
 
   wgpu::TextureViewDescriptor viewDescriptor;
   viewDescriptor.label = WGPU_STRING_VIEW_INIT;
+  #ifdef __EMSCRIPTEN__
+  viewDescriptor.format = this->context.colorFormat;
+  #else
   viewDescriptor.format = texture.getFormat();
+  #endif
   viewDescriptor.dimension = wgpu::TextureViewDimension::_2D;
   viewDescriptor.baseMipLevel = 0;
   viewDescriptor.mipLevelCount = 1;
