@@ -265,6 +265,8 @@ if(EMSCRIPTEN)
     list(APPEND PRELOAD_OPTIONS "--preload-file=${SHADER_FILE}@${SHADER_NAME}")
   endforeach()
 
+  list(APPEND PRELOAD_OPTIONS "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/fonts@/fonts")
+
   target_link_options(ipass_webgpu PRIVATE
     "-sUSE_GLFW=3"
     "-sASYNCIFY"
