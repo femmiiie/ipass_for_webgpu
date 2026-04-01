@@ -49,6 +49,38 @@ else()
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_wasm\\.cpp$")
 endif()
 
+# Embed shaders to embedded_shaders.h (faster than virtual FS)
+if(EMSCRIPTEN)
+  set(SHADER_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/scene.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
+  )
+  set(SHADER_VAR_NAMES "ipass" "scene" "ui" "tess_calc" "tess_scan" "tess_gen")
+
+  set(EMBEDDED_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h")
+  file(WRITE "${EMBEDDED_SHADER_HEADER}"
+    "#pragma once\n#include <string>\nnamespace embedded_shaders {\n"
+  )
+
+  list(LENGTH SHADER_SOURCES SHADER_COUNT)
+  math(EXPR SHADER_LAST "${SHADER_COUNT} - 1")
+
+  foreach(IDX RANGE ${SHADER_LAST})
+    list(GET SHADER_SOURCES ${IDX} SHADER_FILE)
+    list(GET SHADER_VAR_NAMES ${IDX} VAR_NAME)
+    file(READ "${SHADER_FILE}" SHADER_CONTENT)
+    file(APPEND "${EMBEDDED_SHADER_HEADER}"
+      "inline const std::string ${VAR_NAME} = R\"WGSL(\n${SHADER_CONTENT})WGSL\";\n"
+    )
+  endforeach()
+
+  file(APPEND "${EMBEDDED_SHADER_HEADER}" "} // embedded_shaders\n")
+endif()
+
 add_executable(ipass_webgpu ${SOURCES})
 
 set_target_properties(ipass_webgpu PROPERTIES
@@ -191,8 +223,8 @@ add_dependencies(ipass_webgpu copy_shaders)
 # Copy fonts directory to build directory
 add_custom_target(copy_fonts ALL
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
-    "${CMAKE_BINARY_DIR}/fonts"
+  "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+  "${CMAKE_BINARY_DIR}/fonts"
   COMMENT "Copying fonts directory"
 )
 add_dependencies(ipass_webgpu copy_fonts)
@@ -243,11 +275,11 @@ if(EMSCRIPTEN)
     ${PRELOAD_OPTIONS}
   )
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
+else()
+  add_subdirectory(library)
 endif()
 
-
 if(NOT EMSCRIPTEN)
-  add_subdirectory(library)
   enable_testing()
   add_subdirectory(tests)
 endif()
