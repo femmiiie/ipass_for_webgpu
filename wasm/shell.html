@@ -1,0 +1,23 @@
+<!-- basic blank shell to remove the emscripten logoing -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ipass_webgpu</title>
+</head>
+
+<body style="margin: 0%;">
+  <canvas id="canvas"></canvas>
+  <script>
+    var Module = {
+      canvas: (function () {
+        return document.getElementById("canvas");
+      })(),
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+
+</html>

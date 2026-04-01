@@ -1,6 +1,7 @@
 **/*.dll
 **/*.exe
 build/
+build_wasm/
 external/
 
 fiveserver.config.js

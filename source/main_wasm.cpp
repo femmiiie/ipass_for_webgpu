@@ -9,7 +9,7 @@
 
 int main()
 {
-  Renderer renderer({1920, 1080});
+  Renderer renderer;
 
   InputManager::Initialize(renderer.getWindow(), renderer.getUIContext());
   InputManager::BeginInput();

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.5)
 project(ipass_webgpu)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -9,7 +9,7 @@ include(FetchContent)
 
 FetchContent_Declare(webgpu
   GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
-  GIT_TAG main
+  GIT_TAG 17dcd42a7683355e7a40ac4e97e77f36dff5b5ab
 )
 
 FetchContent_Declare(nuklear
@@ -177,6 +177,7 @@ foreach(SHADER_FILE ${SHADER_FILES})
     OUTPUT "${STAMP_FILE}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy "${SHADER_FILE}" "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_STAMP_DIR}"
     COMMAND ${CMAKE_COMMAND} -E touch "${STAMP_FILE}"
     DEPENDS "${SHADER_FILE}"
     COMMENT "Copying shader: ${SHADER_RELATIVE}"
@@ -197,6 +198,7 @@ add_custom_target(copy_fonts ALL
 add_dependencies(ipass_webgpu copy_fonts)
 
 target_link_libraries(ipass_webgpu PRIVATE webgpu glfw glfw3webgpu nuklear glm::glm)
+
 if(NOT EMSCRIPTEN)
   target_link_libraries(ipass_webgpu PRIVATE nfd)
 endif()
@@ -214,6 +216,7 @@ target_include_directories(ipass_webgpu PRIVATE
   ${_source_include_dirs}
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_headers_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
 )
 target_compile_definitions(ipass_webgpu PRIVATE ${_backend_define})
 
@@ -222,7 +225,7 @@ set_target_properties(ipass_webgpu PROPERTIES
 )
 
 if(EMSCRIPTEN)
-  # Build preload options for all shader files
+  set(EMSCRIPTEN_SHELL_FILE "${CMAKE_CURRENT_SOURCE_DIR}/wasm/shell.html")
   set(PRELOAD_OPTIONS "")
 
   foreach(SHADER_FILE ${SHADER_FILES})
@@ -234,7 +237,9 @@ if(EMSCRIPTEN)
     "-sUSE_GLFW=3"
     "-sASYNCIFY"
     "-sFORCE_FILESYSTEM=1"
+    "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
     "-sEXPORTED_RUNTIME_METHODS=dynCall"
+    "--shell-file=${EMSCRIPTEN_SHELL_FILE}"
     ${PRELOAD_OPTIONS}
   )
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
