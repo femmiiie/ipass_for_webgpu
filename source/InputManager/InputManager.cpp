@@ -145,13 +145,12 @@ void InputManager::GLFWMouseButtonCallback(GLFWwindow* /*window*/, int button,
 
 void InputManager::GLFWScrollCallback(GLFWwindow* /*window*/, double xoffset, double yoffset)
 {
-  if (nkContext)
+  if (nkContext && nk_window_is_any_hovered(nkContext))
   {
     nk_input_scroll(nkContext, nk_vec2(static_cast<float>(xoffset),
                                        static_cast<float>(yoffset)));
+    return;
   }
-
-  if (nkContext && nk_window_is_any_hovered(nkContext)) { return; }
 
   for (auto& cb : scrollCallbacks) { cb(xoffset, yoffset); }
 }
