@@ -89,3 +89,10 @@ wgpu::BindGroup Pass::CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings
   desc.entries = bindings.data();
   return this->context.device.createBindGroup(desc);
 }
+
+void Pass::ClearBuffer(wgpu::CommandEncoder& encoder, wgpu::Buffer& buffer)
+{
+  const uint64_t size = buffer.getSize();
+  if (size == 0) return;
+  encoder.clearBuffer(buffer, 0, size);
+}

@@ -32,6 +32,8 @@ public:
   wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Sampler& sampler);
   wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings);
   wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& layout);
+
+  void ClearBuffer(wgpu::CommandEncoder& encoder, wgpu::Buffer& buffer);
 };
 
 
