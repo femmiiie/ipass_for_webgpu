@@ -20,8 +20,8 @@ using Vertex3D = utils::Vertex3D;
 
 TessellatorPass::TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
 {
-  tess = new Tessellator();
-  if (!tess->Init(ctx.device, ctx.queue, DEFAULT_PATCH_LIMIT, ipass_levels_buf)) {
+  tess = new Tessellator(ctx);
+  if (!tess->Init(DEFAULT_PATCH_LIMIT, ipass_levels_buf)) {
     std::cerr << "[TessellatorPass] Failed to initialise Tessellator." << std::endl;
     delete tess;
     tess = nullptr;
@@ -49,6 +49,7 @@ void TessellatorPass::LoadBV(const BVParser& parser)
   const auto& dims    = parser.GetDims();
 
   if (patches.empty()) {
+    tess->ClearBuffers();
     num_quads = 0;
     return;
   }
@@ -67,7 +68,10 @@ void TessellatorPass::LoadBV(const BVParser& parser)
 
   num_quads = count;
 
-  if (num_quads == 0) return;
+  if (num_quads == 0) {
+    tess->ClearBuffers();
+    return;
+  }
 
   constexpr uint32_t corner_cp_offsets[4] = {0, 12, 15, 3};
   constexpr float WELD_EPS = 1e-5f;

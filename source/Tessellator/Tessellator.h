@@ -1,20 +1,17 @@
 #pragma once
 
-#include <webgpu/webgpu.hpp>
 #include <cstdint>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
+#include "Pass.h"
 #include "TessCalcPass.h"
 #include "TessScanPass.h"
 #include "TessGenPass.h"
 #include "TessConstants.h"
 
-class Tessellator {
-    wgpu::Device device;
-    wgpu::Queue queue;
-
+class Tessellator : public Pass {
     TessCalcPass calc_pass;
     TessScanPass scan_pass;
     TessGenPass gen_pass;
@@ -31,9 +28,12 @@ class Tessellator {
     uint32_t max_quads = 0;
 
 public:
-    bool Init(wgpu::Device device, wgpu::Queue queue, uint32_t max_quads, wgpu::Buffer ipass_levels);
+    Tessellator(GPUContext& ctx) : Pass(ctx) {}
+
+    bool Init(uint32_t max_quads, wgpu::Buffer ipass_levels);
     void Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
     bool Execute(wgpu::CommandEncoder encoder, uint32_t num_quads);
     wgpu::Buffer GetVertexOutput() const { return buf_verts_out; }
     void Terminate();
+    void ClearBuffers();
 };
