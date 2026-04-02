@@ -42,6 +42,8 @@ private:
   static void GLFWCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
   static void GLFWCharCallback(GLFWwindow* window, unsigned int codepoint);
 
+  static glm::dvec2 GetMousePosScaling();
+
   static int PollModifier(int leftMod, int modFlag);
   static int PollModifiers();
 

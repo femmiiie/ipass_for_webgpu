@@ -1,6 +1,10 @@
 #include "InputManager.h"
 #include "KeyTable.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 void InputManager::Initialize(GLFWwindow* win, nk_context* nkCtx)
 {
   window    = win;
@@ -114,20 +118,26 @@ void InputManager::GLFWMouseButtonCallback(GLFWwindow* /*window*/, int button,
 {
   if (nkContext)
   {
-    int x = static_cast<int>(cursorPos.x);
-    int y = static_cast<int>(cursorPos.y);
+    glfwGetCursorPos(window, &cursorPos.x, &cursorPos.y);
+
+    glm::dvec2 scale = GetMousePosScaling();
+    glm::i32vec2 pos = {
+      static_cast<glm::i32>(cursorPos.x * scale.x),
+      static_cast<glm::i32>(cursorPos.y * scale.y)
+    };
+
     nk_bool down = (action == GLFW_PRESS);
 
     if (mouseTable.contains(button))
     {
-      nk_input_button(nkContext, mouseTable[button], x, y, down);
+      nk_input_button(nkContext, mouseTable[button], pos.x, pos.y, down);
     }
 
     switch (button)
     {
-      case GLFW_MOUSE_BUTTON_LEFT:   nk_input_button(nkContext, NK_BUTTON_LEFT,   x, y, down); break;
-      case GLFW_MOUSE_BUTTON_MIDDLE: nk_input_button(nkContext, NK_BUTTON_MIDDLE, x, y, down); break;
-      case GLFW_MOUSE_BUTTON_RIGHT:  nk_input_button(nkContext, NK_BUTTON_RIGHT,  x, y, down); break;
+      case GLFW_MOUSE_BUTTON_LEFT:   nk_input_button(nkContext, NK_BUTTON_LEFT,   pos.x, pos.y, down); break;
+      case GLFW_MOUSE_BUTTON_MIDDLE: nk_input_button(nkContext, NK_BUTTON_MIDDLE, pos.x, pos.y, down); break;
+      case GLFW_MOUSE_BUTTON_RIGHT:  nk_input_button(nkContext, NK_BUTTON_RIGHT,  pos.x, pos.y, down); break;
       default: break;
     }
   }
@@ -159,7 +169,8 @@ void InputManager::GLFWCursorPosCallback(GLFWwindow* /*window*/, double xpos, do
 {
   if (nkContext)
   {
-    nk_input_motion(nkContext, static_cast<int>(xpos), static_cast<int>(ypos));
+    glm::dvec2 scale = GetMousePosScaling();
+    nk_input_motion(nkContext, xpos*scale.x, ypos*scale.y);
   }
 
   cursorPos = {xpos, ypos};
@@ -169,10 +180,8 @@ void InputManager::GLFWCursorPosCallback(GLFWwindow* /*window*/, double xpos, do
 
 void InputManager::GLFWCharCallback(GLFWwindow* /*window*/, unsigned int codepoint)
 {
-  if (nkContext)
-  {
-    nk_input_unicode(nkContext, codepoint);
-  }
+  if (!nkContext) return;
+  nk_input_unicode(nkContext, codepoint);
 }
 
 
@@ -194,4 +203,32 @@ int InputManager::PollModifiers()
   mods |= PollModifier(GLFW_KEY_LEFT_ALT,     GLFW_MOD_ALT);
   mods |= PollModifier(GLFW_KEY_LEFT_SUPER,   GLFW_MOD_SUPER);
   return mods;
+}
+
+//specifically for web, native returns (1, 1)
+glm::dvec2 InputManager::GetMousePosScaling()
+{
+#ifdef __EMSCRIPTEN__
+  double sx, sy;
+
+  EM_ASM({
+    const c = Module['canvas'];
+    if (!c) {
+      HEAPF64[$0 >> 3] = 1.0;
+      HEAPF64[$1 >> 3] = 1.0;
+      return;
+    }
+
+    const r = c.getBoundingClientRect();
+    const sx = (r.width  > 0.0) ? (c.width  / r.width)  : 1.0;
+    const sy = (r.height > 0.0) ? (c.height / r.height) : 1.0;
+
+    HEAPF64[$0 >> 3] = sx;
+    HEAPF64[$1 >> 3] = sy;
+  }, &sx, &sy);
+
+  return {sx, sy};
+#else
+  return {1.0f, 1.0f};
+#endif
 }
