@@ -60,6 +60,7 @@ add_test(NAME scan_pass COMMAND test_scan)
 
 add_executable(test_tess_quad
   test_tess_quad.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/Pass.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessCalcPass.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessScanPass.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessGenPass.cpp
@@ -85,6 +86,8 @@ target_include_directories(test_tess_quad PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../source
+  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass
+  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Renderer
   ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator
   ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils
   ${nfd_SOURCE_DIR}/src/include

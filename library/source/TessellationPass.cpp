@@ -9,8 +9,7 @@
 namespace ipass {
 
 struct TessellationPass::Impl {
-    wgpu::Device device;
-    wgpu::Queue queue;
+    GPUContext gpu_ctx;
     uint32_t maxPatches;
 
     Tessellator tess;
@@ -18,7 +17,7 @@ struct TessellationPass::Impl {
     bool initialized = false;
 
     Impl(wgpu::Device dev, wgpu::Queue q, uint32_t maxP)
-        : device(dev), queue(q), maxPatches(maxP) {}
+        : gpu_ctx{dev, q}, maxPatches(maxP), tess(gpu_ctx) {}
 };
 
 TessellationPass::TessellationPass(wgpu::Device device, const Config& config)
@@ -64,7 +63,7 @@ Status TessellationPass::UploadPatches(const PatchData& data, wgpu::Buffer level
 
     // init tessellator on first upload
     if (!impl->initialized) {
-        if (!impl->tess.Init(impl->device, impl->queue, impl->maxPatches, levels_buffer)) {
+        if (!impl->tess.Init(impl->maxPatches, levels_buffer)) {
             std::cerr << "[TessellationPass] Failed to initialize Tessellator." << std::endl;
             return Status::GPUInitFailed;
         }
