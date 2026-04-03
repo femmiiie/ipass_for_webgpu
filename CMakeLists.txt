@@ -281,7 +281,11 @@ if(EMSCRIPTEN)
     ${PRELOAD_OPTIONS}
   )
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
-else()
+endif()
+
+option(BUILD_LIBRARY "Build the ipass library" ON)
+
+if(BUILD_LIBRARY)
   add_subdirectory(library)
 endif()
 
