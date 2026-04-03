@@ -170,7 +170,7 @@ void InputManager::GLFWCursorPosCallback(GLFWwindow* /*window*/, double xpos, do
   if (nkContext)
   {
     glm::dvec2 scale = GetMousePosScaling();
-    nk_input_motion(nkContext, xpos*scale.x, ypos*scale.y);
+    nk_input_motion(nkContext, (int)(xpos*scale.x), (int)(ypos*scale.y));
   }
 
   cursorPos = {xpos, ypos};
