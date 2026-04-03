@@ -10,16 +10,15 @@
 #include "TessellatorPass.h"
 #include "Elevation.h"
 
+#include "Platform.h"
+
 Renderer::Renderer()
 {
   if (!glfwInit())
   {
     throw RendererException("Failed to initialize GLFW!");
   }
-
-  // sets initial size to 2/3 monitor resolution
-  const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-  this->context.size = glm::uvec2(mode->width / 1.5, mode->height / 1.5);
+  this->context.size = platform::GetInitialWindowSize();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   this->window = glfwCreateWindow(this->context.size.x, this->context.size.y, "iPASS for WebGPU", nullptr, nullptr);
@@ -31,6 +30,8 @@ Renderer::Renderer()
 
   this->Initialize();
 
+  platform::SetupCanvasResize(this->window, [this](int w, int h) { this->OnResize(w, h); });
+
   // compute initial viewport (to the right of the ui panel)
   this->UpdateSceneViewport();
 
@@ -40,7 +41,6 @@ Renderer::Renderer()
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context, "fonts/Inter-VariableFont.ttf");
 
-  // Wire up Settings subscriptions (previously inside IPass/TessellatorPass)
   Settings::mvp.subscribe([this](const MVP& m) {
     glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
     this->iPass->SetMVP(mvp);
@@ -60,10 +60,8 @@ Renderer::Renderer()
     }
     this->iPass->UploadVertices(bicubicVerts);
 
-    // TessellatorPass handles its own elevation internally
     this->tessPass->LoadBV(p);
 
-    // Notify SceneRenderPass of new tessellation output
     Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount()};
     Settings::tessOutput.notify();
   });
@@ -71,12 +69,6 @@ Renderer::Renderer()
   if (!Settings::parser.get().Get().empty()) {
     this->tessPass->LoadBV(Settings::parser.get());
   }
-
-  glfwSetWindowUserPointer(this->window, this);
-  glfwSetFramebufferSizeCallback(this->window, [](GLFWwindow* w, int width, int height) {
-    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(w));
-    renderer->OnResize(width, height);
-  });
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
@@ -184,9 +176,8 @@ wgpu::TextureView Renderer::GetNextTextureView()
   if (surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Outdated ||
       surfaceTexture.status == wgpu::SurfaceGetCurrentTextureStatus::Lost)
   {
-    int w, h;
-    glfwGetFramebufferSize(this->window, &w, &h);
-    OnResize(w, h);
+    glm::uvec2 fbSize = platform::GetFramebufferSize(this->window);
+    OnResize((int)fbSize.x, (int)fbSize.y);
     return nullptr;
   }
   if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal &&
