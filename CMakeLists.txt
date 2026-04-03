@@ -101,6 +101,10 @@ else()
   target_compile_options(ipass_webgpu PRIVATE -Wall -Wextra -pedantic)
 endif()
 
+if(EMSCRIPTEN)
+  target_compile_options(ipass_webgpu PRIVATE -Wno-dollar-in-identifier-extension)
+endif()
+
 set(_backend_define "")
 
 # ------------------------------------------
