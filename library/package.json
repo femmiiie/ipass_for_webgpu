@@ -1,0 +1,16 @@
+{
+    "name": "ipass-webgpu",
+    "version": "0.1.0",
+    "description": "TODO",
+    "main": "dist/ipass_wasm.js",
+    "types": "types/ipass.d.ts",
+    "files": [
+        "dist/ipass_wasm.js",
+        "dist/ipass_wasm.wasm",
+        "types/ipass.d.ts"
+    ],
+    "keywords": [
+        "TODO"
+    ],
+    "license": ""
+}

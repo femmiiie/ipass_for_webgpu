@@ -3,6 +3,7 @@
 build/
 build_wasm/
 external/
+demo/
 
 fiveserver.config.js
 
