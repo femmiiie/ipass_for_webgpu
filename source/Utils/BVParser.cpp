@@ -16,44 +16,63 @@ void BVParser::Parse(std::string filepath)
   this->patches.clear();
   this->dims.clear();
   this->file = std::ifstream(filepath);
-  //check opens properly?
 
-  while (!this->file.eof()) { this->ParsePatch(); }
-  // this->patches.emplace_back(Patch());
-  // this->dims.emplace_back(0, 0);
+  if (!this->file.is_open())
+  {
+    std::cerr << "BVParser: failed to open " << filepath << std::endl;
+    return;
+  }
+
+  while (this->file.good()) { this->ParsePatch(); }
 }
 
 void BVParser::ParsePatch()
 {
-  switch (this->getRowU32(1)[0])
+  while (this->file.good())
   {
-    // case 1: return this->ParsePolyhedron();
-    case 4: 
-      return this->ParseSquareTensorPatch();
-    case 5: 
-    case 8: 
-      return this->ParseRectTensorPatch();
-    default:
-      // std::cout << "iPASS for WebGPU only supports quad tensor patches and polyhedrons; skipping.";
-      return;
+    if (!this->file.good()) return;
+
+    // patches are always positive ints, skip any line that doesn't start with that
+    if (!std::isdigit(this->file.peek()))
+    {
+      std::string line;
+      std::getline(this->file, line);
+      continue;
+    }
+
+    auto row = this->getRowU32(1);
+    if (row.empty()) return;
+
+    switch (row[0])
+    {
+      case 4:
+        return this->ParseSquareTensorPatch();
+      case 5:
+        return this->ParseRectTensorPatch(3);
+      case 8:
+        return this->ParseRectTensorPatch(4); // rational: xyzw control points
+      default:
+        return;
+    }
   }
 }
 
-// void BVParser::ParsePolyhedron() {}
-
 void BVParser::ParseSquareTensorPatch()
 {
-  glm::u32 deg = this->getRowU32(1)[0];
-  this->ParseTensorPatch(deg, deg); // same degree in both 
+  auto row = this->getRowU32(1);
+  if (row.empty()) return;
+  glm::u32 deg = row[0];
+  this->ParseTensorPatch(deg, deg, 3);
 }
 
-void BVParser::ParseRectTensorPatch()
+void BVParser::ParseRectTensorPatch(int coordDim)
 {
-  std::vector<glm::u32> degs = this->getRowU32(2);
-  this->ParseTensorPatch(degs[0], degs[1]);
+  auto row = this->getRowU32(2);
+  if (row.size() < 2) return;
+  this->ParseTensorPatch(row[0], row[1], coordDim);
 }
 
-void BVParser::ParseTensorPatch(glm::u32 degU, glm::u32 degV)
+void BVParser::ParseTensorPatch(glm::u32 degU, glm::u32 degV, int coordDim)
 {
   this->dims.emplace_back(degU + 1, degV + 1);
   Patch patch;
@@ -61,12 +80,12 @@ void BVParser::ParseTensorPatch(glm::u32 degU, glm::u32 degV)
   {
     for (glm::u32 j = 0; j <= degV; j++)
     {
-      // std::vector<glm::f32> pos = this->getRowF32(3);
-      std::vector<glm::f32> pos = this->getRowF32();
-      
-      glm::vec4 glm_pos = pos.size() == 3 ?
-        glm::vec4(pos[0], pos[1], pos[2], 1.0f) :
-        glm::vec4(pos[0], pos[1], pos[2], pos[3]);
+      auto pos = this->getRowF32(coordDim);
+      if (pos.size() < 3) continue;
+
+      glm::vec4 glm_pos = coordDim >= 4
+        ? glm::vec4(pos[0], pos[1], pos[2], pos[3])
+        : glm::vec4(pos[0], pos[1], pos[2], 1.0f);
 
       Vertex3D vert = {
         .pos   = glm_pos,
@@ -80,37 +99,29 @@ void BVParser::ParseTensorPatch(glm::u32 degU, glm::u32 degV)
   this->patches.emplace_back(patch);
 }
 
-// parses a row of a .bv file expecting n values of ints
+// reads n whitespace separated unsigned ints
 std::vector<glm::u32> BVParser::getRowU32(int cols)
 {
   std::vector<glm::u32> vec(cols);
   for (int i = 0; i < cols; i++)
   {
-    this->file >> vec[i];
-
-    //this is an incredibly dirty way of handling comments, but will work for our purposes
-    if (this->file.rdstate() & std::ifstream::failbit) {
-      char _[256];
-      this->file.clear();
-      this->file.getline(_, 256, '\n');
-      return {0};
-    }
-
+    if (!(this->file >> vec[i])) { return {}; }
   }
   return vec;
 }
 
-// will parse either ints or floats, but stores as floats
+// reads n whitespace separated floats
 std::vector<glm::f32> BVParser::getRowF32(int cols)
 {
   std::vector<glm::f32> vec(cols);
   for (int i = 0; i < cols; i++)
   {
-    this->file >> vec[i];
+    if (!(this->file >> vec[i])) { return {}; }
   }
   return vec;
 }
 
+// reads all floats on the next line
 std::vector<glm::f32> BVParser::getRowF32()
 {
   std::string line;

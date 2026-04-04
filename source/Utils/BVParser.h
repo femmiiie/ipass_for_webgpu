@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cctype>
 #include <vector>
 #include <utility>
 #include <fstream>
@@ -31,10 +32,9 @@ private:
   std::vector<std::pair<glm::u32,glm::u32>> dims;
 
   void ParsePatch();
-  // void ParsePolyhedron();
   void ParseSquareTensorPatch();
-  void ParseRectTensorPatch();
-  void ParseTensorPatch(glm::u32 degU, glm::u32 degV);
+  void ParseRectTensorPatch(int coordDim);
+  void ParseTensorPatch(glm::u32 degU, glm::u32 degV, int coordDim);
 
   std::vector<glm::u32> getRowU32(int cols);
   std::vector<glm::f32> getRowF32(int cols);
