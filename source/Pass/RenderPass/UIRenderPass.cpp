@@ -368,7 +368,6 @@ void UIRenderPass::RenderUI()
       nk_bool tess = Settings::tessellation.get() ? nk_true : nk_false;
       if (nk_checkbox_label(ctx, "Enable Tessellation", &tess)) {
         Settings::tessellation.modify() = (tess == nk_true);
-        Settings::tessellation.notify();
       }
     }
 

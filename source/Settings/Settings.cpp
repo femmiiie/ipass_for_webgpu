@@ -19,4 +19,6 @@ void Settings::checkUpdates()
     clearColorNeedsUpdate = true;
     prevClearColor  = clearColor;
   }
+
+  tessellation.notify();
 }
