@@ -12,7 +12,7 @@ class BVParser;
 class TessellatorPass : public ComputePass
 {
 public:
-  static constexpr uint32_t DEFAULT_PATCH_LIMIT = 128;
+  static constexpr uint32_t DEFAULT_PATCH_LIMIT = 64;
   static_assert(DEFAULT_PATCH_LIMIT <= tess::MAX_PATCHES);
 
   TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf);
