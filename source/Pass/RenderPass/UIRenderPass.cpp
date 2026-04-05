@@ -361,7 +361,6 @@ void UIRenderPass::RenderUI()
     if (nk_button_label(ctx, "Open File"))
       utils::OpenFile("BezierView File", "bv", [](std::string s){
         Settings::parser.modify().Parse(s);
-        Settings::parser.notify();
       });
 
     {

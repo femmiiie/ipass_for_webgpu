@@ -21,4 +21,5 @@ void Settings::checkUpdates()
   }
 
   tessellation.notify();
+  parser.notify();
 }
