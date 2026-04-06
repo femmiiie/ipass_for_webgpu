@@ -46,6 +46,7 @@ private:
     glm::vec4 position;
     glm::vec4 color;
     glm::f32 power;
+    uint32_t shadingMode;
   } light;
   wgpu::Buffer lightBuffer;
   wgpu::Buffer mvpBuffer;

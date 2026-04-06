@@ -15,6 +15,8 @@ struct TessOutput {
   uint32_t vertexCount = 0;
 };
 
+enum class ShadingMode { BlinnPhong = 0, Flat = 1 };
+
 class Settings
 {
 public:
@@ -65,6 +67,8 @@ public:
   static inline Setting<TessOutput> tessOutput;
 
   static inline Setting<MVP> mvp = {MVP()};
+
+  static inline Setting<ShadingMode> shadingMode = {ShadingMode::BlinnPhong};
 
   static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
 

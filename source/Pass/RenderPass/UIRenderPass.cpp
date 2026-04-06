@@ -464,7 +464,18 @@ void UIRenderPass::RenderUI()
     {
       nk_layout_row_dynamic(ctx, 0, 1);
       nk_checkbox_label(ctx, "Wireframe", (nk_bool*)&Settings::wireframe.get());
-     
+
+      static const char* shadingModeNames[] = { "Blinn-Phong", "Flat" };
+      int currentMode = (int)Settings::shadingMode.get();
+      nk_label(ctx, "Shading Mode", NK_TEXT_LEFT);
+      float comboHeight = ctx->style.font->height * s * 1.5f;
+      nk_layout_row_dynamic(ctx, comboHeight, 1);
+      int newMode = nk_combo(ctx, shadingModeNames, 2, currentMode,
+                             comboHeight, nk_vec2(menu_size.x - 16.0f * s, 120.0f * s));
+      if (newMode != currentMode)
+        Settings::shadingMode.modify() = static_cast<ShadingMode>(newMode);
+
+      nk_layout_row_dynamic(ctx, 0, 1);
       nk_label(ctx, "Background Color", NK_TEXT_LEFT);
 
       nk_colorf color = {

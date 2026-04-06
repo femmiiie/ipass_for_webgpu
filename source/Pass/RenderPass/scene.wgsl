@@ -24,7 +24,8 @@ struct MVP {
 struct lightData {
   position: vec4f,
   color: vec4f,
-  power: f32
+  power: f32,
+  shadingMode: u32
 }
 
 @group(0) @binding(0) var<uniform> mvp: MVP;
@@ -52,13 +53,23 @@ fn vs_main(input: vsInput) -> fsInput {
   return out;
 }
 
+fn shade_blinn_phong(color: vec4f, view_pos: vec4f, n: vec4f, eye: vec4f) -> vec3f {
+  return blinn_phong(color, 0.1, 10.0, normalize(n), normalize(eye), view_pos);
+}
+
+fn shade_flat(color: vec4f, n: vec4f, eye: vec4f) -> vec3f {
+  let facing = abs(dot(n, normalize(eye)));
+  return clamp(0.5 * (0.2 + 0.8 * facing) * color.rgb, vec3f(0.0f, 0.0f, 0.0f), vec3f(0.5f, 0.5f, 0.5f));
+}
+
 @fragment
 fn fs_main(input: fsInput) -> @location(0) vec4f {
-  var n = normalize(input.normal);
-  let e = normalize(input.eyevector);
-  if (dot(n, e) < 0.0f) { n = -n; } //flip back facing normals
-  let lit = blinn_phong(input.color, 0.1, 10.0, n, e, input.viewPosition);
-  return vec4f(lit, 1.0);
+  var color: vec3f;
+  switch (light.shadingMode) {
+    case 1u: { color = shade_flat(input.color, input.normal, input.eyevector); }
+    default: { color = shade_blinn_phong(input.color, input.viewPosition, input.normal, input.eyevector); }
+  }
+  return vec4f(color, 1.0);
 }
 
 fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,

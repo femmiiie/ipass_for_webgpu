@@ -137,9 +137,10 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   Settings::mvp.modify().setPerspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 
   this->light = {
-    .position = glm::vec4(-1.0f, 2.0f, 0.0f, 1.0f),
-    .color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-    .power = 1.0f
+    .position    = glm::vec4(-1.0f, 2.0f, 0.0f, 1.0f),
+    .color       = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+    .power       = 1.0f,
+    .shadingMode = 0u
   };
 
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
@@ -179,6 +180,11 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
       this->UseGPUTessellated(out.buffer, out.vertexCount);
     else
       this->LoadBV(Settings::parser.get());
+  });
+
+  Settings::shadingMode.subscribe([this](const ShadingMode& mode) {
+    this->light.shadingMode = static_cast<uint32_t>(mode);
+    this->context.queue.writeBuffer(this->lightBuffer, 0, &this->light, sizeof(Light));
   });
 
   this->InitializeRenderPipeline();
