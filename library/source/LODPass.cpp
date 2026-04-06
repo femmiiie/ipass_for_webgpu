@@ -2,6 +2,7 @@
 #include "GPUContext.h"
 #include "IPass.h"
 #include "Shader.h"
+#include <algorithm>
 
 namespace ipass {
 
@@ -10,14 +11,22 @@ struct LODPass::Impl {
     IPass pass;
     uint32_t patchCount = 0;
 
-    Impl(wgpu::Device device, wgpu::Queue queue)
-        : gpu_ctx{device, queue}, pass(gpu_ctx) {}
+    Impl(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit)
+        : gpu_ctx{device, queue}, pass(gpu_ctx, patchLimit) {}
 };
 
 LODPass::LODPass(wgpu::Device device, wgpu::Queue queue, const Config& config)
 {
-    (void)config; // shader_base_path handled by ipass internally, fix later
-    impl = new Impl(device, queue);
+    uint32_t patchLimit = config.max_patches;
+    if (patchLimit == 0) {
+        wgpu::Limits limits = wgpu::Default;
+        if (device.getLimits(&limits))
+            patchLimit = tess::ComputeMaxPatches(std::min<uint64_t>(
+                limits.maxBufferSize, limits.maxStorageBufferBindingSize));
+        else
+            patchLimit = 64;
+    }
+    impl = new Impl(device, queue, patchLimit);
 }
 
 LODPass::~LODPass()

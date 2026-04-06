@@ -18,10 +18,11 @@
 
 using Vertex3D = utils::Vertex3D;
 
-TessellatorPass::TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf) : ComputePass(ctx)
+TessellatorPass::TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf, uint32_t patchLimit) 
+  : ComputePass(ctx), maxPatchLimit(patchLimit)
 {
   tess = new Tessellator(ctx);
-  if (!tess->Init(DEFAULT_PATCH_LIMIT, ipass_levels_buf)) {
+  if (!tess->Init(this->maxPatchLimit, ipass_levels_buf)) {
     std::cerr << "[TessellatorPass] Failed to initialise Tessellator." << std::endl;
     delete tess;
     tess = nullptr;
@@ -59,7 +60,7 @@ void TessellatorPass::LoadBV(const BVParser& parser)
   bicubicControlPts.reserve(patches.size() * 16);
 
   uint32_t count = 0;
-  for (size_t pi = 0; pi < patches.size() && count < DEFAULT_PATCH_LIMIT; pi++) {
+  for (size_t pi = 0; pi < patches.size() && count < this->maxPatchLimit; pi++) {
     if (patches[pi].empty()) continue;
     auto elevated = elevation::elevatePatchPositions(patches[pi], dims[pi].first, dims[pi].second);
     bicubicControlPts.insert(bicubicControlPts.end(), elevated.begin(), elevated.end());

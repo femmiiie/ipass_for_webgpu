@@ -20,16 +20,18 @@ struct TessellationPass::Impl {
         : gpu_ctx{dev, q}, maxPatches(maxP), tess(gpu_ctx) {}
 };
 
-TessellationPass::TessellationPass(wgpu::Device device, const Config& config)
-{
-    uint32_t maxP = std::min(config.max_patches, tess::MAX_PATCHES);
-    impl = new Impl(device, device.getQueue(), maxP);
-}
-
 TessellationPass::TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config)
 {
-    uint32_t maxP = std::min(config.max_patches, tess::MAX_PATCHES);
-    impl = new Impl(device, queue, maxP);
+  uint32_t maxPatches = config.max_patches;
+  if (maxPatches == 0) {
+    maxPatches = 64; // fallback if device limit query fails
+    wgpu::Limits limits = wgpu::Default;
+    if (device.getLimits(&limits))
+      maxPatches = tess::ComputeMaxPatches(std::min<uint64_t>(
+        limits.maxBufferSize, limits.maxStorageBufferBindingSize));
+  }
+
+  impl = new Impl(device, queue, maxPatches);
 }
 
 TessellationPass::~TessellationPass()

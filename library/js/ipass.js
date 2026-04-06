@@ -5,7 +5,8 @@
 
     function Pipeline(gpuDevice, options) {
         options = options || {};
-        this._inner = new Module._Pipeline(gpuDevice, options.maxPatches || 128);
+        var maxPatches = (typeof options.maxPatches === 'number') ? options.maxPatches : 0;
+        this._inner = new Module._Pipeline(gpuDevice, maxPatches);
     }
 
     Pipeline.prototype.loadPatches = function (patchData) {
@@ -79,12 +80,12 @@
     }
 
     var Status = {
-        Success:          Number(Module.Status.Success),
-        EmptyInput:       Number(Module.Status.EmptyInput),
-        GPUInitFailed:    Number(Module.Status.GPUInitFailed),
-        NotInitialized:   Number(Module.Status.NotInitialized),
+        Success: Number(Module.Status.Success),
+        EmptyInput: Number(Module.Status.EmptyInput),
+        GPUInitFailed: Number(Module.Status.GPUInitFailed),
+        NotInitialized: Number(Module.Status.NotInitialized),
         PatchesNotLoaded: Number(Module.Status.PatchesNotLoaded),
-        LoadFailed:       Number(Module.Status.LoadFailed)
+        LoadFailed: Number(Module.Status.LoadFailed)
     };
 
     Module['Pipeline'] = Pipeline;

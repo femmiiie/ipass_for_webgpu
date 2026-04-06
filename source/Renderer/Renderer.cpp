@@ -35,9 +35,16 @@ Renderer::Renderer()
   // compute initial viewport (to the right of the ui panel)
   this->UpdateSceneViewport();
 
-  this->iPass = new IPass(this->context);
+  uint32_t patchLimit = 64; //compute patch limit based on device allowance
+  {
+    wgpu::Limits limits = wgpu::Default;
+    if (this->context.device.getLimits(&limits))
+      patchLimit = tess::ComputeMaxPatches(
+        std::min(limits.maxBufferSize, limits.maxStorageBufferBindingSize));
+  }
+  this->iPass = new IPass(this->context, patchLimit);
   this->iPass->SetViewportWidth(this->context.sceneViewport.width);
-  this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer);
+  this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer, patchLimit);
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context, "fonts/Inter-VariableFont.ttf");
 

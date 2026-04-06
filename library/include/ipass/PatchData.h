@@ -38,7 +38,7 @@ struct OutputVertexLayout {
 
 //Configuration for library initialization.
 struct Config {
-    uint32_t    max_patches      = 128;
+    uint32_t    max_patches      = 0; //0 autosizes from device limit
     const char* shader_base_path = ".";
 };
 

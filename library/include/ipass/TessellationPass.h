@@ -15,7 +15,7 @@ private:
     Impl* impl = nullptr;
 
 public:
-    TessellationPass(wgpu::Device device, const Config& config = {});
+    TessellationPass(wgpu::Device device, const Config& config = {}) : TessellationPass(device, device.getQueue(), config) {};
     TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
     ~TessellationPass();
 

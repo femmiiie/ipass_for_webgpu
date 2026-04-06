@@ -8,7 +8,6 @@ using Vertex3D = utils::Vertex3D;
 // placeholder vertex/patch counts
 // resize these buffers
 static constexpr uint32_t INITIAL_VERTEX_COUNT = 512;
-static constexpr uint32_t INITIAL_PATCH_COUNT  = 1024;
 static constexpr uint32_t VERTS_PER_PATCH = 16;
 static constexpr uint32_t IPASS_WORKGROUP_SIZE = 256;
 
@@ -46,7 +45,8 @@ void IPass::EnsureStorageCapacity(uint32_t requiredVertices)
   this->storageBindGroup = this->CreateBindGroup(resizedStorageBindings, this->storageBindGroupLayout);
 }
 
-IPass::IPass(GPUContext& ctx) : ComputePass(ctx)
+IPass::IPass(GPUContext& ctx, uint32_t patchLimit) 
+  : ComputePass(ctx), patchCapacity(patchLimit)
 {
   wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/ComputePass/ipass.wgsl");
   if (!shaderModule)
@@ -58,7 +58,6 @@ IPass::IPass(GPUContext& ctx) : ComputePass(ctx)
   const wgpu::BufferUsage storageReadWriteUsage = storageReadUsage | wgpu::BufferUsage::CopySrc;
 
   this->vertexCapacity = INITIAL_VERTEX_COUNT;
-  this->patchCapacity = std::max(INITIAL_PATCH_COUNT, tess::MAX_PATCHES);
 
   const uint64_t verticesSize = static_cast<uint64_t>(this->vertexCapacity) * sizeof(Vertex3D);
   const uint64_t patchesSize  = static_cast<uint64_t>(this->patchCapacity)  * sizeof(float);
