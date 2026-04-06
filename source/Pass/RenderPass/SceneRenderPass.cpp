@@ -17,13 +17,12 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
 
     glm::u32 rows = dims[patchIdx].first;
     glm::u32 cols = dims[patchIdx].second;
-    if (rows < 2 || cols < 2) continue; // skip degenerate patches
+    if (rows < 2 || cols < 2) continue;
 
     auto getVert = [&](glm::u32 r, glm::u32 c) -> const utils::Vertex3D& {
       return patch[r * cols + c];
     };
 
-    // convert quad cell to 2 tris
     for (glm::u32 i = 0; i + 1 < rows; i++)
     {
       for (glm::u32 j = 0; j + 1 < cols; j++)
@@ -33,32 +32,31 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
         const utils::Vertex3D& bl = getVert(i + 1, j);
         const utils::Vertex3D& br = getVert(i + 1, j + 1);
 
-        glm::vec3 ptl = glm::vec3(tl.pos);
-        glm::vec3 ptr_ = glm::vec3(tr.pos);
-        glm::vec3 pbl = glm::vec3(bl.pos);
-        glm::vec3 pbr = glm::vec3(br.pos);
+        auto project = [](const glm::vec4& p) -> glm::vec3 {
+          float w = std::abs(p.w) > 1e-7f ? p.w : 1.0f;
+          return glm::vec3(p) / w;
+        };
 
-        // tri 1: tl, tr, br - tri 2: tl, br, bl
-        glm::vec3 e1a = ptr_ - ptl, e1b = pbr - ptl;
-        glm::vec3 n1 = glm::cross(e1a, e1b);
-        if (glm::length(n1) > 0.0f) n1 = glm::normalize(n1);
-
-        glm::vec3 e2a = pbr - ptl, e2b = pbl - ptl;
-        glm::vec3 n2 = glm::cross(e2a, e2b);
-        if (glm::length(n2) > 0.0f) n2 = glm::normalize(n2);
+        glm::vec3 n = glm::cross(
+          project(bl.pos) - project(tl.pos),
+          project(tr.pos) - project(tl.pos)
+        );
+        if (glm::length(n) > 0.0f) n = glm::normalize(n);
 
         // pos(xyzw) normal(xyzw) color(rgba) uv(uv) pad(00) - 16f size
-        auto pushVert = [&](const utils::Vertex3D& v, const glm::vec3& normal) {
+        auto pushVert = [&](const utils::Vertex3D& v) {
+          float w = std::abs(v.pos.w) > 1e-7f ? v.pos.w : 1.0f;
+          glm::vec4 pos = v.pos / w;
           vertexData.insert(vertexData.end(), {
-            v.pos.x,   v.pos.y,   v.pos.z,   v.pos.w,
-            normal.x,  normal.y,  normal.z,  0.0f,
+            pos.x,     pos.y,   pos.z,   1.0f,
+            n.x,       n.y,     n.z,     0.0f,
             v.color.r, v.color.g, v.color.b, v.color.a,
             v.tex.x,   v.tex.y,   0.0f,      0.0f
           });
         };
 
-        pushVert(tl, n1); pushVert(tr, n1); pushVert(br, n1); // tri 1
-        pushVert(tl, n2); pushVert(br, n2); pushVert(bl, n2); // tri 2
+        pushVert(tl); pushVert(tr); pushVert(br); // tri 1
+        pushVert(tl); pushVert(br); pushVert(bl); // tri 2
       }
     }
   }
