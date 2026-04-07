@@ -119,8 +119,12 @@ void TessellatorPass::Execute(wgpu::CommandEncoder& encoder)
 
 wgpu::Buffer TessellatorPass::GetOutputBuffer() const
 {
-  if (!tess) return nullptr;
-  return tess->GetVertexOutput();
+  return tess ? tess->GetVertexOutput() : nullptr;
+}
+
+wgpu::Buffer TessellatorPass::GetControlPointBuffer() const
+{
+  return tess ? tess->GetControlPointBuffer() : nullptr;
 }
 
 uint32_t TessellatorPass::GetMaxVertexCount() const

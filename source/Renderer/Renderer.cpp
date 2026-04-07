@@ -69,7 +69,7 @@ Renderer::Renderer()
 
     this->tessPass->LoadBV(p);
 
-    Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount()};
+    Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount(), this->tessPass->GetControlPointBuffer()};
     Settings::tessOutput.notify();
   });
 
@@ -119,7 +119,19 @@ void Renderer::Initialize()
   deviceDesc.requiredFeatures = nullptr;
   deviceDesc.requiredFeatureCount = 0;
 
-  this->context.device = adapter.requestDevice(deviceDesc);
+  wgpu::Limits supported = wgpu::Default;
+  if (adapter.getLimits(&supported)) //request max buffer size
+  {
+    wgpu::Limits required = wgpu::Default;
+    required.maxBufferSize = supported.maxBufferSize;
+    required.maxStorageBufferBindingSize = supported.maxStorageBufferBindingSize;
+    deviceDesc.requiredLimits = &required;
+    this->context.device = adapter.requestDevice(deviceDesc);
+  }
+  else
+  {
+    this->context.device = adapter.requestDevice(deviceDesc);
+  }
   if (!this->context.device)
   {
     throw RendererException("Failed to get device!");

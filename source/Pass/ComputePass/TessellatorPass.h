@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GPUContext.h"
 #include "ComputePass.h"
 #include "TessConstants.h"
 
@@ -20,7 +21,7 @@ public:
   void Execute(wgpu::CommandEncoder& encoder) override;
 
   wgpu::Buffer GetOutputBuffer() const;
-
+  wgpu::Buffer GetControlPointBuffer() const;
   uint32_t GetMaxVertexCount() const;
 
 private:
