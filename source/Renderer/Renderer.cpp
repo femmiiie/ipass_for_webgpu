@@ -12,6 +12,21 @@
 
 #include "Platform.h"
 
+//find better way of doing this
+wgpu::PresentMode ToWGPUPresentMode(PresentModeSetting mode)
+{
+  switch (mode)
+  {
+    case PresentModeSetting::Immediate:
+      return wgpu::PresentMode::Immediate;
+    case PresentModeSetting::Mailbox:
+      return wgpu::PresentMode::Mailbox;
+    case PresentModeSetting::Fifo:
+    default:
+      return wgpu::PresentMode::Fifo;
+  }
+}
+
 Renderer::Renderer()
 {
   if (!glfwInit())
@@ -71,6 +86,10 @@ Renderer::Renderer()
 
     Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount(), this->tessPass->GetControlPointBuffer()};
     Settings::tessOutput.notify();
+  });
+
+  Settings::presentMode.subscribe([this](const PresentModeSetting&) {
+    this->ConfigureSurface();
   });
 
   if (!Settings::parser.get().Get().empty()) {
@@ -168,7 +187,11 @@ void Renderer::ConfigureSurface()
   surfConfig.height = this->context.size.y;
   surfConfig.format = this->context.surfaceFormat;
   surfConfig.usage = wgpu::TextureUsage::RenderAttachment;
+  #ifdef __EMSCRIPTEN__
   surfConfig.presentMode = wgpu::PresentMode::Fifo;
+  #else
+  surfConfig.presentMode = ToWGPUPresentMode(Settings::presentMode.get());
+  #endif
   surfConfig.alphaMode = wgpu::CompositeAlphaMode::Auto;
 
   #ifdef __EMSCRIPTEN__

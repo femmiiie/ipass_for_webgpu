@@ -23,4 +23,5 @@ void Settings::checkUpdates()
   tessellation.notify();
   parser.notify();
   shadingMode.notify();
+  presentMode.notify();
 }
