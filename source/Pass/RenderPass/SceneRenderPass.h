@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "Camera.h"
 #include "InputManager.h"
 #include "RenderPass.h"
@@ -17,7 +19,7 @@ public:
 
   void OnResize(glm::uvec2 size);
 
-  void InitializeRenderPipeline();
+  void InitializeShaderVariants();
   void LoadBV(const BVParser& parser);
 
   void UseGPUTessellated(wgpu::Buffer buf, uint32_t count);
@@ -34,20 +36,41 @@ private:
   wgpu::TextureView depthTextureView;
   void CreateDepthTexture(glm::uvec2 size);
 
-  wgpu::RenderPipeline wireframePipeline;
+  struct ShaderVariant {
+    wgpu::RenderPipeline pipeline;
+    wgpu::RenderPipeline wireframePipeline;
+    wgpu::PipelineLayout layout;
+    wgpu::BindGroupLayout bindGroupLayout;
+    wgpu::BindGroup bindGroup;
+  };
+  std::array<ShaderVariant, 4> shaderVariants;
+  ShadingMode activeMode = ShadingMode::BlinnPhong;
 
   wgpu::Buffer wireframeIndexBuffer;
   glm::u32 wireframeIndexCount = 0;
 
   bool ownsVertexBuffer = false;
 
-  struct Light
+  struct LightData
   {
     glm::vec4 position;
     glm::vec4 color;
     glm::f32 power;
-    uint32_t shadingMode;
-  } light;
-  wgpu::Buffer lightBuffer;
+  } lightData;
+
+  struct ViewportData {
+    glm::f32 x, y, width, height;
+  } viewportData;
+
   wgpu::Buffer mvpBuffer;
+  wgpu::Buffer lightBuffer;
+  wgpu::Buffer viewportBuffer;
+  wgpu::Buffer controlPointsBuffer;
+  bool ownsControlPointsBuffer = false;
+
+  wgpu::RenderPipeline CreatePipeline(wgpu::ShaderModule& shader,
+                                      wgpu::PipelineLayout& pipelineLayout,
+                                      wgpu::PrimitiveTopology topology);
+
+  void RebuildParametricErrorBindGroup();
 };

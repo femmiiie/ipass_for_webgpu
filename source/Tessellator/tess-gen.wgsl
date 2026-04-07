@@ -71,12 +71,12 @@
     }
 
     // Write a vertex into the output buffer
-    fn write_vert(vi: u32, vert: Vertex) {
+    fn write_vert(vi: u32, vert: Vertex, uv: vec2f, patch_idx: u32) {
         let base = vi * 4u;
         tg_vertsOut[base]      = vert.pos;
         tg_vertsOut[base + 1u] = vert.norm;
         tg_vertsOut[base + 2u] = vec4f(0.8, 0.85, 0.9, 1.0);  // default color
-        tg_vertsOut[base + 3u] = vec4f(0.0);                  // uv + padding
+        tg_vertsOut[base + 3u] = vec4f(uv.x, uv.y, f32(patch_idx), f32(vi % 3u));
     }
 
     fn st_to_uv(st: vec2f, side: u32) -> vec2f {
@@ -132,12 +132,12 @@
 
         // degenerate case
         if (IL0 == 1u && IL1 == 1u && OL0 == 1u && OL1 == 1u && OL2 == 1u && OL3 == 1u) {
-            write_vert((tri_offset + k) * 3u,      eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)));
-            write_vert((tri_offset + k) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(0.0, 1.0)));
-            write_vert((tri_offset + k) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)));
-            write_vert((tri_offset + k + 1u) * 3u,      eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)));
-            write_vert((tri_offset + k + 1u) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(1.0, 0.0)));
-            write_vert((tri_offset + k + 1u) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)));
+            write_vert((tri_offset + k) * 3u,      eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)), vec2f(0.0, 0.0), i);
+            write_vert((tri_offset + k) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(0.0, 1.0)), vec2f(0.0, 1.0), i);
+            write_vert((tri_offset + k) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)), vec2f(1.0, 1.0), i);
+            write_vert((tri_offset + k + 1u) * 3u,      eval_bicubic_vert(patch_offset, vec2f(1.0, 1.0)), vec2f(1.0, 1.0), i);
+            write_vert((tri_offset + k + 1u) * 3u + 1u, eval_bicubic_vert(patch_offset, vec2f(1.0, 0.0)), vec2f(1.0, 0.0), i);
+            write_vert((tri_offset + k + 1u) * 3u + 2u, eval_bicubic_vert(patch_offset, vec2f(0.0, 0.0)), vec2f(0.0, 0.0), i);
             return;
         }
 
@@ -152,18 +152,22 @@
                 let BOTTOM = f32(jj) / f32(IL1e);
                 let TOP = f32(jj + 1u) / f32(IL1e);
 
-                let BL = eval_bicubic_vert(patch_offset, vec2f(LEFT, BOTTOM));
-                let BR = eval_bicubic_vert(patch_offset, vec2f(RIGHT, BOTTOM));
-                let TL = eval_bicubic_vert(patch_offset, vec2f(LEFT, TOP));
-                let TR = eval_bicubic_vert(patch_offset, vec2f(RIGHT, TOP));
+                let uv_bl = vec2f(LEFT, BOTTOM);
+                let uv_br = vec2f(RIGHT, BOTTOM);
+                let uv_tl = vec2f(LEFT, TOP);
+                let uv_tr = vec2f(RIGHT, TOP);
+                let BL = eval_bicubic_vert(patch_offset, uv_bl);
+                let BR = eval_bicubic_vert(patch_offset, uv_br);
+                let TL = eval_bicubic_vert(patch_offset, uv_tl);
+                let TR = eval_bicubic_vert(patch_offset, uv_tr);
 
-                write_vert((tri_offset + k) * 3u,      BL);
-                write_vert((tri_offset + k) * 3u + 1u, BR);
-                write_vert((tri_offset + k) * 3u + 2u, TR);
+                write_vert((tri_offset + k) * 3u,      BL, uv_bl, i);
+                write_vert((tri_offset + k) * 3u + 1u, BR, uv_br, i);
+                write_vert((tri_offset + k) * 3u + 2u, TR, uv_tr, i);
                 k += 1u;
-                write_vert((tri_offset + k) * 3u,      TR);
-                write_vert((tri_offset + k) * 3u + 1u, TL);
-                write_vert((tri_offset + k) * 3u + 2u, BL);
+                write_vert((tri_offset + k) * 3u,      TR, uv_tr, i);
+                write_vert((tri_offset + k) * 3u + 1u, TL, uv_tl, i);
+                write_vert((tri_offset + k) * 3u + 2u, BL, uv_bl, i);
                 k += 1u;
             }
         }
@@ -188,8 +192,10 @@
 
             let outer_t = 0.0;
             let inner_t = 1.0 / f32(inner_height);
-            var curr_outer = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(0.0, outer_t), side));
-            var curr_inner = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(1.0 / f32(inner_max), inner_t), side));
+            var curr_outer_uv = st_to_uv(vec2f(0.0, outer_t), side);
+            var curr_inner_uv = st_to_uv(vec2f(1.0 / f32(inner_max), inner_t), side);
+            var curr_outer = eval_bicubic_vert(patch_offset, curr_outer_uv);
+            var curr_inner = eval_bicubic_vert(patch_offset, curr_inner_uv);
             outer_i = 0u;
             inner_i = 1u;
 
@@ -198,20 +204,24 @@
                 let next_inner_s = select(1.0, f32(inner_i + 1u) / f32(inner_max), inner_i < inner_max - 1u);
 
                 if (outer_i < outer_max && (inner_i == inner_max - 1u || next_outer_s <= next_inner_s)) {
-                    let next_outer = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(f32(outer_i + 1u) / f32(outer_max), outer_t), side));
-                    write_vert((tri_offset + k) * 3u,      curr_outer);
-                    write_vert((tri_offset + k) * 3u + 1u, curr_inner);
-                    write_vert((tri_offset + k) * 3u + 2u, next_outer);
+                    let next_outer_uv = st_to_uv(vec2f(f32(outer_i + 1u) / f32(outer_max), outer_t), side);
+                    let next_outer = eval_bicubic_vert(patch_offset, next_outer_uv);
+                    write_vert((tri_offset + k) * 3u,      curr_outer, curr_outer_uv, i);
+                    write_vert((tri_offset + k) * 3u + 1u, curr_inner, curr_inner_uv, i);
+                    write_vert((tri_offset + k) * 3u + 2u, next_outer, next_outer_uv, i);
                     k += 1u;
                     curr_outer = next_outer;
+                    curr_outer_uv = next_outer_uv;
                     outer_i += 1u;
                 } else {
-                    let next_inner = eval_bicubic_vert(patch_offset, st_to_uv(vec2f(f32(inner_i + 1u) / f32(inner_max), inner_t), side));
-                    write_vert((tri_offset + k) * 3u,      curr_outer);
-                    write_vert((tri_offset + k) * 3u + 1u, next_inner);
-                    write_vert((tri_offset + k) * 3u + 2u, curr_inner);
+                    let next_inner_uv = st_to_uv(vec2f(f32(inner_i + 1u) / f32(inner_max), inner_t), side);
+                    let next_inner = eval_bicubic_vert(patch_offset, next_inner_uv);
+                    write_vert((tri_offset + k) * 3u,      curr_outer, curr_outer_uv, i);
+                    write_vert((tri_offset + k) * 3u + 1u, next_inner, next_inner_uv, i);
+                    write_vert((tri_offset + k) * 3u + 2u, curr_inner, curr_inner_uv, i);
                     k += 1u;
                     curr_inner = next_inner;
+                    curr_inner_uv = next_inner_uv;
                     inner_i += 1u;
                 }
             }
