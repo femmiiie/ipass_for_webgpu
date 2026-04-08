@@ -450,13 +450,20 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
   nk_end(&this->uiContext);
 }
 
+void UIRenderPass::ComponentLabel(nk_context* ctx, const char* text)
+{
+  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, 1.0f));
+  nk_layout_row_dynamic(ctx, 0, 1);
+  nk_label(ctx, text, NK_TEXT_LEFT);
+  nk_style_pop_vec2(ctx);
+}
+
 void UIRenderPass::RenderObjectPropertiesSection()
 {
   nk_context* ctx = &this->uiContext;
   float s = this->uiScale;
 
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Translation", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Translation");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
   nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::mvp.get().translation.x, 1000.0f, 0.01f, 0.01f);
   nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::mvp.get().translation.y, 1000.0f, 0.01f, 0.01f);
@@ -466,8 +473,7 @@ void UIRenderPass::RenderObjectPropertiesSection()
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
   nk_spacer(ctx);
 
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Rotation (degrees)", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Rotation (degrees)");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
   nk_property_float(ctx, "Rot X:", -360.0f, &Settings::mvp.get().rotation.x, 360.0f, 1.0f, 0.5f);
   nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::mvp.get().rotation.y, 360.0f, 1.0f, 0.5f);
@@ -477,8 +483,7 @@ void UIRenderPass::RenderObjectPropertiesSection()
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
   nk_spacer(ctx);
 
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Scale", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Scale");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
   nk_property_float(ctx, "Scale X:", 0.001f, &Settings::mvp.get().scale.x, 1000.0f, 0.05f, 0.01f);
   nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::mvp.get().scale.y, 1000.0f, 0.05f, 0.01f);
@@ -505,7 +510,9 @@ void UIRenderPass::RenderDebugSection()
 {
   nk_context* ctx = &this->uiContext;
 
-  nk_layout_row_dynamic(ctx, 0, 1);
+  float row_h = ctx->style.font->height;
+  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, 0.0f));
+  nk_layout_row_dynamic(ctx, row_h, 1);
   if (this->debugData.empty())
   {
     nk_label(ctx, "No data available", NK_TEXT_LEFT);
@@ -517,6 +524,7 @@ void UIRenderPass::RenderDebugSection()
     size_t displayCount = std::min(this->debugData.size(), MAX_DISPLAY);
     for (size_t i = 0; i < displayCount; ++i)
     {
+      if (this->debugData[i] == 0.0f) break;
       std::snprintf(buf, sizeof(buf), "[%3zu]: %f", i, this->debugData[i]);
       nk_label(ctx, buf, NK_TEXT_LEFT);
     }
@@ -526,6 +534,7 @@ void UIRenderPass::RenderDebugSection()
       nk_label(ctx, buf, NK_TEXT_LEFT);
     }
   }
+  nk_style_pop_vec2(ctx);
 }
 
 void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
@@ -539,8 +548,7 @@ void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
     static std::vector<const char*> shaders = { "Blinn-Phong", "Flat", "Parametric Error", "Triangle Size" };
   int curr = (int)Settings::shadingMode.get();
   float comboHeight = ctx->style.font->height + ctx->style.button.padding.y * 2.0f;
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Shading Mode", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Shading Mode");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
   nk_layout_row_dynamic(ctx, comboHeight, 2);
   if (this->DrawCombo(shaders, curr))
@@ -548,8 +556,7 @@ void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
   nk_spacer(ctx);
   nk_style_pop_vec2(ctx);
 
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Present Mode", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Present Mode");
 
   #ifdef __EMSCRIPTEN__
   nk_label(ctx, "Uncapping framerate not supported on Web.", NK_TEXT_LEFT);
@@ -567,8 +574,7 @@ void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
   nk_spacer(ctx);
 
-  nk_layout_row_dynamic(ctx, 0, 1);
-  nk_label(ctx, "Background Color", NK_TEXT_LEFT);
+  ComponentLabel(ctx, "Background Color");
 
   nk_colorf color = {
     Settings::clearColor.r,
@@ -598,9 +604,7 @@ void UIRenderPass::RenderShadingLegend(glm::vec2 menu_size)
   const auto& win  = ctx->style.window;
 
   float swatch_w = 16.0f * s;
-  float title_w   = font.width(font.userdata, font.height, title, 11) + 8.0f * s;
   float text_w   = font.width(font.userdata, font.height, ">= 20 px", 8) + 8.0f * s;
-  float row_width = std::max(swatch_w + text_w, title_w);
   
   float width = swatch_w + text_w + win.padding.x * 2.0f;
 

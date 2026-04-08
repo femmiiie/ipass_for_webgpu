@@ -49,6 +49,7 @@ private:
   void RenderShadingLegend(glm::vec2 menu_size);
   void RenderPerformanceWindow();
   bool DrawCombo(std::vector<const char*> items, int& selected);
+  void ComponentLabel(nk_context* ctx, const char* text);
 
   nk_context uiContext;
   nk_font_atlas atlas;
