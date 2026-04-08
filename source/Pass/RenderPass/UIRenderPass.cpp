@@ -512,9 +512,10 @@ void UIRenderPass::RenderDebugSection()
 
   float row_h = ctx->style.font->height;
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, 0.0f));
-  nk_layout_row_dynamic(ctx, row_h, 1);
+
   if (this->debugData.empty())
   {
+    nk_layout_row_dynamic(ctx, row_h, 1);
     nk_label(ctx, "No data available", NK_TEXT_LEFT);
   }
   else
@@ -522,16 +523,34 @@ void UIRenderPass::RenderDebugSection()
     char buf[64];
     constexpr size_t MAX_DISPLAY = 256;
     size_t displayCount = std::min(this->debugData.size(), MAX_DISPLAY);
+
+    size_t entryCount = 0;
     for (size_t i = 0; i < displayCount; ++i)
     {
       if (this->debugData[i] == 0.0f) break;
-      std::snprintf(buf, sizeof(buf), "[%3zu]: %f", i, this->debugData[i]);
-      nk_label(ctx, buf, NK_TEXT_LEFT);
+      entryCount++;
     }
-    if (this->debugData.size() > MAX_DISPLAY)
+
+    int cols = std::min(4, std::max(1, (int)((entryCount + 7) / 8)));
+
+    const auto& font = *ctx->style.font;
+    float index_w = font.width(font.userdata, font.height, "[255]: ", 7);
+
+    nk_layout_row_template_begin(ctx, row_h);
+    for (int c = 0; c < cols; c++)
     {
-      std::snprintf(buf, sizeof(buf), "... (%zu more)", this->debugData.size() - MAX_DISPLAY);
+      nk_layout_row_template_push_static(ctx, index_w);
+      nk_layout_row_template_push_dynamic(ctx);
+    }
+    nk_layout_row_template_end(ctx);
+
+    char valBuf[32];
+    for (size_t i = 0; i < entryCount; ++i)
+    {
+      std::snprintf(buf, sizeof(buf), "[%3zu]:", i);
+      std::snprintf(valBuf, sizeof(valBuf), "%10.4f", this->debugData[i]);
       nk_label(ctx, buf, NK_TEXT_LEFT);
+      nk_label(ctx, valBuf, NK_TEXT_LEFT);
     }
   }
   nk_style_pop_vec2(ctx);
