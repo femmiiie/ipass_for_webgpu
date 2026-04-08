@@ -41,6 +41,15 @@ public:
   void SetDebugData(const std::vector<float>& data);
 
 private:
+  void ApplyScaledStyles();
+  void RenderMainPanel(glm::vec2 menu_size);
+  void RenderObjectPropertiesSection();
+  void RenderDebugSection();
+  void RenderSettingsSection(glm::vec2 menu_size);
+  void RenderShadingLegend(glm::vec2 menu_size);
+  void RenderPerformanceWindow();
+  bool DrawCombo(std::vector<const char*> items, int& selected);
+
   nk_context uiContext;
   nk_font_atlas atlas;
   nk_buffer cmds, verts, idx;
@@ -59,4 +68,6 @@ private:
   wgpu::Texture texture;
   wgpu::Buffer indexBuffer;
   wgpu::Buffer projectionBuffer;
+
+  nk_flags subwindowFlags = NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE;
 };

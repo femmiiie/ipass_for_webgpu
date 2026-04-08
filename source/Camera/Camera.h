@@ -46,7 +46,7 @@ private:
   bool  needsUpdate      = true;
   bool  viewNeedsUpdate  = true;
 
-  glm::vec3 positionSPH = glm::vec3(5.0f, 0.0f, glm::half_pi<float>());
+  glm::vec3 positionSPH = glm::vec3(10.0f, glm::pi<float>() / 4.0f, glm::pi<float>() / 4.0f);
   glm::vec3 positionCAR = glm::vec3(0.0f);
   glm::vec3 eyeVector   = glm::vec3(0.0f);
 
