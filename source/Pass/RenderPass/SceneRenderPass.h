@@ -51,12 +51,17 @@ private:
 
   bool ownsVertexBuffer = false;
 
-  struct LightData
+  struct LightEntry
   {
     glm::vec4 position;
     glm::vec4 color;
-    glm::f32 power;
-  } lightData;
+    glm::f32  power;
+    glm::f32  _pad[3];
+  };
+  struct LightsData
+  {
+    LightEntry lights[4];
+  } lightsData;
 
   struct ViewportData {
     glm::f32 x, y, width, height;

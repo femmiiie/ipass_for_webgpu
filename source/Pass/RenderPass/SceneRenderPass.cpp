@@ -134,11 +134,10 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   Settings::mvp.modify().setLookAt(glm::vec3(0, -2, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
   Settings::mvp.modify().setPerspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 
-  this->lightData = {
-    .position    = glm::vec4(-1.0f, 2.0f, 0.0f, 1.0f),
-    .color       = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-    .power       = 1.0f,
-  };
+  this->lightsData.lights[0] = { glm::vec4(-4.0f, 4.0f, -4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
+  this->lightsData.lights[1] = { glm::vec4( 4.0f, 4.0f, -4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
+  this->lightsData.lights[2] = { glm::vec4(-4.0f, 4.0f,  4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
+  this->lightsData.lights[3] = { glm::vec4( 4.0f, 4.0f,  4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
 
   this->viewportData = {
     .x      = context.sceneViewport.x,
@@ -150,7 +149,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
 
   this->mvpBuffer      = this->CreateBuffer(utils::aligned_size(Settings::mvp.get().data), uniformUsage);
-  this->lightBuffer    = this->CreateBuffer(utils::aligned_size(this->lightData), uniformUsage);
+  this->lightBuffer    = this->CreateBuffer(utils::aligned_size(this->lightsData), uniformUsage);
   this->viewportBuffer = this->CreateBuffer(utils::aligned_size(this->viewportData), uniformUsage);
 
   this->controlPointsBuffer = this->CreateBuffer( // dummy initial buffer
@@ -160,7 +159,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   this->ownsControlPointsBuffer = true;
 
   this->context.queue.writeBuffer(this->mvpBuffer,      0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
-  this->context.queue.writeBuffer(this->lightBuffer,    0, &this->lightData,   sizeof(LightData));
+  this->context.queue.writeBuffer(this->lightBuffer,    0, &this->lightsData,  sizeof(LightsData));
   this->context.queue.writeBuffer(this->viewportBuffer, 0, &this->viewportData, sizeof(ViewportData));
 
   Settings::mvp.subscribe([this](const MVP& m) {
@@ -342,7 +341,7 @@ void SceneRenderPass::InitializeShaderVariants()
 
     v.bindGroupLayout = this->CreateBindGroupLayout({
       this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get().data)),
-      this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightData)),
+      this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightsData)),
     });
 
     v.bindGroup = this->CreateBindGroup(

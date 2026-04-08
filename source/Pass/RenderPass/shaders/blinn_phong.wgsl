@@ -28,8 +28,12 @@ struct Light {
   power: f32,
 }
 
+struct LightArray {
+  lights: array<Light, 4>,
+}
+
 @group(0) @binding(0) var<uniform> mvp: MVP;
-@group(0) @binding(1) var<uniform> light: Light;
+@group(0) @binding(1) var<uniform> lights: LightArray;
 
 fn cameraWorldPos() -> vec3f {
   return vec3f(
@@ -55,26 +59,30 @@ fn vs_main(input: vsInput) -> fsInput {
 fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,
                n: vec4f, e: vec4f, world_pos: vec4f) -> vec3f
 {
-  let spec_color: vec4f      = spec_scale * base_color;
-  let light_direction: vec4f = light.position - world_pos;
-  let light_distance: f32    = max(length(light_direction), 0.001);
-  let l: vec4f               = normalize(light_direction);
+  let spec_color: vec4f    = spec_scale * base_color;
+  let ambient_share: vec4f = (0.2 / 4.0) * base_color; // split evenly across lights so it sums to avg-attenuated ambient
+  var result: vec4f        = vec4f(0.0);
 
-  var diffuse: vec4f  = base_color * light.color * light.power
-                        * clamp(dot(n, l), 0.0, 1.0)
-                        / (light_distance * light_distance);
-  var ambient: vec4f  = 0.2 * base_color;
-  let r: vec4f        = reflect(-l, n);
-  var specular: vec4f = spec_color * light.color * light.power
-                        * pow(clamp(dot(e, r), 0.0, 1.0), spec_exp)
-                        / (light_distance * light_distance);
+  for (var i: i32 = 0; i < 4; i++) {
+    let light = lights.lights[i];
 
-  let attenuation: f32 = 1.0 / (1.0 + 0.22 * light_distance + 0.20 * (light_distance * light_distance));
-  diffuse  *= attenuation;
-  specular *= attenuation;
-  ambient  *= attenuation;
+    let light_direction: vec4f = light.position - world_pos;
+    let light_distance: f32    = max(length(light_direction), 0.001);
+    let l: vec4f               = normalize(light_direction);
 
-  return clamp(diffuse + ambient + specular, vec4f(0.0), vec4f(1.0)).xyz;
+    var diffuse: vec4f  = base_color * light.color * light.power
+                          * clamp(dot(n, l), 0.0, 1.0)
+                          / (light_distance * light_distance);
+    let r: vec4f        = reflect(-l, n);
+    var specular: vec4f = spec_color * light.color * light.power
+                          * pow(clamp(dot(e, r), 0.0, 1.0), spec_exp)
+                          / (light_distance * light_distance);
+
+    let attenuation: f32 = 1.0 / (1.0 + 0.22 * light_distance + 0.20 * (light_distance * light_distance));
+    result += (ambient_share + diffuse + specular) * attenuation;
+  }
+
+  return clamp(result, vec4f(0.0), vec4f(1.0)).xyz;
 }
 
 @fragment
