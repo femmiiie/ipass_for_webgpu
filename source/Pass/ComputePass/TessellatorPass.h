@@ -23,6 +23,7 @@ public:
   wgpu::Buffer GetOutputBuffer() const;
   wgpu::Buffer GetControlPointBuffer() const;
   uint32_t GetMaxVertexCount() const;
+  uint32_t GetPatchCount() const { return num_quads; }
 
 private:
   Tessellator* tess = nullptr;

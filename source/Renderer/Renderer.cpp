@@ -84,7 +84,12 @@ Renderer::Renderer()
 
     this->tessPass->LoadBV(p);
 
-    Settings::tessOutput.modify() = {this->tessPass->GetOutputBuffer(), this->tessPass->GetMaxVertexCount(), this->tessPass->GetControlPointBuffer()};
+    Settings::tessOutput.modify() = {
+      this->tessPass->GetOutputBuffer(), 
+      this->tessPass->GetMaxVertexCount(), 
+      this->tessPass->GetControlPointBuffer(), 
+      this->tessPass->GetPatchCount()
+    };
     Settings::tessOutput.notify();
   });
 

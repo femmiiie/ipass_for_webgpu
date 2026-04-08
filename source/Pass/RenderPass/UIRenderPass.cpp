@@ -688,24 +688,40 @@ void UIRenderPass::RenderPerformanceWindow()
   char ftBuf[64];
   std::snprintf(ftBuf, sizeof(ftBuf), "Frame: %.2f ms", this->context.performance.avg_frametime);
 
+  bool tessActive = Settings::tessellation.get();
+  const auto& tessOut = Settings::tessOutput.get();
+
+  char triBuf[64]   = "Triangles: 0 (Fix me!)";
+  char patchBuf[64] = {};
+  if (tessActive)
+  {
+    uint32_t triCount = tessOut.vertexCount / 3;
+    // std::snprintf(triBuf,   sizeof(triBuf),   "Triangles: %u", triCount);
+    std::snprintf(patchBuf, sizeof(patchBuf), "Patches: %u",   tessOut.patchCount);
+  }
+
   const auto& font = *ctx->style.font;
   const auto& win  = ctx->style.window;
 
-  const char* widthTemplate = "FPS: 0000.0";
-  float perf_width = font.width(font.userdata, font.height, widthTemplate, (int)strlen(widthTemplate)) * 2.0f;
+  const char* widthTemplate = "Triangles: 00000000";
+  float perf_width = font.width(font.userdata, font.height, widthTemplate, (int)strlen(widthTemplate)) * 1.4f;
 
   float row_height    = font.height * 1.1f;
   float header_height = font.height + win.header.padding.y * 2.0f + win.header.label_padding.y * 2.0f;
-  float perf_height   = header_height + row_height * 3.0f;
+  int row_count = 2 + (tessActive ? 2 : 0);
+  float content_height = row_height * row_count + win.spacing.y * glm::max(0, row_count - 1);
+  float perf_height = header_height + content_height + win.padding.y * 2.0f;
 
   float margin = 8.0f * s;
   float perf_x  = (float)this->context.size.x - perf_width - margin;
 
   struct nk_rect window_rect = nk_rect(perf_x, margin, perf_width, perf_height);
 
-  if (this->screenResized)
+  static int last_row_count = -1;
+  if (this->screenResized || last_row_count != row_count)
   {
     nk_window_set_bounds(ctx, "Performance", window_rect);
+    last_row_count = row_count;
   }
 
   if (nk_begin(ctx, "Performance", window_rect, this->subwindowFlags))
@@ -713,6 +729,11 @@ void UIRenderPass::RenderPerformanceWindow()
     nk_layout_row_static(ctx, row_height, (int)perf_width, 1);
     nk_label(ctx, fpsBuf, NK_TEXT_LEFT);
     nk_label(ctx, ftBuf, NK_TEXT_LEFT);
+    if (tessActive)
+    {
+      nk_label(ctx, triBuf,   NK_TEXT_LEFT);
+      nk_label(ctx, patchBuf, NK_TEXT_LEFT);
+    }
   }
   nk_end(ctx);
 }
