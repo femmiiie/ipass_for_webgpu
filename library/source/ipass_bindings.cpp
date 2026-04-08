@@ -120,7 +120,7 @@ emscripten::val loadBVFile(const std::string& filepath, uint32_t maxPatches) {
 
 EMSCRIPTEN_BINDINGS(ipass_module) {
     emscripten::class_<PipelineBinding>("_Pipeline")
-        .constructor<uintptr_t, uint32_t>()
+        .constructor<emscripten::val, uint32_t>()
         .function("loadPatches", &PipelineBinding::loadPatches)
         .function("setMVP", &PipelineBinding::setMVP)
         .function("setViewport", &PipelineBinding::setViewport)

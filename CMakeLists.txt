@@ -53,13 +53,26 @@ endif()
 if(EMSCRIPTEN)
   set(SHADER_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/scene.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
   )
-  set(SHADER_VAR_NAMES "ipass" "scene" "ui" "tess_calc" "tess_scan" "tess_gen")
+  set(SHADER_VAR_NAMES
+    "ipass"
+    "blinn_phong"
+    "flat"
+    "parametric_error"
+    "triangle_size"
+    "ui"
+    "tess_calc"
+    "tess_scan"
+    "tess_gen"
+  )
 
   set(EMBEDDED_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h")
   file(WRITE "${EMBEDDED_SHADER_HEADER}"
