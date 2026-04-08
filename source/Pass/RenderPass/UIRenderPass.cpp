@@ -426,7 +426,7 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
         Settings::tessellation.modify() = (tess == nk_true);
     }
 
-    nk_spacer(ctx);
+    nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::perfWindow.get());
 
     if (nk_tree_push(ctx, NK_TREE_TAB, "Object Properties", NK_MINIMIZED))
     {
@@ -434,22 +434,15 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
       nk_tree_pop(ctx);
     }
 
-    if (nk_tree_push(ctx, NK_TREE_TAB, "Profiling", NK_MINIMIZED))
+    if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
     {
-      nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::perfWindow.get());
-      //extra settings, what to measure, etc.
+      RenderSettingsSection(menu_size);
       nk_tree_pop(ctx);
     }
 
     if (nk_tree_push(ctx, NK_TREE_TAB, "Debug Output", NK_MINIMIZED))
     {
       RenderDebugSection();
-      nk_tree_pop(ctx);
-    }
-
-    if (nk_tree_push(ctx, NK_TREE_TAB, "Settings", NK_MINIMIZED))
-    {
-      RenderSettingsSection(menu_size);
       nk_tree_pop(ctx);
     }
 
