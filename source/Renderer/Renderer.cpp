@@ -171,6 +171,7 @@ void Renderer::Initialize()
   wgpu::SurfaceCapabilities capabilities;
   this->context.surface.getCapabilities(adapter, &capabilities);
   this->context.surfaceFormat = capabilities.formats[0];
+  capabilities.freeMembers();
   #ifdef __EMSCRIPTEN__
   this->context.colorFormat = wgpu::TextureFormat::BGRA8UnormSrgb;
   #else
