@@ -72,7 +72,7 @@ public:
   static inline Setting<MVP> mvp = {MVP()};
 
   static inline Setting<ShadingMode>        shadingMode = {ShadingMode::BlinnPhong};
-  static inline Setting<PresentModeSetting> presentMode = {PresentModeSetting::Mailbox};
+  static inline Setting<PresentModeSetting> presentMode = {PresentModeSetting::Fifo};
 
   static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
 

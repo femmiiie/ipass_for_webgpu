@@ -338,7 +338,7 @@ void UIRenderPass::UpdateProjection(glm::uvec2 size)
   this->lastScreenSize = size;
 }
 
-bool UIRenderPass::DrawCombo(std::vector<const char*> items, int& selected)
+bool UIRenderPass::DrawCombo(std::vector<const char*> items, uint& selected)
 {
   bool changed = false;
   nk_context* ctx = &this->uiContext;
@@ -348,14 +348,14 @@ bool UIRenderPass::DrawCombo(std::vector<const char*> items, int& selected)
   if (!ctx || items.empty())
     return false;
 
-  if (selected < 0 || selected >= items.size())
+  if (selected >= items.size())
     selected = 0;
 
 
   if (nk_combo_begin_label(ctx, items[selected], nk_vec2(this->context.size.x / 4.0f - 16.0f * this->uiScale, popupHeight)))
   {
     nk_layout_row_dynamic(ctx, comboHeight, 1);
-    for (int i = 0; i < items.size(); ++i)
+    for (uint i = 0; i < items.size(); ++i)
     {
       if (nk_combo_item_label(ctx, items[i], NK_TEXT_LEFT))
       {
@@ -565,7 +565,7 @@ void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
   nk_checkbox_label(ctx, "Wireframe", (nk_bool*)&Settings::wireframe.get());
 
     static std::vector<const char*> shaders = { "Blinn-Phong", "Flat", "Parametric Error", "Triangle Size" };
-  int curr = (int)Settings::shadingMode.get();
+  uint curr = (uint)Settings::shadingMode.get();
   float comboHeight = ctx->style.font->height + ctx->style.button.padding.y * 2.0f;
   ComponentLabel(ctx, "Shading Mode");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
@@ -695,7 +695,7 @@ void UIRenderPass::RenderPerformanceWindow()
   char patchBuf[64] = {};
   if (tessActive)
   {
-    uint32_t triCount = tessOut.vertexCount / 3;
+    // uint32_t triCount = tessOut.vertexCount / 3;
     // std::snprintf(triBuf,   sizeof(triBuf),   "Triangles: %u", triCount);
     std::snprintf(patchBuf, sizeof(patchBuf), "Patches: %u",   tessOut.patchCount);
   }
