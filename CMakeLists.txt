@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 project(ipass_webgpu)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -6,6 +6,9 @@ set(BACKEND "WGPU" CACHE STRING "Backend implementation of WebGPU")
 set_property(CACHE BACKEND PROPERTY STRINGS WGPU DAWN)
 
 include(FetchContent)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CopyRuntime)
+include(EmbedShaders)
 
 FetchContent_Declare(webgpu
   GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
@@ -14,7 +17,7 @@ FetchContent_Declare(webgpu
 
 FetchContent_Declare(nuklear
   GIT_REPOSITORY https://github.com/Immediate-Mode-UI/Nuklear
-  GIT_TAG
+  GIT_TAG 8c9b376
 )
 
 FetchContent_Declare(glfw
@@ -24,8 +27,9 @@ FetchContent_Declare(glfw
 
 FetchContent_Declare(glfw3webgpu
   GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu
-  GIT_TAG main
+  GIT_TAG 8f14534
 )
+
 FetchContent_Declare(glm
   GIT_REPOSITORY https://github.com/g-truc/glm.git
   GIT_TAG 0af55ccecd98d4e5a8d1fad7de25ba429d60e863
@@ -49,49 +53,24 @@ else()
   list(FILTER SOURCES EXCLUDE REGEX ".*/main_wasm\\.cpp$")
 endif()
 
-# Embed shaders to embedded_shaders.h (faster than virtual FS)
+# Embed shaders to embedded_shaders.h (faster than virtual FS on Emscripten)
 if(EMSCRIPTEN)
-  set(SHADER_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
+  ipass_embed_shaders(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
+    SOURCES
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
+    NAMES
+      ipass blinn_phong flat parametric_error triangle_size
+      ui tess_calc tess_scan tess_gen
   )
-  set(SHADER_VAR_NAMES
-    "ipass"
-    "blinn_phong"
-    "flat"
-    "parametric_error"
-    "triangle_size"
-    "ui"
-    "tess_calc"
-    "tess_scan"
-    "tess_gen"
-  )
-
-  set(EMBEDDED_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h")
-  file(WRITE "${EMBEDDED_SHADER_HEADER}"
-    "#pragma once\n#include <string>\nnamespace embedded_shaders {\n"
-  )
-
-  list(LENGTH SHADER_SOURCES SHADER_COUNT)
-  math(EXPR SHADER_LAST "${SHADER_COUNT} - 1")
-
-  foreach(IDX RANGE ${SHADER_LAST})
-    list(GET SHADER_SOURCES ${IDX} SHADER_FILE)
-    list(GET SHADER_VAR_NAMES ${IDX} VAR_NAME)
-    file(READ "${SHADER_FILE}" SHADER_CONTENT)
-    file(APPEND "${EMBEDDED_SHADER_HEADER}"
-      "inline const std::string ${VAR_NAME} = R\"WGSL(\n${SHADER_CONTENT})WGSL\";\n"
-    )
-  endforeach()
-
-  file(APPEND "${EMBEDDED_SHADER_HEADER}" "} // embedded_shaders\n")
 endif()
 
 add_executable(ipass_webgpu ${SOURCES})
@@ -154,21 +133,22 @@ else() # WGPU or DAWN backend
 
   FetchContent_MakeAvailable(webgpu nuklear glfw glfw3webgpu glm nfd)
 
-  if(WIN32)
-    target_compile_definitions(glfw3webgpu PRIVATE GLFW_EXPOSE_NATIVE_WIN32)
+  if(TARGET glfw3webgpu)
+    if(GLFW_BUILD_X11)
+      target_compile_definitions(glfw3webgpu PRIVATE _GLFW_X11)
+    endif()
+    if(GLFW_BUILD_WAYLAND)
+      target_compile_definitions(glfw3webgpu PRIVATE _GLFW_WAYLAND)
+    endif()
+    if(WIN32)
+      target_compile_definitions(glfw3webgpu PRIVATE _GLFW_WIN32 GLFW_EXPOSE_NATIVE_WIN32)
+    endif()
+    if(APPLE)
+      target_compile_definitions(glfw3webgpu PRIVATE _GLFW_COCOA)
+    endif()
   endif()
 
   set(_backend_define WEBGPU_BACKEND_${BACKEND})
-
-  if(BACKEND STREQUAL "WGPU")
-    set(_wgpu_runtime_dir "${CMAKE_BINARY_DIR}/_deps/wgpu-windows-x86_64-${WGPU_NATIVE_RUNTIME}-release-src/lib")
-    add_custom_command(TARGET ipass_webgpu POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${_wgpu_runtime_dir}/wgpu_native.dll"
-      "$<TARGET_FILE_DIR:ipass_webgpu>"
-      COMMENT "Copying wgpu_native.dll to output directory"
-    )
-  endif()
 endif()
 
 # ------------------------------------------
@@ -187,20 +167,10 @@ target_compile_definitions(nuklear INTERFACE
   NK_INCLUDE_DEFAULT_FONT
 )
 
-if(MSVC)
-  set_source_files_properties(
-    source/nuklear_impl.cpp
-    PROPERTIES
-    COMPILE_OPTIONS
-    "$<$<CXX_COMPILER_ID:MSVC>:/w>$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>"
-  )
-else()
-  set_source_files_properties(
-    source/nuklear_impl.cpp
-    PROPERTIES
-    COMPILE_OPTIONS "-w"
-  )
-endif()
+set_source_files_properties(
+  source/nuklear_impl.cpp
+  PROPERTIES COMPILE_OPTIONS "$<IF:$<CXX_COMPILER_ID:MSVC>,/w,-w>"
+)
 
 if(EMSCRIPTEN)
   target_compile_definitions(ipass_webgpu PRIVATE
@@ -268,6 +238,8 @@ target_include_directories(ipass_webgpu PRIVATE
   ${CMAKE_BINARY_DIR}
 )
 target_compile_definitions(ipass_webgpu PRIVATE ${_backend_define})
+
+ipass_copy_webgpu_runtime(ipass_webgpu)
 
 set_target_properties(ipass_webgpu PROPERTIES
   VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:ipass_webgpu>"

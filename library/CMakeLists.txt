@@ -1,5 +1,15 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
+get_filename_component(IPASS_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/../source"
+  ABSOLUTE
+)
+
+if(NOT COMMAND ipass_embed_shaders)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
+  include(EmbedShaders)
+  include(CopyRuntime)
+endif()
 
 if(EMSCRIPTEN)
   include(FetchContent)
@@ -21,23 +31,23 @@ set(IPASS_SOURCES
     source/BVLoader.cpp
 
     # reused internal sources
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/Pass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/ComputePass/IPass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/Tessellator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessCalcPass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessScanPass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessGenPass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/Connectivity.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils/BVParser.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils/Elevation.cpp
+    ${IPASS_SOURCE_DIR}/Pass/Pass.cpp
+    ${IPASS_SOURCE_DIR}/Pass/ComputePass/IPass.cpp
+    ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
+    ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
+    ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
+    ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
+    ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
+    ${IPASS_SOURCE_DIR}/Utils/BVParser.cpp
+    ${IPASS_SOURCE_DIR}/Utils/Elevation.cpp
 )
 
 set(IPASS_PRIVATE_INCLUDES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Renderer
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/ComputePass
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator
-    ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils
+    ${IPASS_SOURCE_DIR}/Renderer
+    ${IPASS_SOURCE_DIR}/Pass
+    ${IPASS_SOURCE_DIR}/Pass/ComputePass
+    ${IPASS_SOURCE_DIR}/Tessellator
+    ${IPASS_SOURCE_DIR}/Utils
 )
 
 if(EMSCRIPTEN)
@@ -45,31 +55,15 @@ if(EMSCRIPTEN)
     set(IPASS_POST_JS "${CMAKE_CURRENT_SOURCE_DIR}/js/ipass.js")
 
     #generate embedded_shaders.h from .wgsl files
-    set(SHADER_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/ComputePass/ipass.wgsl"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/tess-calc.wgsl"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/tess-scan.wgsl"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/tess-gen.wgsl"
+    ipass_embed_shaders(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
+        SOURCES
+            "${IPASS_SOURCE_DIR}/Pass/ComputePass/ipass.wgsl"
+            "${IPASS_SOURCE_DIR}/Tessellator/tess-calc.wgsl"
+            "${IPASS_SOURCE_DIR}/Tessellator/tess-scan.wgsl"
+            "${IPASS_SOURCE_DIR}/Tessellator/tess-gen.wgsl"
+        NAMES ipass tess_calc tess_scan tess_gen
     )
-    set(SHADER_VAR_NAMES "ipass" "tess_calc" "tess_scan" "tess_gen")
-
-    set(EMBEDDED_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h")
-    file(WRITE "${EMBEDDED_SHADER_HEADER}"
-        "#pragma once\n#include <string>\nnamespace embedded_shaders {\n"
-    )
-
-    list(LENGTH SHADER_SOURCES SHADER_COUNT)
-    math(EXPR SHADER_LAST "${SHADER_COUNT} - 1")
-    foreach(IDX RANGE ${SHADER_LAST})
-        list(GET SHADER_SOURCES ${IDX} SHADER_FILE)
-        list(GET SHADER_VAR_NAMES ${IDX} VAR_NAME)
-        file(READ "${SHADER_FILE}" SHADER_CONTENT)
-        file(APPEND "${EMBEDDED_SHADER_HEADER}"
-            "inline const std::string ${VAR_NAME} = R\"WGSL(\n${SHADER_CONTENT})WGSL\";\n"
-        )
-    endforeach()
-
-    file(APPEND "${EMBEDDED_SHADER_HEADER}" "} // embedded_shaders\n")
 
     #WASM library target
     add_executable(ipass_wasm

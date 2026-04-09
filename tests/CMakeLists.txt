@@ -1,4 +1,16 @@
-set(TESSELLATOR_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator")
+cmake_minimum_required(VERSION 3.16)
+
+get_filename_component(IPASS_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/../source"
+  ABSOLUTE
+)
+
+if(NOT COMMAND ipass_copy_webgpu_runtime)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
+  include(CopyRuntime)
+endif()
+
+set(TESSELLATOR_SHADER_DIR "${IPASS_SOURCE_DIR}/Tessellator")
 
 # copy tessellator shaders to target output directory
 function(copy_tess_shaders TARGET_NAME)
@@ -17,7 +29,7 @@ endfunction()
 
 add_executable(test_scan
   test_scan.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessScanPass.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
 )
 
 set_target_properties(test_scan PROPERTIES
@@ -36,23 +48,15 @@ target_link_libraries(test_scan PRIVATE webgpu glm::glm)
 target_include_directories(test_scan PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils
+  ${IPASS_SOURCE_DIR}
+  ${IPASS_SOURCE_DIR}/Tessellator
+  ${IPASS_SOURCE_DIR}/Utils
   ${nfd_SOURCE_DIR}/src/include
 )
 target_compile_definitions(test_scan PRIVATE WEBGPU_BACKEND_${BACKEND})
 
 copy_tess_shaders(test_scan)
-
-if(BACKEND STREQUAL "WGPU")
-  add_custom_command(TARGET test_scan POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/_deps/wgpu-windows-x86_64-${WGPU_NATIVE_RUNTIME}-release-src/lib/wgpu_native.dll"
-    "$<TARGET_FILE_DIR:test_scan>"
-    COMMENT "Copying wgpu_native.dll for test_scan"
-  )
-endif()
+ipass_copy_webgpu_runtime(test_scan)
 
 add_test(NAME scan_pass COMMAND test_scan)
 
@@ -60,12 +64,12 @@ add_test(NAME scan_pass COMMAND test_scan)
 
 add_executable(test_tess_quad
   test_tess_quad.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass/Pass.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessCalcPass.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessScanPass.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/TessGenPass.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/Tessellator.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator/Connectivity.cpp
+  ${IPASS_SOURCE_DIR}/Pass/Pass.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
+  ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
 )
 
 set_target_properties(test_tess_quad PROPERTIES
@@ -85,22 +89,14 @@ target_link_libraries(test_tess_quad PRIVATE webgpu glm::glm)
 target_include_directories(test_tess_quad PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Pass
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Renderer
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Tessellator
-  ${CMAKE_CURRENT_SOURCE_DIR}/../source/Utils
+  ${IPASS_SOURCE_DIR}
+  ${IPASS_SOURCE_DIR}/Pass
+  ${IPASS_SOURCE_DIR}/Renderer
+  ${IPASS_SOURCE_DIR}/Tessellator
+  ${IPASS_SOURCE_DIR}/Utils
   ${nfd_SOURCE_DIR}/src/include
 )
 target_compile_definitions(test_tess_quad PRIVATE WEBGPU_BACKEND_${BACKEND})
 
 copy_tess_shaders(test_tess_quad)
-
-if(BACKEND STREQUAL "WGPU")
-  add_custom_command(TARGET test_tess_quad POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/_deps/wgpu-windows-x86_64-${WGPU_NATIVE_RUNTIME}-release-src/lib/wgpu_native.dll"
-    "$<TARGET_FILE_DIR:test_tess_quad>"
-    COMMENT "Copying wgpu_native.dll for test_tess_quad"
-  )
-endif()
+ipass_copy_webgpu_runtime(test_tess_quad)
