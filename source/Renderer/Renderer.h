@@ -63,6 +63,8 @@ private:
   void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag);
   void GetSurfaceFormat();
 
+  wgpu::Texture texture;
+
   struct DebugInspect {
     wgpu::Buffer buffer;
     uint64_t size = 0;

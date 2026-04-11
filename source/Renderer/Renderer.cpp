@@ -233,7 +233,7 @@ wgpu::TextureView Renderer::GetNextTextureView()
   {
     return nullptr;
   }
-  wgpu::Texture texture = surfaceTexture.texture;
+  this->texture = surfaceTexture.texture;
 
   wgpu::TextureViewDescriptor viewDescriptor;
   viewDescriptor.label = WGPU_STRING_VIEW_INIT;
@@ -250,9 +250,6 @@ wgpu::TextureView Renderer::GetNextTextureView()
   viewDescriptor.aspect = wgpu::TextureAspect::All;
   wgpu::TextureView targetView = texture.createView(viewDescriptor);
 
-#ifndef WEBGPU_BACKEND_WGPU
-  texture.release();
-#endif
   return targetView;
 }
 
@@ -380,6 +377,7 @@ void Renderer::MainLoop()
 
   targetView.release();
   this->Present();
+  this->texture.release();
   this->DevicePoll();
 
   this->context.measure();
