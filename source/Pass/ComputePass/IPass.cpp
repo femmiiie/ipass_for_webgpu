@@ -1,5 +1,6 @@
 #include "IPass.h"
 #include "Shader.h"
+#include "Settings.h"
 #include <webgpu/webgpu.h>
 #include <vector>
 
@@ -149,7 +150,7 @@ IPass::~IPass()
 
 void IPass::Execute(wgpu::CommandEncoder& encoder)
 {
-  if (this->currentVertCount == 0) return;
+  if (this->currentVertCount == 0 || !Settings::tessellation.get()) return;
 
   float pixelSize = 2.0f / this->viewportWidth;
   this->context.queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));

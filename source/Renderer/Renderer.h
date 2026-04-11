@@ -56,7 +56,8 @@ private:
   void UpdateSceneViewport();
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,
     wgpu::RenderPassColorAttachment& colorAttachment,
-    wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment);
+    wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment
+  );
   void Initialize();
   void ConfigureSurface();
   void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag);
