@@ -56,7 +56,7 @@ private:
     glm::vec4 position;
     glm::vec4 color;
     glm::f32  power;
-    glm::f32  _pad[3];
+    glm::f32  _pad[3] = {0.0, 0.0, 0.0};
   };
   struct LightsData
   {
