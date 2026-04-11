@@ -325,11 +325,10 @@ void Renderer::MainLoop()
   encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
-  this->iPass->Execute(encoder);
-
-  if (this->tessPass)
+  if (Settings::tessellation.get())
   {
-    this->tessPass->Execute(encoder);
+    if (this->iPass) { this->iPass->Execute(encoder); }
+    if (this->tessPass) { this->tessPass->Execute(encoder); }
   }
 
   wgpu::Buffer stagingBuffer;

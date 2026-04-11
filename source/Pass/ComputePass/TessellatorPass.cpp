@@ -13,7 +13,6 @@
 
 #include "TessellatorPass.h"
 #include "BVParser.h"
-#include "Settings.h"
 #include "Shader.h"
 #include "Elevation.h"
 
@@ -111,7 +110,7 @@ void TessellatorPass::LoadBV(const BVParser& parser)
 
 void TessellatorPass::Execute(wgpu::CommandEncoder& encoder)
 {
-  if (!tess || !initialized || num_quads == 0 || !Settings::tessellation.get()) { return; }
+  if (!tess || !initialized || num_quads == 0) { return; }
 
   if (!tess->Execute(encoder, num_quads)) {
     std::cerr << "[TessellatorPass] Execute() failed." << std::endl;
