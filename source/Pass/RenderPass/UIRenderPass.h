@@ -38,7 +38,7 @@ public:
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
   nk_context* getUIContext() { return &uiContext; }
-  void SetDebugData(const std::vector<float>& data);
+  void SetDebugData(std::vector<float> data) { this->debugData = std::move(data); }
 
 private:
   void ApplyScaledStyles();

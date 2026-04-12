@@ -16,7 +16,7 @@
 #include <array>
 #include <string>
 #include <exception>
-#include <optional>
+#include <functional>
 
 #include "Context.h"
 #include "IPass.h"
@@ -60,18 +60,15 @@ private:
   );
   void Initialize();
   void ConfigureSurface();
-  void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag);
+  void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, std::function<void()> onSuccess);
   void GetSurfaceFormat();
 
   wgpu::Texture texture;
 
-  struct DebugInspect {
-    wgpu::Buffer buffer;
-    uint64_t size = 0;
-  };
-  std::optional<DebugInspect> pendingDebugInspect;
-  bool debugMapped = false;
-  std::vector<float> debugReadback;
+  wgpu::Buffer stagingBuffer;
+  uint64_t     stagingSize  = 0;
+  bool         stagingBusy  = false;
+  std::vector<glm::f32> debugReadback;
 };
 
 class RendererException : public std::exception

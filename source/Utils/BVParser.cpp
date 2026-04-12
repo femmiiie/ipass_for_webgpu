@@ -7,7 +7,7 @@ using utils::Vertex3D;
 const std::vector<Vertex3D> BVParser::GetFlat() const
 {
   std::vector<Vertex3D> vec;
-  for (Patch patch : this->patches) { vec.insert(vec.end(), patch.begin(), patch.end()); }
+  for (const Patch& patch : this->patches) { vec.insert(vec.end(), patch.begin(), patch.end()); }
   return vec;
 }
 

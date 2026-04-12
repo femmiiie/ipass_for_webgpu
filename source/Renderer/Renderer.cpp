@@ -63,6 +63,13 @@ Renderer::Renderer()
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context, "fonts/Inter-VariableFont.ttf");
 
+  this->stagingSize = this->iPass->GetOutputBuffer().getSize();
+  wgpu::BufferDescriptor stagingDesc{};
+  stagingDesc.size            = this->stagingSize;
+  stagingDesc.usage           = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
+  stagingDesc.mappedAtCreation = false;
+  this->stagingBuffer = this->context.device.createBuffer(stagingDesc);
+
   Settings::mvp.subscribe([this](const MVP& m) {
     glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
     this->iPass->SetMVP(mvp);
@@ -108,6 +115,7 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
+  if (this->stagingBuffer) this->stagingBuffer.release();
   delete this->iPass;
   delete this->tessPass;
   delete this->scenePass;
@@ -299,22 +307,6 @@ void Renderer::MainLoop()
   this->context.tick();
   Settings::checkUpdates();
 
-  if (this->pendingDebugInspect.has_value() && this->debugMapped)
-  {
-    auto& di = this->pendingDebugInspect.value();
-    const void* mapped = di.buffer.getMappedRange(0, di.size);
-    if (mapped)
-    {
-      const float* data = static_cast<const float*>(mapped);
-      this->debugReadback.assign(data, data + di.size / sizeof(float));
-      this->uiPass->SetDebugData(this->debugReadback);
-    }
-    di.buffer.unmap();
-    di.buffer.release();
-    this->pendingDebugInspect.reset();
-    this->debugMapped = false;
-  }
-
   wgpu::TextureView targetView = this->GetNextTextureView();
   if (!targetView) { return; }
 
@@ -328,20 +320,8 @@ void Renderer::MainLoop()
     if (this->tessPass) { this->tessPass->Execute(encoder); }
   }
 
-  wgpu::Buffer stagingBuffer;
-  uint64_t stagingSize = 0;
-  if (!this->pendingDebugInspect.has_value())
-  {
-    wgpu::Buffer& debugBuf = this->iPass->GetOutputBuffer();
-    stagingSize = debugBuf.getSize();
-    wgpu::BufferDescriptor desc;
-    desc.size = stagingSize;
-    desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
-    desc.mappedAtCreation = false;
-    stagingBuffer = this->context.device.createBuffer(desc);
-    encoder.copyBufferToBuffer(debugBuf, 0, stagingBuffer, 0, stagingSize);
-  }
-
+  if (!this->stagingBusy)
+    encoder.copyBufferToBuffer(this->iPass->GetOutputBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
 
   wgpu::RenderPassColorAttachment colorAttachment;
   wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
@@ -367,12 +347,20 @@ void Renderer::MainLoop()
   this->context.queue.submit(1, &command);
   command.release();
 
-  // Initiate async readback after submission
-  // The DevicePoll() call below will trigger the callback when the GPU finishes
-  if (stagingSize > 0)
+  if (!this->stagingBusy)
   {
-    this->pendingDebugInspect = DebugInspect{stagingBuffer, stagingSize};
-    this->MapBufferForRead(this->pendingDebugInspect.value().buffer, stagingSize, &this->debugMapped);
+    this->stagingBusy = true;
+    this->MapBufferForRead(this->stagingBuffer, this->stagingSize, [this]() {
+      const void* mapped = this->stagingBuffer.getMappedRange(0, this->stagingSize);
+      if (mapped)
+      {
+        const float* data = static_cast<const float*>(mapped);
+        this->debugReadback.assign(data, data + this->stagingSize / sizeof(float));
+        this->uiPass->SetDebugData(std::move(this->debugReadback));
+      }
+      this->stagingBuffer.unmap();
+      this->stagingBusy = false;
+    });
   }
 
   targetView.release();
@@ -418,24 +406,29 @@ wgpu::RenderPassDescriptor Renderer::GetRenderDescriptor(wgpu::TextureView& view
   return renderPassDesc;
 }
 
-void Renderer::MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, bool* outFlag)
+void Renderer::MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, std::function<void()> onSuccess)
 {
 #ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
+  auto* cb = new std::function<void()>(std::move(onSuccess));
   buffer.mapAsync(wgpu::MapMode::Read, 0, size, wgpu::CallbackMode::AllowProcessEvents,
-    [outFlag](wgpu::MapAsyncStatus status, wgpu::StringView /*message*/) {
-      *outFlag = (status == wgpu::MapAsyncStatus::Success);
+    [cb](wgpu::MapAsyncStatus status, wgpu::StringView /*message*/) {
+      if (status == wgpu::MapAsyncStatus::Success) (*cb)();
+      delete cb;
     }
   );
 #else
+  auto* cb = new std::function<void()>(std::move(onSuccess));
   wgpu::BufferMapCallbackInfo callbackInfo;
   callbackInfo.nextInChain = nullptr;
   callbackInfo.mode        = wgpu::CallbackMode::AllowProcessEvents;
-  callbackInfo.userdata1   = outFlag;
+  callbackInfo.userdata1   = cb;
   callbackInfo.userdata2   = nullptr;
   callbackInfo.callback    = [](WGPUMapAsyncStatus status, WGPUStringView /*message*/,
                                 void* userdata1, void* /*userdata2*/)
   {
-    *static_cast<bool*>(userdata1) = (status == WGPUMapAsyncStatus_Success);
+    auto* fn = static_cast<std::function<void()>*>(userdata1);
+    if (status == WGPUMapAsyncStatus_Success) (*fn)();
+    delete fn;
   };
   buffer.mapAsync(wgpu::MapMode::Read, 0, size, callbackInfo);
 #endif

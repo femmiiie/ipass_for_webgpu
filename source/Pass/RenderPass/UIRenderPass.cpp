@@ -315,10 +315,6 @@ void UIRenderPass::InitSampler()
   this->sampler = this->context.device.createSampler(samplerDesc);
 }
 
-void UIRenderPass::SetDebugData(const std::vector<float>& data)
-{
-  this->debugData = data;
-}
 
 void UIRenderPass::UpdateProjection(glm::uvec2 size)
 {
