@@ -39,4 +39,5 @@ private:
   uint32_t patchCapacity = 0;
   uint32_t currentVertCount = 0;
   float viewportWidth = 1.0f;
+  float pixelSize     = -1.0f;
 };

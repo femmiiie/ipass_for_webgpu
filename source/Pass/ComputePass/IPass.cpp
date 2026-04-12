@@ -151,8 +151,12 @@ void IPass::Execute(wgpu::CommandEncoder& encoder)
 {
   if (this->currentVertCount == 0) return;
 
-  float pixelSize = 2.0f / this->viewportWidth;
-  this->context.queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));
+  float pSize = 2.0f / this->viewportWidth;
+  if (pSize != this->pixelSize)
+  {
+    this->context.queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));
+    this->pixelSize = pSize;
+  }
 
   wgpu::ComputePassDescriptor desc;
   desc.timestampWrites = nullptr;

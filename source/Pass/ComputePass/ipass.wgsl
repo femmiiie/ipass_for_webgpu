@@ -61,16 +61,13 @@ var<workgroup> control_points : array<vec4<f32>, group_size>;
 var<workgroup> upper          : array<vec4<f32>, group_size>;
 var<workgroup> lower          : array<vec4<f32>, group_size>;
 
-// 2nd derivative buffer
-var<workgroup> d2b            : array<vec4<f32>, group_size>;
-var<workgroup> cube_min       : array<vec3<f32>, group_size>;
-var<workgroup> cube_max       : array<vec3<f32>, group_size>;
+var<workgroup> d2b_u          : array<vec4<f32>, group_size>;
+var<workgroup> d2b_upper      : array<vec4<f32>, group_size>;
+var<workgroup> d2b_lower      : array<vec4<f32>, group_size>;
+
+var<workgroup> local_max      : array<f32, group_size>;
 
 var<workgroup> tess_level     : array<atomic<u32>, patches_per_group>;
-
-// width of the flat enclosure of each bi-cubic panel
-// var<workgroup> panel_width_upper: array<u32, 3*patches_per_group>;
-// var<workgroup> panel_width_lower: array<u32, 3*patches_per_group>;
 
 
 fn add_up_basis(
@@ -97,7 +94,7 @@ fn calc_bounding_box(
   *cube_max = vec3f(-f32_max);
 
   for (var i: u32 = 0; i < 8; i++)
-  { 
+  {
     let p : vec3<f32> = select(
       sb_min.xyz,
       sb_max.xyz,
@@ -132,21 +129,15 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   var final_lower : vec4<f32>;
   var final_upper : vec4<f32>;
 
-  if (thread_id == 0) { atomicStore(&tess_level[group_id], 0u); }
-
-  // panel_width_upper[group_id*3 + thread_id%3] = 0;
-  // panel_width_lower[group_id*3 + thread_id%3] = 0;
-
   control_points[thread_id + base_index] = vertices[id.x].pos;
 
   workgroupBarrier();
 
-  // 2nd derivative in u direction
-  // row major vertices
+  // u-direction 2nd derivative (row-major, cols 0-1 only)
   if (col < 2)
   {
     let index: u32 = col + 4*row + base_index;
-    d2b[index] =
+    d2b_u[index] =
       control_points[index]
       - (2 * control_points[index + 1])
       + control_points[index + 2];
@@ -154,8 +145,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   workgroupBarrier();
 
-  // upper/lower slefe for each row
-
+  // upper/lower row SLEFE
   let u : f32 = f32(col) / 3.0f;
   seg_upper = (1 - u) * control_points[4*row + base_index]
             + u * control_points[4*row + 3 + base_index];
@@ -166,7 +156,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
     add_up_basis(
       &seg_upper,
       &seg_lower,
-      d2b[4*row + i + base_index],
+      d2b_u[4*row + i + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],
     );
@@ -177,19 +167,16 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   workgroupBarrier();
 
-  //upper slefe of upper
-
   if (row < 2)
   {
     let index: u32 = col + 4*row + base_index;
-    d2b[index] =
-      upper[index]
-      - (2 * upper[index + 4])
-      + upper[index + 8];
+    d2b_upper[index] = upper[index] - (2 * upper[index + 4]) + upper[index + 8];
+    d2b_lower[index] = lower[index] - (2 * lower[index + 4]) + lower[index + 8];
   }
 
   workgroupBarrier();
 
+  // upper SLEFE of upper
   let v : f32 = f32(row) / 3.0f;
   seg_upper = (1 - v) * upper[col + base_index]
             + v * upper[4*row + col + base_index];
@@ -200,7 +187,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
     add_up_basis(
       &seg_upper,
       &seg_lower,
-      d2b[4*i + col + base_index],
+      d2b_upper[4*i + col + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],
     );
@@ -208,20 +195,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   final_upper = seg_upper;
 
-  workgroupBarrier();
-
-  //lower slefe of lower
-  if (row < 2)
-  {
-    let index: u32 = col + 4*row + base_index;
-    d2b[index] =
-      lower[index]
-      - (2 * lower[index + 4])
-      + lower[index + 8];
-  }
-
-  workgroupBarrier();
-
+  // lower SLEFE of lower
   seg_upper = (1 - v) * lower[col + base_index]
             + v * lower[4*row + col + base_index];
   seg_lower = seg_upper;
@@ -231,7 +205,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
     add_up_basis(
       &seg_upper,
       &seg_lower,
-      d2b[4*i + col + base_index],
+      d2b_lower[4*i + col + base_index],
       slefe_upper_3_3[col + 4*i],
       slefe_lower_3_3[col + 4*i],
     );
@@ -246,29 +220,25 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   workgroupBarrier();
 
-  // let max_upper_width = array<f32, 3>(0, 0, 0);
-  // let max_lower_width = array<f32, 3>(0, 0, 0);
-
-  var tile_upper : array<vec4<f32>, 2>;
-  var tile_lower : array<vec4<f32>, 2>;
-
+  var thread_max : f32 = 0.0;
   if (thread_id < 9)
   {
     let i : vec4<u32> = tile_indices[thread_id] + vec4u(base_index);
-    
+
     let u1 = (upper[i.x] + upper[i.w]) / 2.0f;
     let u2 = (upper[i.y] + upper[i.z]) / 2.0f;
-  
+
     let l1 = (lower[i.x] + lower[i.w]) / 2.0f;
     let l2 = (lower[i.y] + lower[i.z]) / 2.0f;
-  
+
+    var tile_upper : array<vec4<f32>, 2>;
+    var tile_lower : array<vec4<f32>, 2>;
+
     tile_upper[0] = (u1 + u2) / 2.0f;
     tile_upper[1] = max(u1, u2);
 
     tile_lower[0] = min(l1, l2);
     tile_lower[1] = (l1 + l2) / 2.0f;
-
-    //get closest corner of avg center box
 
     let center_upper = vec4f(
       select(tile_upper[0], tile_upper[1], mvp[0][2] < 0.0).x,
@@ -290,13 +260,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
     let p_error   : vec3<f32> = bb_max - bb_min;
     let max_error : f32       = max(p_error.x, max(p_error.y, p_error.z));
-    atomicMax(
-      &tess_level[group_id],
-      u32(10000 * clamp(3 * sqrt(2 * max_error / pixel_size), 1.0f, 64.0f))
-    );
+    thread_max = clamp(3 * sqrt(2 * max_error / pixel_size), 1.0f, 64.0f);
   }
-
-  workgroupBarrier();
 
   var bb_min : vec3<f32>;
   var bb_max : vec3<f32>;
@@ -304,13 +269,18 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   let p_error   : vec3<f32> = bb_max - bb_min;
   let max_error : f32       = max(p_error.x, max(p_error.y, p_error.z));
-  atomicMax(
-    &tess_level[group_id],
-    u32(10000 * clamp(3 * sqrt(2 * max_error / pixel_size), 1.0f, 64.0f))
-  );
+  let vert_max  : f32       = clamp(3 * sqrt(2 * max_error / pixel_size), 1.0f, 64.0f);
+
+  local_max[thread_id + base_index] = max(thread_max, vert_max);
+
+  workgroupBarrier();
 
   if (thread_id == 0)
   {
-    patches[patch_id] = max(1.0f, f32(atomicLoad(&tess_level[group_id]))/10000.0f);
+    var m : f32 = 1.0f;
+    for (var i : u32 = 0; i < verts_per_patch; i++) {
+      m = max(m, local_max[base_index + i]);
+    }
+    patches[patch_id] = m;
   }
 }
