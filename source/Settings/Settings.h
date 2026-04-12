@@ -42,6 +42,8 @@ public:
       return this->value;
     }
 
+    bool pending() const { return this->needsUpdate; }
+
     bool observe() {
       bool state = this->needsUpdate;
       this->needsUpdate = false;
