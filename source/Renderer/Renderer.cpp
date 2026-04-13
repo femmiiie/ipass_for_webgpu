@@ -76,20 +76,7 @@ Renderer::Renderer()
   });
 
   Settings::parser.subscribe([this](const BVParser& p) {
-    const auto& patches = p.Get();
-    const auto& dims    = p.GetDims();
-
-    // elevate to force all patches to be bi-cubic (for IPass)
-    std::vector<utils::Vertex3D> bicubicVerts;
-    bicubicVerts.reserve(patches.size() * 16);
-    for (size_t pi = 0; pi < patches.size(); pi++) {
-      if (patches[pi].empty()) continue;
-      auto elevated = elevation::elevatePatchFull(patches[pi], dims[pi].first, dims[pi].second);
-      bicubicVerts.insert(bicubicVerts.end(), elevated.begin(), elevated.end());
-    }
-    this->iPass->UploadVertices(bicubicVerts);
-
-    this->tessPass->LoadBV(p);
+    this->LoadParser(p);
 
     Settings::tessOutput.modify() = {
       this->tessPass->GetOutputBuffer(), 
@@ -104,9 +91,8 @@ Renderer::Renderer()
     this->ConfigureSurface();
   });
 
-  if (!Settings::parser.get().Get().empty()) {
-    this->tessPass->LoadBV(Settings::parser.get());
-  }
+  if (!Settings::parser.get().Get().empty())
+    this->LoadParser(Settings::parser.get());
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
@@ -300,6 +286,23 @@ void Renderer::UpdateSceneViewport()
   context.sceneViewport.y      = 0.0f;
   context.sceneViewport.width  = (float)context.size.x - menuWidth;
   context.sceneViewport.height = (float)context.size.y;
+}
+
+void Renderer::LoadParser(const BVParser& parser)
+{
+  const auto& patches = parser.Get();
+  const auto& dims    = parser.GetDims();
+
+  std::vector<utils::Vertex3D> bicubicVerts;
+  bicubicVerts.reserve(patches.size() * 16);
+  for (size_t pi = 0; pi < patches.size(); pi++) {
+    if (patches[pi].empty()) continue;
+    auto elevated = elevation::elevatePatchFull(patches[pi], dims[pi].first, dims[pi].second);
+    bicubicVerts.insert(bicubicVerts.end(), elevated.begin(), elevated.end());
+  }
+
+  this->iPass->UploadVertices(bicubicVerts);
+  this->tessPass->Load(bicubicVerts, patches, dims);
 }
 
 void Renderer::MainLoop()

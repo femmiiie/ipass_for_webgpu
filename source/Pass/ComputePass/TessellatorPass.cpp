@@ -7,14 +7,12 @@
 #include <algorithm>
 #include <cstring>
 #include <vector>
+#include <unordered_map>
 #include <iostream>
 
 #include "Tessellator.h"
 
 #include "TessellatorPass.h"
-#include "BVParser.h"
-#include "Shader.h"
-#include "Elevation.h"
 
 using Vertex3D = utils::Vertex3D;
 
@@ -41,13 +39,12 @@ TessellatorPass::~TessellatorPass()
   }
 }
 
-void TessellatorPass::LoadBV(const BVParser& parser)
+void TessellatorPass::Load(const std::vector<utils::Vertex3D>& bicubicVerts,
+                           const std::vector<Patch>& patches,
+                           const std::vector<std::pair<glm::u32, glm::u32>>& dims)
 {
   if (!tess || !initialized)
     return;
-
-  const auto& patches = parser.Get();
-  const auto& dims    = parser.GetDims();
 
   if (patches.empty()) {
     tess->ClearBuffers();
@@ -55,15 +52,43 @@ void TessellatorPass::LoadBV(const BVParser& parser)
     return;
   }
 
-  // elevate every patch to bi-3
-  std::vector<glm::vec4> bicubicControlPts;
-  bicubicControlPts.reserve(patches.size() * 16);
+  constexpr float WELD_EPS = 1e-5f;
+  const float invEps = 1.0f / WELD_EPS;
+  auto quantise = [&](glm::vec3 p) -> size_t {
+    int64_t xi = static_cast<int64_t>(std::round(p.x * invEps));
+    int64_t yi = static_cast<int64_t>(std::round(p.y * invEps));
+    int64_t zi = static_cast<int64_t>(std::round(p.z * invEps));
+    size_t h = (size_t)14695981039346656037ull; //FNV-1a hash for O(1) lookup
+    auto mix = [&](int64_t v) { h ^= static_cast<size_t>(v); h *= 1099511628211ull; };
+    mix(xi); mix(yi); mix(zi);
+    return h;
+  };
 
+  std::vector<uint32_t> indices;
+  indices.reserve(patches.size() * 4);
+  std::unordered_map<size_t, uint32_t> vertexMap;
+  vertexMap.reserve(patches.size() * 4);
+  uint32_t nextVertId = 0;
   uint32_t count = 0;
+
   for (size_t pi = 0; pi < patches.size() && count < this->maxPatchLimit; pi++) {
     if (patches[pi].empty()) continue;
-    auto elevated = elevation::elevatePatchPositions(patches[pi], dims[pi].first, dims[pi].second);
-    bicubicControlPts.insert(bicubicControlPts.end(), elevated.begin(), elevated.end());
+
+    const auto& patch = patches[pi];
+    const uint32_t rows = dims[pi].first;
+    const uint32_t cols = dims[pi].second;
+
+    const glm::vec3 corners[4] = {
+      glm::vec3(patch[0].pos),
+      glm::vec3(patch[(rows - 1) * cols].pos),
+      glm::vec3(patch[(rows - 1) * cols + (cols - 1)].pos),
+      glm::vec3(patch[cols - 1].pos),
+    };
+    for (const glm::vec3& p : corners) {
+      auto [it, inserted] = vertexMap.emplace(quantise(p), nextVertId);
+      if (inserted) nextVertId++;
+      indices.push_back(it->second);
+    }
     count++;
   }
 
@@ -74,35 +99,11 @@ void TessellatorPass::LoadBV(const BVParser& parser)
     return;
   }
 
-  constexpr uint32_t corner_cp_offsets[4] = {0, 12, 15, 3};
-  constexpr float WELD_EPS = 1e-5f;
+  std::vector<glm::vec4> positions(num_quads * 16);
+  for (size_t i = 0; i < positions.size(); i++)
+    positions[i] = bicubicVerts[i].pos;
 
-  std::vector<std::pair<glm::vec3, uint32_t>> vertexMap;
-  uint32_t nextVertId = 0;
-  std::vector<uint32_t> indices(num_quads * 4);
-
-  for (uint32_t i = 0; i < num_quads; i++) {
-    for (int c = 0; c < 4; c++) {
-      glm::vec3 p(bicubicControlPts[i * 16 + corner_cp_offsets[c]]);
-      uint32_t vid = nextVertId;
-      bool found = false;
-      for (const auto& [vpos, existingId] : vertexMap) {
-        if (glm::distance(p, vpos) < WELD_EPS) {
-          vid = existingId;
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        vertexMap.push_back({p, nextVertId});
-        vid = nextVertId;
-        nextVertId++;
-      }
-      indices[i * 4 + c] = vid;
-    }
-  }
-
-  tess->Upload(bicubicControlPts.data(), indices.data(), num_quads);
+  tess->Upload(positions.data(), indices.data(), num_quads);
 
   std::cout << "[TessellatorPass] Uploaded " << num_quads
             << " bicubic patch(es) for GPU tessellation." << std::endl;

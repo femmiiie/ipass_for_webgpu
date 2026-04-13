@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "Context.h"
+#include "BVParser.h"
 #include "IPass.h"
 #include "TessellatorPass.h"
 #include "SceneRenderPass.h"
@@ -54,6 +55,7 @@ private:
   TessellatorPass *tessPass = nullptr;
 
   void UpdateSceneViewport();
+  void LoadParser(const BVParser& parser);
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,
     wgpu::RenderPassColorAttachment& colorAttachment,
     wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment

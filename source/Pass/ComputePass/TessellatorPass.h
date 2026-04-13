@@ -3,12 +3,17 @@
 #include "GPUContext.h"
 #include "ComputePass.h"
 #include "TessConstants.h"
+#include "Shader.h"
 
 #include <cstdint>
 #include <functional>
+#include <vector>
+#include <utility>
+
+#include <glm/glm.hpp>
 
 class Tessellator;
-class BVParser;
+using Patch = std::vector<utils::Vertex3D>;
 
 class TessellatorPass : public ComputePass
 {
@@ -16,7 +21,9 @@ public:
   TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf, uint32_t patchLimit);
   ~TessellatorPass();
 
-  void LoadBV(const BVParser& parser);
+  void Load(const std::vector<utils::Vertex3D>& bicubicVerts,
+            const std::vector<Patch>& patches,
+            const std::vector<std::pair<glm::u32, glm::u32>>& dims);
 
   void Execute(wgpu::CommandEncoder& encoder) override;
 
