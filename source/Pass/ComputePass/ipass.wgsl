@@ -188,8 +188,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
       &seg_upper,
       &seg_lower,
       d2b_upper[4*i + col + base_index],
-      slefe_upper_3_3[col + 4*i],
-      slefe_lower_3_3[col + 4*i],
+      slefe_upper_3_3[row + 4*i],
+      slefe_lower_3_3[row + 4*i],
     );
   }
 
@@ -206,8 +206,8 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
       &seg_upper,
       &seg_lower,
       d2b_lower[4*i + col + base_index],
-      slefe_upper_3_3[col + 4*i],
-      slefe_lower_3_3[col + 4*i],
+      slefe_upper_3_3[row + 4*i],
+      slefe_lower_3_3[row + 4*i],
     );
   }
 
