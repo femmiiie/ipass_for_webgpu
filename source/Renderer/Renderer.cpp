@@ -70,6 +70,12 @@ Renderer::Renderer()
   stagingDesc.mappedAtCreation = false;
   this->stagingBuffer = this->context.device.createBuffer(stagingDesc);
 
+  wgpu::BufferDescriptor triCountStagingDesc{};
+  triCountStagingDesc.size            = sizeof(uint32_t);
+  triCountStagingDesc.usage           = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
+  triCountStagingDesc.mappedAtCreation = false;
+  this->triCountStagingBuffer = this->context.device.createBuffer(triCountStagingDesc);
+
   Settings::mvp.subscribe([this](const MVP& m) {
     glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
     this->iPass->SetMVP(mvp);
@@ -102,6 +108,7 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
   if (this->stagingBuffer) this->stagingBuffer.release();
+  if (this->triCountStagingBuffer) this->triCountStagingBuffer.release();
   delete this->iPass;
   delete this->tessPass;
   delete this->scenePass;
@@ -326,6 +333,13 @@ void Renderer::MainLoop()
   if (!this->stagingBusy)
     encoder.copyBufferToBuffer(this->iPass->GetOutputBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
 
+  if (Settings::tessellation.get() && !this->triCountStagingBusy)
+  {
+    wgpu::Buffer triCountBuf = this->tessPass->GetTriCountBuffer();
+    if (triCountBuf)
+      encoder.copyBufferToBuffer(triCountBuf, 0, this->triCountStagingBuffer, 0, sizeof(uint32_t));
+  }
+
   wgpu::RenderPassColorAttachment colorAttachment;
   wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
   wgpu::RenderPassDescriptor renderPassDesc = this->GetRenderDescriptor(targetView, colorAttachment, depthStencilAttachment);
@@ -363,6 +377,18 @@ void Renderer::MainLoop()
       }
       this->stagingBuffer.unmap();
       this->stagingBusy = false;
+    });
+  }
+
+  if (Settings::tessellation.get() && !this->triCountStagingBusy)
+  {
+    this->triCountStagingBusy = true;
+    this->MapBufferForRead(this->triCountStagingBuffer, sizeof(uint32_t), [this]() {
+      const void* mapped = this->triCountStagingBuffer.getMappedRange(0, sizeof(uint32_t));
+      if (mapped)
+        Settings::tessOutput.get().triangleCount = *static_cast<const uint32_t*>(mapped);
+      this->triCountStagingBuffer.unmap();
+      this->triCountStagingBusy = false;
     });
   }
 

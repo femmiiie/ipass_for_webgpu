@@ -71,6 +71,9 @@ private:
   uint64_t     stagingSize  = 0;
   bool         stagingBusy  = false;
   std::vector<glm::f32> debugReadback;
+
+  wgpu::Buffer triCountStagingBuffer;
+  bool         triCountStagingBusy = false;
 };
 
 class RendererException : public std::exception

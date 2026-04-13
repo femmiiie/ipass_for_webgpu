@@ -17,7 +17,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
     buf_tri_offsets = this->CreateBuffer((uint64_t)max_quads * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
     buf_connectivity = this->CreateBuffer((uint64_t)max_quads * 2 * sizeof(glm::ivec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
     buf_block_sums = this->CreateBuffer(256 * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
-    buf_bs_total = this->CreateBuffer(sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_bs_total = this->CreateBuffer(sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc);
     // set output to be vertex buffer, can directly pass into scene
     // tess-gen writes 4 vec4 values per output vertex: pos, normal, color, uv/pad
     buf_verts_out = this->CreateBuffer((uint64_t)max_quads * tess::MAX_TRIS_PER_PATCH * 3 * 4 * sizeof(glm::vec4),
@@ -144,7 +144,10 @@ void Tessellator::Upload(const glm::vec4* control_points, const uint32_t* indice
 bool Tessellator::Execute(wgpu::CommandEncoder encoder, uint32_t num_quads) {
     if (num_quads == 0)
         return true;
-    if (!calc_pass.Execute(encoder, num_quads) || !scan_pass.Execute(encoder, num_quads) || !gen_pass.Execute(encoder, num_quads))
+    if (!calc_pass.Execute(encoder, num_quads))
+        return false;
+    this->ClearBuffer(encoder, buf_block_sums);
+    if (!scan_pass.Execute(encoder, num_quads) || !gen_pass.Execute(encoder, num_quads))
         return false;
     return true;
 }

@@ -128,6 +128,11 @@ wgpu::Buffer TessellatorPass::GetControlPointBuffer() const
   return tess ? tess->GetControlPointBuffer() : nullptr;
 }
 
+wgpu::Buffer TessellatorPass::GetTriCountBuffer() const
+{
+  return tess ? tess->GetTriCountBuffer() : nullptr;
+}
+
 uint32_t TessellatorPass::GetMaxVertexCount() const
 {
   return num_quads * tess::MAX_TRIS_PER_PATCH * 3;

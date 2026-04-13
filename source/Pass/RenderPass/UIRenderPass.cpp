@@ -687,12 +687,11 @@ void UIRenderPass::RenderPerformanceWindow()
   bool tessActive = Settings::tessellation.get();
   const auto& tessOut = Settings::tessOutput.get();
 
-  char triBuf[64]   = "Triangles: 0 (Fix me!)";
+  char triBuf[64]   = {};
   char patchBuf[64] = {};
   if (tessActive)
   {
-    // uint32_t triCount = tessOut.vertexCount / 3;
-    // std::snprintf(triBuf,   sizeof(triBuf),   "Triangles: %u", triCount);
+    std::snprintf(triBuf,   sizeof(triBuf),   "Triangles: %u", tessOut.triangleCount);
     std::snprintf(patchBuf, sizeof(patchBuf), "Patches: %u",   tessOut.patchCount);
   }
 

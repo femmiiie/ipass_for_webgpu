@@ -15,6 +15,7 @@ struct TessOutput {
   uint32_t vertexCount = 0;
   wgpu::Buffer controlPoints = nullptr;
   uint32_t patchCount = 0;
+  uint32_t triangleCount = 0;
 };
 
 enum class ShadingMode { BlinnPhong = 0, Flat = 1, ParametricError = 2, TriangleSize = 3 };
