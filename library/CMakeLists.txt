@@ -75,6 +75,7 @@ if(EMSCRIPTEN)
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
+        OUTPUT_NAME "ipass"
         SUFFIX ".js"
     )
 
