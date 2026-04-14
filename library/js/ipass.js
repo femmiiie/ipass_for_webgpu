@@ -75,7 +75,14 @@
             status: result.status,
             controlPoints: result.controlPoints,
             cornerIndices: result.cornerIndices,
-            numPatches: result.numPatches
+            numPatches: result.numPatches,
+            patchData: function() {
+                return {
+                    controlPoints: this.controlPoints,
+                    cornerIndices: this.cornerIndices,
+                    numPatches: this.numPatches
+                };
+            }
         };
     }
 

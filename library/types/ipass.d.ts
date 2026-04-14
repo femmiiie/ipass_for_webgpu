@@ -13,6 +13,7 @@ export interface BVLoadResult {
     controlPoints: Float32Array;
     cornerIndices: Uint32Array;
     numPatches: number;
+    patchData(): PatchData;
 }
 
 export interface OutputVertexLayout {
