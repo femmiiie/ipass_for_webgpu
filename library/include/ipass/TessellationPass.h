@@ -15,8 +15,17 @@ private:
     Impl* impl = nullptr;
 
 public:
-    TessellationPass(wgpu::Device device, const Config& config = {}) : TessellationPass(device, device.getQueue(), config) {};
+    // C compatible constructors 
+    TessellationPass(WGPUDevice device, const Config& config = {})
+        : TessellationPass(wgpu::Device(device), config) {}
+    TessellationPass(WGPUDevice device, WGPUQueue queue, const Config& config = {})
+        : TessellationPass(wgpu::Device(device), wgpu::Queue(queue), config) {}
+
+    // C++ compatible construtors 
+    TessellationPass(wgpu::Device device, const Config& config = {})
+        : TessellationPass(device, device.getQueue(), config) {};
     TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
+    
     ~TessellationPass();
 
     TessellationPass(const TessellationPass&)            = delete;
@@ -25,11 +34,13 @@ public:
     TessellationPass& operator=(TessellationPass&&)        noexcept;
 
     Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
+
+    Status Dispatch(WGPUCommandEncoder& encoder) { return Dispatch(wgpu::CommandEncoder(encoder)); }
     Status Dispatch(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetVertexBuffer() const;
-    uint32_t GetMaxVertexCount() const;
-    uint32_t GetPatchCount() const;
+    uint32_t     GetMaxVertexCount() const;
+    uint32_t     GetPatchCount() const;
 
 };
 

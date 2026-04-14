@@ -13,9 +13,6 @@ struct Pipeline::Impl {
         : lod(device, queue, config), tess(device, queue, config) {}
 };
 
-Pipeline::Pipeline(wgpu::Device device, const Config& config)
-    : Pipeline(device, device.getQueue(), config) {}
-
 Pipeline::Pipeline(wgpu::Device device, wgpu::Queue queue, const Config& config)
 {
     Config resolved = config;
