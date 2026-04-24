@@ -520,14 +520,7 @@ void UIRenderPass::RenderDebugSection()
     constexpr size_t MAX_DISPLAY = 256;
     size_t displayCount = std::min(this->debugData.size(), MAX_DISPLAY);
 
-    size_t entryCount = 0;
-    for (size_t i = 0; i < displayCount; ++i)
-    {
-      if (this->debugData[i] == 0.0f) break;
-      entryCount++;
-    }
-
-    int cols = std::min(4, std::max(1, (int)((entryCount + 7) / 8)));
+    int cols = std::min(4, std::max(1, (int)((displayCount + 7) / 8)));
 
     const auto& font = *ctx->style.font;
     float index_w = font.width(font.userdata, font.height, "[255]: ", 7);
@@ -541,7 +534,7 @@ void UIRenderPass::RenderDebugSection()
     nk_layout_row_template_end(ctx);
 
     char valBuf[32];
-    for (size_t i = 0; i < entryCount; ++i)
+    for (size_t i = 0; i < displayCount; ++i)
     {
       std::snprintf(buf, sizeof(buf), "[%3zu]:", i);
       std::snprintf(valBuf, sizeof(valBuf), "%10.4f", this->debugData[i]);
