@@ -99,6 +99,7 @@
             return;
         }
 
+        if (tg_tessFactors[i] <= 0.0) { return; }
         let this_level = u32(ceil(tg_tessFactors[i]));
         let tri_offset = tg_triOffsets[i];
         let nb = tg_connectivity[i * 2u + 0u];

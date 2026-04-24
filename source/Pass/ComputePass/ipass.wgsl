@@ -110,6 +110,31 @@ fn calc_bounding_box(
 }
 
 
+fn is_outside_frustum(base: u32) -> bool {
+  var out_left  = 0u;
+  var out_right = 0u;
+  var out_bot   = 0u;
+  var out_top   = 0u;
+  var out_near  = 0u;
+  var out_far   = 0u;
+  for (var i : u32 = 0; i < verts_per_patch; i++) {
+    let c = mvp * control_points[base + i];
+    if (c.x < -c.w) { out_left  += 1u; }
+    if (c.x >  c.w) { out_right += 1u; }
+    if (c.y < -c.w) { out_bot   += 1u; }
+    if (c.y >  c.w) { out_top   += 1u; }
+    if (c.z <  0.0) { out_near  += 1u; }
+    if (c.z >  c.w) { out_far   += 1u; }
+  }
+  return out_left  == verts_per_patch
+      || out_right == verts_per_patch
+      || out_bot   == verts_per_patch
+      || out_top   == verts_per_patch
+      || out_near  == verts_per_patch
+      || out_far   == verts_per_patch;
+}
+
+
 @compute @workgroup_size(group_size, 1, 1)
 fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 {
@@ -281,6 +306,6 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
     for (var i : u32 = 0; i < verts_per_patch; i++) {
       m = max(m, local_max[base_index + i]);
     }
-    patches[patch_id] = m;
+    patches[patch_id] = select(m, 0.0f, is_outside_frustum(base_index));
   }
 }

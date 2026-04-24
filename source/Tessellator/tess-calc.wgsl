@@ -7,8 +7,9 @@
         if (i >= arrayLength(&tessFactors)) {
             return;
         }
-        // ipass should guarantee this bound, but good to guard regardless
-        tessFactors[i] = clamp(ipassLevels[i], 1.0, 64.0);
+        let level = ipassLevels[i];
+        if (level <= 0.0) { tessFactors[i] = 0.0; return; }
+        tessFactors[i] = clamp(level, 1.0, 64.0);
     }
 
     @group(0) @binding(0) var<storage, read> cc_tessFactors : array<f32>;
@@ -23,6 +24,7 @@
         }
 
         let this_level = cc_tessFactors[i];
+        if (this_level <= 0.0) { cc_triCount[i] = 0u; return; }
         let nb = cc_connectivity[i * 2u + 0u];
 
         var OL0 = u32(ceil(this_level));
