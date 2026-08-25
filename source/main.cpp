@@ -1,11 +1,12 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
-#include <emscripten.h>
-#include <GLFW/glfw3.h>
-
 #include "Renderer.h"
 #include "InputManager.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 int main()
 {
@@ -14,7 +15,7 @@ int main()
   InputManager::Initialize(renderer.getWindow(), renderer.getUIContext());
   InputManager::BeginInput();
 
-  auto callback = [](void *arg)
+  auto loop = [](void *arg)
   {
     Renderer *renderer = reinterpret_cast<Renderer *>(arg);
 
@@ -26,7 +27,15 @@ int main()
     InputManager::BeginInput();
     glfwPollEvents();
   };
-  emscripten_set_main_loop_arg(callback, &renderer, 0, true);
+
+#ifdef __EMSCRIPTEN__
+  emscripten_set_main_loop_arg(loop, &renderer, 0, true);
+#else
+  while (renderer.isRunning())
+  {
+    loop(&renderer);
+  }
+#endif
 
   return 0;
 }
