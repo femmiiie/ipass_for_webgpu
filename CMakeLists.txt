@@ -46,13 +46,6 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
 )
 
-# Select correct main file for target platform
-if(EMSCRIPTEN)
-  list(FILTER SOURCES EXCLUDE REGEX ".*/main_native\\.cpp$")
-else()
-  list(FILTER SOURCES EXCLUDE REGEX ".*/main_wasm\\.cpp$")
-endif()
-
 # Embed shaders to embedded_shaders.h (faster than virtual FS on Emscripten)
 if(EMSCRIPTEN)
   ipass_embed_shaders(

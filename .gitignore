@@ -1,7 +1,6 @@
 **/*.dll
 **/*.exe
-build/
-build_wasm/
+build*/
 external/
 demo/
 
