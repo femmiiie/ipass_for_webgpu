@@ -6,8 +6,6 @@
 #include "Renderer.h"
 #include "Camera.h"
 #include "Settings.h"
-#include "IPass.h"
-#include "TessellatorPass.h"
 
 #include "Platform.h"
 
@@ -49,20 +47,12 @@ Renderer::Renderer()
   // compute initial viewport (to the right of the ui panel)
   this->UpdateSceneViewport();
 
-  uint32_t patchLimit = 64; //compute patch limit based on device allowance
-  {
-    wgpu::Limits limits = wgpu::Default;
-    if (this->context.device.getLimits(&limits))
-      patchLimit = tess::ComputeMaxPatches(
-        std::min(limits.maxBufferSize, limits.maxStorageBufferBindingSize));
-  }
-  this->iPass = new IPass(this->context, patchLimit);
-  this->iPass->SetViewportWidth(this->context.sceneViewport.width);
-  this->tessPass = new TessellatorPass(this->context, this->iPass->patchesBuffer, patchLimit);
+  this->pipeline = new ipass::Pipeline(this->context.device, this->context.queue);
+  this->pipeline->SetViewport(this->context.sceneViewport.width, this->context.sceneViewport.height);
   this->scenePass = new SceneRenderPass(this->context);
   this->uiPass = new UIRenderPass(this->context, "fonts/Inter-VariableFont.ttf");
 
-  this->stagingSize = this->iPass->GetOutputBuffer().getSize();
+  this->stagingSize = this->pipeline->GetLODBuffer().getSize();
   wgpu::BufferDescriptor stagingDesc{};
   stagingDesc.size            = this->stagingSize;
   stagingDesc.usage           = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
@@ -77,17 +67,19 @@ Renderer::Renderer()
 
   Settings::mvp.subscribe([this](const MVP& m) {
     glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
-    this->iPass->SetMVP(mvp);
+    this->pipeline->SetMVP(mvp);
   });
 
   Settings::patches.subscribe([this](const ipass::PatchData& p) {
-    this->LoadPatches(p);
+    this->pipeline->LoadPatches(p);
+
 
     Settings::tessOutput.modify() = {
-      this->tessPass->GetOutputBuffer(), 
-      this->tessPass->GetMaxVertexCount(), 
-      this->tessPass->GetControlPointBuffer(), 
-      this->tessPass->GetPatchCount()
+      this->pipeline->GetVertexBuffer(),
+      this->pipeline->GetMaxVertexCount(),
+      // TODO!! tesspass does not expose the control point buffer for wireframes
+      nullptr,
+      this->pipeline->GetTessellationPass().GetPatchCount()
     };
     Settings::tessOutput.notify();
   });
@@ -97,7 +89,7 @@ Renderer::Renderer()
   });
 
   if (Settings::patches.get().num_patches > 0)
-    this->LoadPatches(Settings::patches.get());
+    this->pipeline->LoadPatches(Settings::patches.get());
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
@@ -108,8 +100,7 @@ Renderer::~Renderer()
 {
   if (this->stagingBuffer) this->stagingBuffer.release();
   if (this->triCountStagingBuffer) this->triCountStagingBuffer.release();
-  delete this->iPass;
-  delete this->tessPass;
+  delete this->pipeline;
   delete this->scenePass;
   delete this->uiPass;
 
@@ -275,7 +266,7 @@ void Renderer::OnResize(int w, int h)
   this->context.size = { (uint32_t)w, (uint32_t)h };
   this->ConfigureSurface();
   this->UpdateSceneViewport();
-  if (this->iPass)     { this->iPass->SetViewportWidth(context.sceneViewport.width); }
+  if (this->pipeline)  { this->pipeline->SetViewport(context.sceneViewport.width, context.sceneViewport.height); }
   if (this->uiPass)    { this->uiPass->UpdateProjection(context.size); }
   if (this->scenePass) { this->scenePass->OnResize(context.size); }
 }
@@ -294,23 +285,6 @@ void Renderer::UpdateSceneViewport()
   context.sceneViewport.height = (float)context.size.y;
 }
 
-void Renderer::LoadPatches(const ipass::PatchData& data)
-{
-  std::vector<utils::Vertex3D> bicubicVerts;
-  bicubicVerts.reserve(data.control_points.size());
-  for (const glm::vec4& pos : data.control_points) {
-    bicubicVerts.push_back(utils::Vertex3D{
-      .pos   = pos,
-      .color = glm::vec4(1),
-      .tex   = glm::vec2(1),
-      ._pad  = glm::vec2(0)
-    });
-  }
-
-  this->iPass->UploadPatches(bicubicVerts);
-  this->tessPass->UploadPatches(data.control_points, data.corner_indices);
-}
-
 void Renderer::MainLoop()
 {
   this->context.tick();
@@ -323,18 +297,18 @@ void Renderer::MainLoop()
   encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
-  if (Settings::tessellation.get())
+  if (Settings::tessellation.get() && this->pipeline)
   {
-    if (this->iPass) { this->iPass->Execute(encoder); }
-    if (this->tessPass) { this->tessPass->Execute(encoder); }
+    this->pipeline->Execute(encoder);
   }
 
   if (!this->stagingBusy)
-    encoder.copyBufferToBuffer(this->iPass->GetOutputBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
+    encoder.copyBufferToBuffer(this->pipeline->GetLODBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
 
   if (Settings::tessellation.get() && !this->triCountStagingBusy)
   {
-    wgpu::Buffer triCountBuf = this->tessPass->GetTriCountBuffer();
+    // TODO!! tesspass does not expose the triCount buffer, so can't load tri counts for perf stats
+    wgpu::Buffer triCountBuf = nullptr;
     if (triCountBuf)
       encoder.copyBufferToBuffer(triCountBuf, 0, this->triCountStagingBuffer, 0, sizeof(uint32_t));
   }
