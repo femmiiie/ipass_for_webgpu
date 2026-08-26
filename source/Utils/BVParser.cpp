@@ -1,7 +1,11 @@
 #include "BVParser.h"
 
+#include <unordered_map>
+#include <cmath>
+
 const std::vector<Patch>& BVParser::Get() const { return this->patches; }
 const std::vector<std::pair<glm::u32,glm::u32>>& BVParser::GetDims() const { return this->dims; }
+const std::vector<uint32_t>& BVParser::GetCornerIndices() const { return this->cornerIndices; }
 
 using utils::Vertex3D;
 const std::vector<Vertex3D> BVParser::GetFlat() const
@@ -15,6 +19,7 @@ void BVParser::Parse(std::string filepath)
 {
   this->patches.clear();
   this->dims.clear();
+  this->cornerIndices.clear();
   this->file = std::ifstream(filepath);
 
   if (!this->file.is_open())
@@ -24,6 +29,49 @@ void BVParser::Parse(std::string filepath)
   }
 
   while (this->file.good()) { this->ParsePatch(); }
+
+  this->ComputeCornerIndices();
+}
+
+// tessellator requires corner data to allow for even tessellation on shared boundaries
+// so we weld close enough points together to record which indices are corners
+void BVParser::ComputeCornerIndices()
+{
+  constexpr float WELD_EPS = 1e-5f;
+  const float invEps = 1.0f / WELD_EPS;
+  auto quantise = [&](glm::vec3 p) -> size_t {
+    int64_t xi = static_cast<int64_t>(std::round(p.x * invEps));
+    int64_t yi = static_cast<int64_t>(std::round(p.y * invEps));
+    int64_t zi = static_cast<int64_t>(std::round(p.z * invEps));
+    size_t h = (size_t)14695981039346656037ull; //FNV-1a hash for O(1) lookup
+    auto mix = [&](int64_t v) { h ^= static_cast<size_t>(v); h *= 1099511628211ull; };
+    mix(xi); mix(yi); mix(zi);
+    return h;
+  };
+
+  std::unordered_map<size_t, uint32_t> vertexMap;
+  vertexMap.reserve(this->patches.size() * 4);
+  uint32_t nextVertId = 0;
+
+  for (size_t pi = 0; pi < this->patches.size(); pi++) {
+    const Patch& patch = this->patches[pi];
+    if (patch.empty()) continue;
+
+    const uint32_t rows = this->dims[pi].first;
+    const uint32_t cols = this->dims[pi].second;
+
+    const glm::vec3 corners[4] = {
+      glm::vec3(patch[0].pos),
+      glm::vec3(patch[(rows - 1) * cols].pos),
+      glm::vec3(patch[(rows - 1) * cols + (cols - 1)].pos),
+      glm::vec3(patch[cols - 1].pos),
+    };
+    for (const glm::vec3& p : corners) {
+      auto [it, inserted] = vertexMap.emplace(quantise(p), nextVertId);
+      if (inserted) nextVertId++;
+      this->cornerIndices.push_back(it->second);
+    }
+  }
 }
 
 void BVParser::ParsePatch()

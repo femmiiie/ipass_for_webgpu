@@ -74,34 +74,7 @@ Status TessellationPass::UploadPatches(const PatchData& data, wgpu::Buffer level
 
     uint32_t count = std::min(data.num_patches, impl->maxPatches);
 
-    constexpr uint32_t corner_cp_offsets[4] = {0, 12, 15, 3};
-
-    std::vector<std::pair<glm::vec3, uint32_t>> vertexMap;
-    uint32_t nextVertId = 0;
-    std::vector<uint32_t> indices(count * 4);
-
-    for (uint32_t i = 0; i < count; i++) {
-        for (int c = 0; c < 4; c++) {
-            glm::vec3 p(data.control_points[i * 16 + corner_cp_offsets[c]]);
-            uint32_t vid = nextVertId;
-            bool found = false;
-            for (const auto& [vpos, existingId] : vertexMap) {
-                if (glm::distance(p, vpos) < 1e-5f) {
-                    vid = existingId;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                vertexMap.push_back({p, nextVertId});
-                vid = nextVertId;
-                nextVertId++;
-            }
-            indices[i * 4 + c] = vid;
-        }
-    }
-
-    impl->tess.Upload(data.control_points.data(), indices.data(), count);
+    impl->tess.Upload(data.control_points.data(), data.corner_indices.data(), count);
     impl->numQuads = count;
 
     std::cout << "[TessellationPass] Uploaded " << count
