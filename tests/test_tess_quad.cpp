@@ -91,7 +91,7 @@ int main() {
     CommandEncoderDescriptor ed = {};
     CommandEncoder encoder = device.createCommandEncoder(ed);
 
-    if (!tess.Execute(encoder, num_quads)) {
+    if (!tess.Execute(encoder)) {
         std::cerr << "Failed to exec Tessellator\n";
         return 1;
     }

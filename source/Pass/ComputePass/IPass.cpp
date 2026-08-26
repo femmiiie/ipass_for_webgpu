@@ -147,9 +147,9 @@ IPass::~IPass()
   this->pipeline.release();
 }
 
-void IPass::Execute(wgpu::CommandEncoder& encoder)
+bool IPass::Execute(wgpu::CommandEncoder& encoder)
 {
-  if (this->currentVertCount == 0) return;
+  if (this->currentVertCount == 0) return true;
 
   float pSize = 2.0f / this->viewportWidth;
   if (pSize != this->pixelSize)
@@ -170,4 +170,5 @@ void IPass::Execute(wgpu::CommandEncoder& encoder)
 
   pass.end();
   pass.release();
+  return true;
 }

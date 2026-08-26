@@ -31,7 +31,7 @@ set(IPASS_SOURCES
     source/BVLoader.cpp
 
     # reused internal sources
-    ${IPASS_SOURCE_DIR}/Pass/Pass.cpp
+    ${IPASS_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
     ${IPASS_SOURCE_DIR}/Pass/ComputePass/IPass.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp

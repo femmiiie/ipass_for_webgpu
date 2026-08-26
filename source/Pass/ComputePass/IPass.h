@@ -11,7 +11,7 @@ public:
 
   IPass(GPUContext& ctx, uint32_t patchLimit);
   ~IPass();
-  void Execute(wgpu::CommandEncoder& encoder) override;
+  bool Execute(wgpu::CommandEncoder& encoder) override;
 
   wgpu::Buffer& GetOutputBuffer() { return patchesBuffer; }
 

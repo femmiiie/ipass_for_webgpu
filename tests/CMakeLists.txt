@@ -18,15 +18,14 @@ function(copy_tess_shaders TARGET_NAME)
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${TARGET_NAME}>/Tessellator"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${TESSELLATOR_SHADER_DIR}/${SHADER}"
-        "$<TARGET_FILE_DIR:${TARGET_NAME}>/Tessellator/${SHADER}"
+      "${TESSELLATOR_SHADER_DIR}/${SHADER}"
+      "$<TARGET_FILE_DIR:${TARGET_NAME}>/Tessellator/${SHADER}"
       COMMENT "Copying ${SHADER} for ${TARGET_NAME}"
     )
   endforeach()
 endfunction()
 
 # test_scan
-
 add_executable(test_scan
   test_scan.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
@@ -61,10 +60,9 @@ ipass_copy_webgpu_runtime(test_scan)
 add_test(NAME scan_pass COMMAND test_scan)
 
 # test_tess_quad
-
 add_executable(test_tess_quad
   test_tess_quad.cpp
-  ${IPASS_SOURCE_DIR}/Pass/Pass.cpp
+  ${IPASS_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
@@ -90,7 +88,7 @@ target_include_directories(test_tess_quad PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
   ${IPASS_SOURCE_DIR}
-  ${IPASS_SOURCE_DIR}/Pass
+  ${IPASS_SOURCE_DIR}/Pass/ComputePass
   ${IPASS_SOURCE_DIR}/Renderer
   ${IPASS_SOURCE_DIR}/Tessellator
   ${IPASS_SOURCE_DIR}/Utils

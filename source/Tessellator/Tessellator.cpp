@@ -132,16 +132,18 @@ void Tessellator::ClearBuffers() {
     command.release();
 }
 
-void Tessellator::Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads) {
+void Tessellator::Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t count) {
     ClearBuffers();
 
-    context.queue.writeBuffer(buf_quads, 0, control_points, (uint64_t)num_quads * 16 * sizeof(glm::vec4));
+    num_quads = count;
 
-    std::vector<glm::ivec4> connectivity = buildQuadConnectivity(indices, num_quads);
-    context.queue.writeBuffer(buf_connectivity, 0, connectivity.data(), (uint64_t)num_quads * 2 * sizeof(glm::ivec4));
+    context.queue.writeBuffer(buf_quads, 0, control_points, (uint64_t)count * 16 * sizeof(glm::vec4));
+
+    std::vector<glm::ivec4> connectivity = buildQuadConnectivity(indices, count);
+    context.queue.writeBuffer(buf_connectivity, 0, connectivity.data(), (uint64_t)count * 2 * sizeof(glm::ivec4));
 }
 
-bool Tessellator::Execute(wgpu::CommandEncoder encoder, uint32_t num_quads) {
+bool Tessellator::Execute(wgpu::CommandEncoder& encoder) {
     if (num_quads == 0)
         return true;
     if (!calc_pass.Execute(encoder, num_quads))

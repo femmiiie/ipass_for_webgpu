@@ -86,7 +86,7 @@ Status TessellationPass::Dispatch(wgpu::CommandEncoder& encoder)
 {
     if (!impl) return Status::NotInitialized;
     if (!impl->initialized || impl->numQuads == 0) return Status::PatchesNotLoaded;
-    impl->tess.Execute(encoder, impl->numQuads);
+    impl->tess.Execute(encoder);
     return Status::Success;
 }
 
