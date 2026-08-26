@@ -309,7 +309,7 @@ void Renderer::LoadParser(const BVParser& parser)
   }
 
   this->iPass->UploadVertices(bicubicVerts);
-  this->tessPass->Load(bicubicVerts, patches, dims);
+  this->tessPass->Load(bicubicVerts, parser.GetCornerIndices());
 }
 
 void Renderer::MainLoop()

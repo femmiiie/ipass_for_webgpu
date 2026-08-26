@@ -13,7 +13,6 @@
 #include <glm/glm.hpp>
 
 class Tessellator;
-using Patch = std::vector<utils::Vertex3D>;
 
 class TessellatorPass : public ComputePass
 {
@@ -22,8 +21,7 @@ public:
   ~TessellatorPass();
 
   void Load(const std::vector<utils::Vertex3D>& bicubicVerts,
-            const std::vector<Patch>& patches,
-            const std::vector<std::pair<glm::u32, glm::u32>>& dims);
+            const std::vector<uint32_t>& cornerIndices);
 
   void Execute(wgpu::CommandEncoder& encoder) override;
 
