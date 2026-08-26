@@ -3,34 +3,28 @@
 
 #include <cmath>
 
-void SceneRenderPass::LoadBV(const BVParser& parser)
+void SceneRenderPass::LoadBV(const ipass::PatchData& data)
 {
-  const std::vector<Patch>& patches = parser.Get();
-  const std::vector<std::pair<glm::u32,glm::u32>>& dims = parser.GetDims();
+  constexpr glm::u32 ROWS = 4, COLS = 4; // PatchData control points are always bicubic
 
   std::vector<glm::f32> vertexData;
 
-  for (size_t patchIdx = 0; patchIdx < patches.size(); patchIdx++)
+  for (glm::u32 patchIdx = 0; patchIdx < data.num_patches; patchIdx++)
   {
-    const Patch& patch = patches[patchIdx];
-    if (patch.empty()) continue;
+    const glm::vec4* patch = &data.control_points[patchIdx * 16];
 
-    glm::u32 rows = dims[patchIdx].first;
-    glm::u32 cols = dims[patchIdx].second;
-    if (rows < 2 || cols < 2) continue;
-
-    auto getVert = [&](glm::u32 r, glm::u32 c) -> const utils::Vertex3D& {
-      return patch[r * cols + c];
+    auto getPos = [&](glm::u32 r, glm::u32 c) -> const glm::vec4& {
+      return patch[r * COLS + c];
     };
 
-    for (glm::u32 i = 0; i + 1 < rows; i++)
+    for (glm::u32 i = 0; i + 1 < ROWS; i++)
     {
-      for (glm::u32 j = 0; j + 1 < cols; j++)
+      for (glm::u32 j = 0; j + 1 < COLS; j++)
       {
-        const utils::Vertex3D& tl = getVert(i,     j);
-        const utils::Vertex3D& tr = getVert(i,     j + 1);
-        const utils::Vertex3D& bl = getVert(i + 1, j);
-        const utils::Vertex3D& br = getVert(i + 1, j + 1);
+        const glm::vec4& tl = getPos(i,     j);
+        const glm::vec4& tr = getPos(i,     j + 1);
+        const glm::vec4& bl = getPos(i + 1, j);
+        const glm::vec4& br = getPos(i + 1, j + 1);
 
         auto project = [](const glm::vec4& p) -> glm::vec3 {
           float w = std::abs(p.w) > 1e-7f ? p.w : 1.0f;
@@ -38,20 +32,20 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
         };
 
         glm::vec3 n = glm::cross(
-          project(bl.pos) - project(tl.pos),
-          project(tr.pos) - project(tl.pos)
+          project(bl) - project(tl),
+          project(tr) - project(tl)
         );
         if (glm::length(n) > 0.0f) n = glm::normalize(n);
 
         // pos(xyzw) normal(xyzw) color(rgba) uv(uv) patch_index, bary_id - 16f size
-        auto pushVert = [&](const utils::Vertex3D& v, float bary_id) {
-          float w = std::abs(v.pos.w) > 1e-7f ? v.pos.w : 1.0f;
-          glm::vec4 pos = v.pos / w;
+        auto pushVert = [&](const glm::vec4& p, float bary_id) {
+          float w = std::abs(p.w) > 1e-7f ? p.w : 1.0f;
+          glm::vec4 pos = p / w;
           vertexData.insert(vertexData.end(), {
-            pos.x,     pos.y,   pos.z,   1.0f,
-            n.x,       n.y,     n.z,     0.0f,
-            v.color.r, v.color.g, v.color.b, v.color.a,
-            v.tex.x,   v.tex.y,   0.0f,      bary_id
+            pos.x, pos.y, pos.z, 1.0f,
+            n.x,   n.y,   n.z,   0.0f,
+            1.0f,  1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  0.0f,  bary_id
           });
         };
 
@@ -108,7 +102,7 @@ void SceneRenderPass::LoadBV(const BVParser& parser)
   );
   this->context.queue.writeBuffer(this->wireframeIndexBuffer, 0, wireframeIndices.data(), wireframeIndices.size() * sizeof(glm::u32));
 
-  std::cout << "[LoadBV] Generated " << this->vertexCount << " vertices from " << patches.size() << " patches." << std::endl;
+  std::cout << "[LoadBV] Generated " << this->vertexCount << " vertices from " << data.num_patches << " patches." << std::endl;
 }
 
 SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
@@ -166,7 +160,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
   });
 
-  Settings::parser.subscribe([this](const BVParser& p) {
+  Settings::parser.subscribe([this](const ipass::PatchData& p) {
     this->LoadBV(p);
   });
 

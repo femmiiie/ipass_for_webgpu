@@ -3,12 +3,10 @@
 #include "GPUContext.h"
 #include "ComputePass.h"
 #include "TessConstants.h"
-#include "Shader.h"
 
 #include <cstdint>
 #include <functional>
 #include <vector>
-#include <utility>
 
 #include <glm/glm.hpp>
 
@@ -20,7 +18,7 @@ public:
   TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf, uint32_t patchLimit);
   ~TessellatorPass();
 
-  void Load(const std::vector<utils::Vertex3D>& bicubicVerts,
+  void Load(const std::vector<glm::vec4>& controlPoints,
             const std::vector<uint32_t>& cornerIndices);
 
   void Execute(wgpu::CommandEncoder& encoder) override;

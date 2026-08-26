@@ -20,7 +20,7 @@ public:
   void OnResize(glm::uvec2 size);
 
   void InitializeShaderVariants();
-  void LoadBV(const BVParser& parser);
+  void LoadBV(const ipass::PatchData& data);
 
   void UseGPUTessellated(wgpu::Buffer buf, uint32_t count);
 

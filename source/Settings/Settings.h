@@ -7,7 +7,9 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
-#include "BVParser.h"
+#include <webgpu/webgpu.hpp>
+
+#include "ipass/PatchData.h"
 #include "MVP.h"
 
 struct TessOutput {
@@ -68,7 +70,7 @@ public:
   static inline Setting<bool> tessellation = {false};
   static inline Setting<bool> perfWindow   = {false};
 
-  static inline Setting<BVParser> parser;
+  static inline Setting<ipass::PatchData> parser;
 
   static inline Setting<TessOutput> tessOutput;
 

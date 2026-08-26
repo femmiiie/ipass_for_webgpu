@@ -38,7 +38,6 @@ set(IPASS_SOURCES
     ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
-    ${IPASS_SOURCE_DIR}/Utils/BVParser.cpp
     ${IPASS_SOURCE_DIR}/Utils/Elevation.cpp
 )
 

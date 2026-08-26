@@ -8,7 +8,6 @@
 #include "Settings.h"
 #include "IPass.h"
 #include "TessellatorPass.h"
-#include "Elevation.h"
 
 #include "Platform.h"
 
@@ -81,7 +80,7 @@ Renderer::Renderer()
     this->iPass->SetMVP(mvp);
   });
 
-  Settings::parser.subscribe([this](const BVParser& p) {
+  Settings::parser.subscribe([this](const ipass::PatchData& p) {
     this->LoadParser(p);
 
     Settings::tessOutput.modify() = {
@@ -97,7 +96,7 @@ Renderer::Renderer()
     this->ConfigureSurface();
   });
 
-  if (!Settings::parser.get().Get().empty())
+  if (Settings::parser.get().num_patches > 0)
     this->LoadParser(Settings::parser.get());
 
   std::cout << "Renderer initialized successfully" << std::endl;
@@ -295,21 +294,21 @@ void Renderer::UpdateSceneViewport()
   context.sceneViewport.height = (float)context.size.y;
 }
 
-void Renderer::LoadParser(const BVParser& parser)
+void Renderer::LoadParser(const ipass::PatchData& data)
 {
-  const auto& patches = parser.Get();
-  const auto& dims    = parser.GetDims();
-
   std::vector<utils::Vertex3D> bicubicVerts;
-  bicubicVerts.reserve(patches.size() * 16);
-  for (size_t pi = 0; pi < patches.size(); pi++) {
-    if (patches[pi].empty()) continue;
-    auto elevated = elevation::elevatePatchFull(patches[pi], dims[pi].first, dims[pi].second);
-    bicubicVerts.insert(bicubicVerts.end(), elevated.begin(), elevated.end());
+  bicubicVerts.reserve(data.control_points.size());
+  for (const glm::vec4& pos : data.control_points) {
+    bicubicVerts.push_back(utils::Vertex3D{
+      .pos   = pos,
+      .color = glm::vec4(1),
+      .tex   = glm::vec2(1),
+      ._pad  = glm::vec2(0)
+    });
   }
 
   this->iPass->UploadVertices(bicubicVerts);
-  this->tessPass->Load(bicubicVerts, parser.GetCornerIndices());
+  this->tessPass->Load(data.control_points, data.corner_indices);
 }
 
 void Renderer::MainLoop()
