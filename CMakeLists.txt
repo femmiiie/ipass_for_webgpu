@@ -261,11 +261,8 @@ if(EMSCRIPTEN)
   set_target_properties(ipass_webgpu PROPERTIES SUFFIX ".html")
 endif()
 
-option(BUILD_LIBRARY "Build the ipass library" ON)
-
-if(BUILD_LIBRARY)
-  add_subdirectory(library)
-endif()
+add_subdirectory(library)
+target_link_libraries(ipass_webgpu PRIVATE ipass_lib)
 
 if(NOT EMSCRIPTEN)
   enable_testing()
