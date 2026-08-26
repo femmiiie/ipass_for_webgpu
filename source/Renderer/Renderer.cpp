@@ -80,8 +80,8 @@ Renderer::Renderer()
     this->iPass->SetMVP(mvp);
   });
 
-  Settings::parser.subscribe([this](const ipass::PatchData& p) {
-    this->LoadParser(p);
+  Settings::patches.subscribe([this](const ipass::PatchData& p) {
+    this->LoadPatches(p);
 
     Settings::tessOutput.modify() = {
       this->tessPass->GetOutputBuffer(), 
@@ -96,8 +96,8 @@ Renderer::Renderer()
     this->ConfigureSurface();
   });
 
-  if (Settings::parser.get().num_patches > 0)
-    this->LoadParser(Settings::parser.get());
+  if (Settings::patches.get().num_patches > 0)
+    this->LoadPatches(Settings::patches.get());
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
@@ -294,7 +294,7 @@ void Renderer::UpdateSceneViewport()
   context.sceneViewport.height = (float)context.size.y;
 }
 
-void Renderer::LoadParser(const ipass::PatchData& data)
+void Renderer::LoadPatches(const ipass::PatchData& data)
 {
   std::vector<utils::Vertex3D> bicubicVerts;
   bicubicVerts.reserve(data.control_points.size());
@@ -307,8 +307,8 @@ void Renderer::LoadParser(const ipass::PatchData& data)
     });
   }
 
-  this->iPass->UploadVertices(bicubicVerts);
-  this->tessPass->Load(data.control_points, data.corner_indices);
+  this->iPass->UploadPatches(bicubicVerts);
+  this->tessPass->UploadPatches(data.control_points, data.corner_indices);
 }
 
 void Renderer::MainLoop()

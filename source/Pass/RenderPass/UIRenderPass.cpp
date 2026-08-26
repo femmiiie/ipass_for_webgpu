@@ -418,7 +418,7 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
         this->current_filename = (pos != std::string::npos) ? s.substr(pos + 1) : s;
 
         ipass::Status status;
-        Settings::parser.modify() = ipass::BVLoader::Load(s, &status);
+        Settings::patches.modify() = ipass::BVLoader::Load(s, &status);
         if (status != ipass::Status::Success)
           std::cerr << "[UIRenderPass] Failed to load " << s << std::endl;
       });

@@ -118,7 +118,7 @@ void IPass::SetMVP(const glm::mat4& mvp)
   this->context.queue.writeBuffer(this->mvpBuffer, 0, &mvp, sizeof(glm::mat4));
 }
 
-void IPass::UploadVertices(const std::vector<Vertex3D>& bicubicVerts)
+void IPass::UploadPatches(const std::vector<Vertex3D>& bicubicVerts)
 {
   uint32_t count = static_cast<uint32_t>(bicubicVerts.size());
   uint32_t patchCount = (count + VERTS_PER_PATCH - 1) / VERTS_PER_PATCH;

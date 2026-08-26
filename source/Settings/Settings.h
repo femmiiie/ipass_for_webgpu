@@ -70,7 +70,7 @@ public:
   static inline Setting<bool> tessellation = {false};
   static inline Setting<bool> perfWindow   = {false};
 
-  static inline Setting<ipass::PatchData> parser;
+  static inline Setting<ipass::PatchData> patches;
 
   static inline Setting<TessOutput> tessOutput;
 

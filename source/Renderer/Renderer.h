@@ -55,7 +55,7 @@ private:
   TessellatorPass *tessPass = nullptr;
 
   void UpdateSceneViewport();
-  void LoadParser(const ipass::PatchData& data);
+  void LoadPatches(const ipass::PatchData& data);
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,
     wgpu::RenderPassColorAttachment& colorAttachment,
     wgpu::RenderPassDepthStencilAttachment& depthStencilAttachment
