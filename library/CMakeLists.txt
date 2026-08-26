@@ -52,7 +52,6 @@ set(IPASS_PRIVATE_INCLUDES
 
 if(EMSCRIPTEN)
     set(_backend_define WEBGPU_BACKEND_EMDAWNWEBGPU)
-    set(IPASS_POST_JS "${CMAKE_CURRENT_SOURCE_DIR}/js/ipass.js")
 
     #generate embedded_shaders.h from .wgsl files
     ipass_embed_shaders(
@@ -64,10 +63,46 @@ if(EMSCRIPTEN)
             "${IPASS_SOURCE_DIR}/Tessellator/tess-gen.wgsl"
         NAMES ipass tess_calc tess_scan tess_gen
     )
+else()
+    set(_backend_define WEBGPU_BACKEND_${BACKEND})
+endif()
 
-    #WASM library target
+#static library target, always built and reused by both the demo app and
+#(on Emscripten) the JS bindings module below
+add_library(ipass_lib STATIC ${IPASS_SOURCES})
+
+set_target_properties(ipass_lib PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
+target_include_directories(ipass_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+#private so end user cannot directly access them
+target_include_directories(ipass_lib PRIVATE
+    ${IPASS_PRIVATE_INCLUDES}
+    ${webgpu_SOURCE_DIR}/include
+    ${webgpu_headers_SOURCE_DIR}
+)
+
+if(EMSCRIPTEN)
+    target_include_directories(ipass_lib PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR} # for embedded_shaders.h
+    )
+endif()
+
+target_link_libraries(ipass_lib PUBLIC webgpu glm::glm)
+
+target_compile_definitions(ipass_lib PRIVATE ${_backend_define} IPASS_LIBRARY_BUILD)
+
+if(EMSCRIPTEN)
+    set(IPASS_POST_JS "${CMAKE_CURRENT_SOURCE_DIR}/js/ipass.js")
+
+    #WASM JS bindings module, links against ipass_lib instead of recompiling its sources
     add_executable(ipass_wasm
-        ${IPASS_SOURCES}
         source/ipass_bindings.cpp
     )
 
@@ -79,19 +114,7 @@ if(EMSCRIPTEN)
         SUFFIX ".js"
     )
 
-    target_include_directories(ipass_wasm PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    )
-
-    target_include_directories(ipass_wasm PRIVATE
-        ${IPASS_PRIVATE_INCLUDES}
-        ${CMAKE_CURRENT_BINARY_DIR}  # for embedded_shaders.h
-        ${webgpu_SOURCE_DIR}/include
-        ${webgpu_headers_SOURCE_DIR}
-    )
-
-    target_link_libraries(ipass_wasm PUBLIC webgpu glm::glm)
-    target_compile_definitions(ipass_wasm PRIVATE ${_backend_define} IPASS_LIBRARY_BUILD)
+    target_link_libraries(ipass_wasm PUBLIC ipass_lib)
 
     target_link_options(ipass_wasm PRIVATE
         "--bind"
@@ -104,29 +127,4 @@ if(EMSCRIPTEN)
     )
 
     set_property(TARGET ipass_wasm APPEND PROPERTY LINK_DEPENDS "${IPASS_POST_JS}")
-
-else()
-    #native static library target
-    add_library(ipass_lib STATIC ${IPASS_SOURCES})
-
-    set_target_properties(ipass_lib PROPERTIES
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-    )
-
-    target_include_directories(ipass_lib PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    )
-
-    #private so end user cannot directly access them
-    target_include_directories(ipass_lib PRIVATE
-        ${IPASS_PRIVATE_INCLUDES}
-        ${webgpu_SOURCE_DIR}/include
-        ${webgpu_headers_SOURCE_DIR}
-    )
-
-    target_link_libraries(ipass_lib PUBLIC webgpu glm::glm)
-
-    target_compile_definitions(ipass_lib PRIVATE ${_backend_define} IPASS_LIBRARY_BUILD)
 endif()
