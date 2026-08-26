@@ -65,7 +65,7 @@ Status LODPass::UploadPatches(const PatchData& data)
         verts[i]._pad = glm::vec2(0.0f);
     }
 
-    impl->pass.UploadVertices(verts);
+    impl->pass.UploadPatches(verts);
     impl->patchCount = data.num_patches;
     return Status::Success;
 }

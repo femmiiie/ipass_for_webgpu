@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-void SceneRenderPass::LoadBV(const ipass::PatchData& data)
+void SceneRenderPass::LoadPatches(const ipass::PatchData& data)
 {
   constexpr glm::u32 ROWS = 4, COLS = 4; // PatchData control points are always bicubic
 
@@ -57,7 +57,7 @@ void SceneRenderPass::LoadBV(const ipass::PatchData& data)
 
   if (vertexData.empty())
   {
-    std::cerr << "[LoadBV] No vertex data generated (no valid patches)." << std::endl;
+    std::cerr << "[LoadPatches] No vertex data generated (no valid patches)." << std::endl;
     this->vertexCount = 0;
     return;
   }
@@ -102,7 +102,7 @@ void SceneRenderPass::LoadBV(const ipass::PatchData& data)
   );
   this->context.queue.writeBuffer(this->wireframeIndexBuffer, 0, wireframeIndices.data(), wireframeIndices.size() * sizeof(glm::u32));
 
-  std::cout << "[LoadBV] Generated " << this->vertexCount << " vertices from " << data.num_patches << " patches." << std::endl;
+  std::cout << "[LoadPatches] Generated " << this->vertexCount << " vertices from " << data.num_patches << " patches." << std::endl;
 }
 
 SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
@@ -121,7 +121,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     [this](int action, int mods) { camera.OnMouseButton(action, mods); }
   );
 
-  this->LoadBV(Settings::parser.get());
+  this->LoadPatches(Settings::patches.get());
   this->CreateDepthTexture(context.size);
 
   Settings::mvp.modify().setModel();
@@ -160,8 +160,8 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
   });
 
-  Settings::parser.subscribe([this](const ipass::PatchData& p) {
-    this->LoadBV(p);
+  Settings::patches.subscribe([this](const ipass::PatchData& p) {
+    this->LoadPatches(p);
   });
 
   Settings::tessOutput.subscribe([this](const TessOutput& out) {
@@ -181,7 +181,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
     if (enabled && out.buffer && out.vertexCount > 0)
       this->UseGPUTessellated(out.buffer, out.vertexCount);
     else
-      this->LoadBV(Settings::parser.get());
+      this->LoadPatches(Settings::patches.get());
   });
 
   Settings::shadingMode.subscribe([this](const ShadingMode& mode) {

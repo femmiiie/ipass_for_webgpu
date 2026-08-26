@@ -36,8 +36,8 @@ TessellatorPass::~TessellatorPass()
   }
 }
 
-void TessellatorPass::Load(const std::vector<glm::vec4>& controlPoints,
-                           const std::vector<uint32_t>& cornerIndices)
+void TessellatorPass::UploadPatches(const std::vector<glm::vec4>& controlPoints,
+                                     const std::vector<uint32_t>& cornerIndices)
 {
   if (!tess || !initialized)
     return;

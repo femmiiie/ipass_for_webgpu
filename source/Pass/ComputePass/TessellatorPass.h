@@ -18,8 +18,8 @@ public:
   TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf, uint32_t patchLimit);
   ~TessellatorPass();
 
-  void Load(const std::vector<glm::vec4>& controlPoints,
-            const std::vector<uint32_t>& cornerIndices);
+  void UploadPatches(const std::vector<glm::vec4>& controlPoints,
+                      const std::vector<uint32_t>& cornerIndices);
 
   void Execute(wgpu::CommandEncoder& encoder) override;
 
@@ -33,6 +33,6 @@ private:
   Tessellator* tess = nullptr;
 
   uint32_t maxPatchLimit = 64; // fallback if device limit query fails
-  uint32_t num_quads    = 0;  // actual patch count after last LoadBV
+  uint32_t num_quads    = 0;  // actual patch count after last UploadPatches
   bool     initialized  = false;
 };

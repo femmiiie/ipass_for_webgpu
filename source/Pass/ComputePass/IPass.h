@@ -17,7 +17,7 @@ public:
 
   void SetMVP(const glm::mat4& mvp);
   void SetViewportWidth(float width) { viewportWidth = width; }
-  void UploadVertices(const std::vector<utils::Vertex3D>& bicubicVerts);
+  void UploadPatches(const std::vector<utils::Vertex3D>& bicubicVerts);
 
   // group 0 storage buffers
   wgpu::Buffer verticesBuffer;
