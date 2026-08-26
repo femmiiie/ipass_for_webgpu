@@ -13,8 +13,6 @@
 
 #include "TessellatorPass.h"
 
-using Vertex3D = utils::Vertex3D;
-
 TessellatorPass::TessellatorPass(GPUContext& ctx, wgpu::Buffer ipass_levels_buf, uint32_t patchLimit) 
   : ComputePass(ctx), maxPatchLimit(patchLimit)
 {
@@ -38,7 +36,7 @@ TessellatorPass::~TessellatorPass()
   }
 }
 
-void TessellatorPass::Load(const std::vector<utils::Vertex3D>& bicubicVerts,
+void TessellatorPass::Load(const std::vector<glm::vec4>& controlPoints,
                            const std::vector<uint32_t>& cornerIndices)
 {
   if (!tess || !initialized)
@@ -52,11 +50,7 @@ void TessellatorPass::Load(const std::vector<utils::Vertex3D>& bicubicVerts,
     return;
   }
 
-  std::vector<glm::vec4> positions(num_quads * 16);
-  for (size_t i = 0; i < positions.size(); i++)
-    positions[i] = bicubicVerts[i].pos;
-
-  tess->Upload(positions.data(), cornerIndices.data(), num_quads);
+  tess->Upload(controlPoints.data(), cornerIndices.data(), num_quads);
 
   std::cout << "[TessellatorPass] Uploaded " << num_quads
             << " bicubic patch(es) for GPU tessellation." << std::endl;

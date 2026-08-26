@@ -3,8 +3,11 @@
 #include "Settings.h"
 #include "UIStyle.h"
 
+#include "ipass/BVLoader.h"
+
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <vector>
 
 UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : RenderPass(context)
@@ -413,7 +416,11 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
       utils::OpenFile("BezierView File", "bv", [this](std::string s){
         size_t pos = s.find_last_of("/\\");
         this->current_filename = (pos != std::string::npos) ? s.substr(pos + 1) : s;
-        Settings::parser.modify().Parse(s);
+
+        ipass::Status status;
+        Settings::parser.modify() = ipass::BVLoader::Load(s, &status);
+        if (status != ipass::Status::Success)
+          std::cerr << "[UIRenderPass] Failed to load " << s << std::endl;
       });
 
     {
