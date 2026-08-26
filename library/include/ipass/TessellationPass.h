@@ -39,6 +39,8 @@ public:
     Status Dispatch(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetVertexBuffer() const;
+    wgpu::Buffer GetControlPointBuffer() const;
+    wgpu::Buffer GetTriCountBuffer() const;
     uint32_t     GetMaxVertexCount() const;
     uint32_t     GetPatchCount() const;
 

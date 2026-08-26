@@ -77,8 +77,7 @@ Renderer::Renderer()
     Settings::tessOutput.modify() = {
       this->pipeline->GetVertexBuffer(),
       this->pipeline->GetMaxVertexCount(),
-      // TODO!! tesspass does not expose the control point buffer for wireframes
-      nullptr,
+      this->pipeline->GetTessellationPass().GetControlPointBuffer(),
       this->pipeline->GetTessellationPass().GetPatchCount()
     };
     Settings::tessOutput.notify();
@@ -307,8 +306,7 @@ void Renderer::MainLoop()
 
   if (Settings::tessellation.get() && !this->triCountStagingBusy)
   {
-    // TODO!! tesspass does not expose the triCount buffer, so can't load tri counts for perf stats
-    wgpu::Buffer triCountBuf = nullptr;
+    wgpu::Buffer triCountBuf = this->pipeline->GetTessellationPass().GetTriCountBuffer();
     if (triCountBuf)
       encoder.copyBufferToBuffer(triCountBuf, 0, this->triCountStagingBuffer, 0, sizeof(uint32_t));
   }
