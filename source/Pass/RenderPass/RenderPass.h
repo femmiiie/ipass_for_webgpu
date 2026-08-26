@@ -1,23 +1,43 @@
 #pragma once
 
-#include "Pass.h"
 #include "Context.h"
+#include "Shader.h"
 
+#include <vector>
 #include <string>
 #include <exception>
 
 
-class RenderPass : public Pass
+class RenderPass
 {
 public:
-  RenderPass(Context& ctx) : Pass(ctx), context(ctx) {}
+  RenderPass(Context& ctx) : context(ctx) {}
   Context& context;
   virtual ~RenderPass() = default;
   virtual void Execute(wgpu::RenderPassEncoder& pass) = 0;
 
+  wgpu::PipelineLayout layout;
+  wgpu::BindGroup bindGroup;
+  wgpu::BindGroupLayout bindGroupLayout;
+
   wgpu::RenderPipeline pipeline;
   uint32_t vertexCount;
   wgpu::Buffer vertexBuffer;
+
+  wgpu::Buffer CreateBuffer(uint64_t size, wgpu::BufferUsage usage, bool mapped = false);
+
+  wgpu::BindGroupLayoutEntry CreateTextureLayout(uint16_t binding, wgpu::ShaderStage visibility);
+  wgpu::BindGroupLayoutEntry CreateSamplerLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::SamplerBindingType type);
+  wgpu::BindGroupLayoutEntry CreateBufferLayout(uint16_t binding, wgpu::ShaderStage visibility, wgpu::BufferBindingType type, uint64_t minBindingSize);
+  wgpu::BindGroupLayout CreateBindGroupLayout(std::vector<wgpu::BindGroupLayoutEntry> entries);
+
+  wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer& buffer);
+  wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::TextureView& view);
+  wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Sampler& sampler);
+  wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings);
+  wgpu::BindGroup CreateBindGroup(std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& layout);
+
+  void ClearBuffer(wgpu::CommandEncoder& encoder, wgpu::Buffer& buffer);
 };
 
 class RenderPassException : public std::exception
