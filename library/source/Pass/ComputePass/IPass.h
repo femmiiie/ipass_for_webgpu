@@ -13,11 +13,13 @@ public:
   ~IPass();
   bool Execute(wgpu::CommandEncoder& encoder) override;
 
+  uint32_t GetPatchCount() { return patchCount; }
   wgpu::Buffer& GetOutputBuffer() { return patchesBuffer; }
 
   void SetMVP(const glm::mat4& mvp);
   void SetViewportWidth(float width) { viewportWidth = width; }
   void UploadPatches(const std::vector<utils::Vertex3D>& bicubicVerts);
+  void SetPatchCount(uint32_t count) { patchCount = count; }
 
   // group 0 storage buffers
   wgpu::Buffer verticesBuffer;
@@ -34,6 +36,8 @@ private:
   wgpu::BindGroupLayout storageBindGroupLayout;
   wgpu::BindGroup storageBindGroup;
   wgpu::BindGroup uniformBindGroup;
+
+  uint32_t patchCount = 0;
 
   uint32_t vertexCapacity = 0;
   uint32_t patchCapacity = 0;
