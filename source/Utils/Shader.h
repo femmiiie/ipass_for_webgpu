@@ -67,17 +67,11 @@ namespace utils
   {
 #ifdef __EMSCRIPTEN__
     static const std::unordered_map<std::string, const std::string*> embedded = {
-  {"ipass.wgsl",     &embedded_shaders::ipass},
-  {"tess-calc.wgsl", &embedded_shaders::tess_calc},
-  {"tess-scan.wgsl", &embedded_shaders::tess_scan},
-  {"tess-gen.wgsl",  &embedded_shaders::tess_gen},
-#ifndef IPASS_LIBRARY_BUILD
   {"blinn_phong.wgsl",      &embedded_shaders::blinn_phong},
   {"flat.wgsl",             &embedded_shaders::flat},
   {"parametric_error.wgsl", &embedded_shaders::parametric_error},
   {"triangle_size.wgsl",    &embedded_shaders::triangle_size},
   {"ui.wgsl",               &embedded_shaders::ui},
-#endif
     };
 
     auto pos = filepath.find_last_of("/\\");
