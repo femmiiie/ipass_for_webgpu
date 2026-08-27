@@ -29,10 +29,10 @@ set(IPASS_SOURCES
     source/TessellationPass.cpp
     source/Pipeline.cpp
     source/BVLoader.cpp
+    source/Pass/ComputePass/ComputePass.cpp
+    source/Pass/ComputePass/IPass.cpp
 
-    # reused internal sources
-    ${IPASS_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
-    ${IPASS_SOURCE_DIR}/Pass/ComputePass/IPass.cpp
+    # not yet moved into the library
     ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
     ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
@@ -42,11 +42,9 @@ set(IPASS_SOURCES
 )
 
 set(IPASS_PRIVATE_INCLUDES
-    ${IPASS_SOURCE_DIR}/Renderer
-    ${IPASS_SOURCE_DIR}/Pass
-    ${IPASS_SOURCE_DIR}/Pass/ComputePass
     ${IPASS_SOURCE_DIR}/Tessellator
-    ${IPASS_SOURCE_DIR}/Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/Utils
 )
 
 if(EMSCRIPTEN)
@@ -56,7 +54,7 @@ if(EMSCRIPTEN)
     ipass_embed_shaders(
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
         SOURCES
-            "${IPASS_SOURCE_DIR}/Pass/ComputePass/ipass.wgsl"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
             "${IPASS_SOURCE_DIR}/Tessellator/tess-calc.wgsl"
             "${IPASS_SOURCE_DIR}/Tessellator/tess-scan.wgsl"
             "${IPASS_SOURCE_DIR}/Tessellator/tess-gen.wgsl"
@@ -95,7 +93,7 @@ endif()
 
 target_link_libraries(ipass_lib PUBLIC webgpu glm::glm)
 
-target_compile_definitions(ipass_lib PRIVATE ${_backend_define} IPASS_LIBRARY_BUILD)
+target_compile_definitions(ipass_lib PRIVATE ${_backend_define})
 
 if(EMSCRIPTEN)
     set(IPASS_POST_JS "${CMAKE_CURRENT_SOURCE_DIR}/js/ipass.js")

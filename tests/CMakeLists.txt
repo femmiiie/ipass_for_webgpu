@@ -5,6 +5,11 @@ get_filename_component(IPASS_SOURCE_DIR
   ABSOLUTE
 )
 
+get_filename_component(IPASS_LIBRARY_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/../library/source"
+  ABSOLUTE
+)
+
 if(NOT COMMAND ipass_copy_webgpu_runtime)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
   include(CopyRuntime)
@@ -62,7 +67,7 @@ add_test(NAME scan_pass COMMAND test_scan)
 # test_tess_quad
 add_executable(test_tess_quad
   test_tess_quad.cpp
-  ${IPASS_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
@@ -88,8 +93,7 @@ target_include_directories(test_tess_quad PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
   ${IPASS_SOURCE_DIR}
-  ${IPASS_SOURCE_DIR}/Pass/ComputePass
-  ${IPASS_SOURCE_DIR}/Renderer
+  ${IPASS_LIBRARY_SOURCE_DIR}/Pass/ComputePass
   ${IPASS_SOURCE_DIR}/Tessellator
   ${IPASS_SOURCE_DIR}/Utils
   ${nfd_SOURCE_DIR}/src/include
