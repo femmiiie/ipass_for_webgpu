@@ -66,8 +66,7 @@ Renderer::Renderer()
   this->triCountStagingBuffer = this->context.device.createBuffer(triCountStagingDesc);
 
   Settings::mvp.subscribe([this](const MVP& m) {
-    glm::mat4 mvp = m.data.P * m.data.V * m.data.M;
-    this->pipeline->SetMVP(mvp);
+    this->pipeline->SetMVP(m.VP * m.M);
   });
 
   Settings::patches.subscribe([this](const ipass::PatchData& p) {

@@ -124,10 +124,6 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   this->LoadPatches(Settings::patches.get());
   this->CreateDepthTexture(context.size);
 
-  Settings::mvp.modify().setModel();
-  Settings::mvp.modify().setLookAt(glm::vec3(0, -2, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  Settings::mvp.modify().setPerspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-
   this->lightsData.lights[0] = { glm::vec4(-4.0f, 4.0f, -4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
   this->lightsData.lights[1] = { glm::vec4( 4.0f, 4.0f, -4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
   this->lightsData.lights[2] = { glm::vec4(-4.0f, 4.0f,  4.0f, 1.0f), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f };
@@ -142,7 +138,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
 
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
 
-  this->mvpBuffer      = this->CreateBuffer(utils::aligned_size(Settings::mvp.get().data), uniformUsage);
+  this->mvpBuffer      = this->CreateBuffer(utils::aligned_size(Settings::mvp.get()), uniformUsage);
   this->lightBuffer    = this->CreateBuffer(utils::aligned_size(this->lightsData), uniformUsage);
   this->viewportBuffer = this->CreateBuffer(utils::aligned_size(this->viewportData), uniformUsage);
 
@@ -152,12 +148,12 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   );
   this->ownsControlPointsBuffer = true;
 
-  this->context.queue.writeBuffer(this->mvpBuffer,      0, &Settings::mvp.get().data, sizeof(MVP::GPUData));
+  this->context.queue.writeBuffer(this->mvpBuffer,      0, &Settings::mvp.get(), sizeof(MVP));
   this->context.queue.writeBuffer(this->lightBuffer,    0, &this->lightsData,  sizeof(LightsData));
   this->context.queue.writeBuffer(this->viewportBuffer, 0, &this->viewportData, sizeof(ViewportData));
 
   Settings::mvp.subscribe([this](const MVP& m) {
-    this->context.queue.writeBuffer(this->mvpBuffer, 0, &m.data, sizeof(MVP::GPUData));
+    this->context.queue.writeBuffer(this->mvpBuffer, 0, &m, sizeof(MVP));
   });
 
   Settings::patches.subscribe([this](const ipass::PatchData& p) {
@@ -216,14 +212,14 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   encoder.setScissorRect((uint32_t)vp.x, (uint32_t)vp.y,
                          (uint32_t)vp.width, (uint32_t)vp.height);
 
-  if (camera.requiresUpdate())
-  {
-    camera.update();
-    Settings::mvp.modify().setProjection(camera.getProjectionMatrix());
-  }
+  bool projUpdated = camera.requiresUpdate();
+  if (projUpdated) camera.update();
+  bool viewUpdated = camera.consumeViewUpdate();
 
-  if (camera.consumeViewUpdate())
-    Settings::mvp.modify().setView(camera.getViewMatrix());
+  if (projUpdated || viewUpdated)
+    Settings::mvp.modify().VP = camera.getProjectionMatrix() * camera.getViewMatrix();
+  if (viewUpdated)
+    Settings::mvp.modify().cameraPos = glm::vec4(camera.getPosCAR(), 1.0f);
 
   Settings::mvp.notify();
 
@@ -334,7 +330,7 @@ void SceneRenderPass::InitializeShaderVariants()
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::BlinnPhong)];
 
     v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get().data)),
+      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
       this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightsData)),
     });
 
@@ -361,7 +357,7 @@ void SceneRenderPass::InitializeShaderVariants()
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::Flat)];
 
     v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get().data)),
+      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
     });
 
     v.bindGroup = this->CreateBindGroup(
@@ -386,7 +382,7 @@ void SceneRenderPass::InitializeShaderVariants()
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::ParametricError)];
 
     v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform,         utils::aligned_size(Settings::mvp.get().data)),
+      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform,         utils::aligned_size(Settings::mvp.get())),
       this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform,         utils::aligned_size(this->viewportData)),
       this->CreateBufferLayout(2, fs,   wgpu::BufferBindingType::ReadOnlyStorage, 0),
     });
@@ -415,7 +411,7 @@ void SceneRenderPass::InitializeShaderVariants()
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::TriangleSize)];
 
     v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get().data)),
+      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
     });
 
     v.bindGroup = this->CreateBindGroup(

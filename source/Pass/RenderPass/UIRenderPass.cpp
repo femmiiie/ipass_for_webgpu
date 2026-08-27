@@ -468,9 +468,9 @@ void UIRenderPass::RenderObjectPropertiesSection()
 
   ComponentLabel(ctx, "Translation");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
-  nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::mvp.get().translation.x, 1000.0f, 0.01f, 0.01f);
-  nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::mvp.get().translation.y, 1000.0f, 0.01f, 0.01f);
-  nk_property_float(ctx, "Trans Z:", -1000.0f, &Settings::mvp.get().translation.z, 1000.0f, 0.01f, 0.01f);
+  nk_property_float(ctx, "Trans X:", -1000.0f, &Settings::translation.x, 1000.0f, 0.01f, 0.01f);
+  nk_property_float(ctx, "Trans Y:", -1000.0f, &Settings::translation.y, 1000.0f, 0.01f, 0.01f);
+  nk_property_float(ctx, "Trans Z:", -1000.0f, &Settings::translation.z, 1000.0f, 0.01f, 0.01f);
   nk_style_pop_vec2(ctx);
 
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
@@ -478,9 +478,9 @@ void UIRenderPass::RenderObjectPropertiesSection()
 
   ComponentLabel(ctx, "Rotation (degrees)");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
-  nk_property_float(ctx, "Rot X:", -360.0f, &Settings::mvp.get().rotation.x, 360.0f, 1.0f, 0.5f);
-  nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::mvp.get().rotation.y, 360.0f, 1.0f, 0.5f);
-  nk_property_float(ctx, "Rot Z:", -360.0f, &Settings::mvp.get().rotation.z, 360.0f, 1.0f, 0.5f);
+  nk_property_float(ctx, "Rot X:", -360.0f, &Settings::rotation.x, 360.0f, 1.0f, 0.5f);
+  nk_property_float(ctx, "Rot Y:", -360.0f, &Settings::rotation.y, 360.0f, 1.0f, 0.5f);
+  nk_property_float(ctx, "Rot Z:", -360.0f, &Settings::rotation.z, 360.0f, 1.0f, 0.5f);
   nk_style_pop_vec2(ctx);
 
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
@@ -488,9 +488,9 @@ void UIRenderPass::RenderObjectPropertiesSection()
 
   ComponentLabel(ctx, "Scale");
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, ctx->style.window.spacing.y * 0.5f));
-  nk_property_float(ctx, "Scale X:", 0.001f, &Settings::mvp.get().scale.x, 1000.0f, 0.05f, 0.01f);
-  nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::mvp.get().scale.y, 1000.0f, 0.05f, 0.01f);
-  nk_property_float(ctx, "Scale Z:", 0.001f, &Settings::mvp.get().scale.z, 1000.0f, 0.05f, 0.01f);
+  nk_property_float(ctx, "Scale X:", 0.001f, &Settings::scale.x, 1000.0f, 0.05f, 0.01f);
+  nk_property_float(ctx, "Scale Y:", 0.001f, &Settings::scale.y, 1000.0f, 0.05f, 0.01f);
+  nk_property_float(ctx, "Scale Z:", 0.001f, &Settings::scale.z, 1000.0f, 0.05f, 0.01f);
   nk_style_pop_vec2(ctx);
 
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
@@ -499,10 +499,9 @@ void UIRenderPass::RenderObjectPropertiesSection()
   nk_layout_row_static(ctx, 0, this->context.size.x / 10, 1);
   if (nk_button_label(ctx, "Reset Transform"))
   {
-    Settings::mvp.get().translation = { 0.0f, 0.0f, 0.0f };
-    Settings::mvp.get().rotation    = { 0.0f, 0.0f, 0.0f };
-    Settings::mvp.get().scale       = { 1.0f, 1.0f, 1.0f };
-    Settings::mvp.notify();
+    Settings::translation = { 0.0f, 0.0f, 0.0f };
+    Settings::rotation    = { 0.0f, 0.0f, 0.0f };
+    Settings::scale       = { 1.0f, 1.0f, 1.0f };
   }
 
   nk_layout_row_dynamic(ctx, 8.0f * s, 1);
