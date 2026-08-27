@@ -5,9 +5,6 @@
 
 namespace ipass {
 
-namespace BVLoader {
-    PatchData Load(const std::string& filepath, Status* status = nullptr);
-    PatchData Load(const std::string& filepath, uint32_t max_patches, Status* status = nullptr);
-}
+PatchData LoadBV(const std::string& filepath, Status* status = nullptr, uint32_t max_patches = 0);
 
 }
