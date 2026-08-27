@@ -9,15 +9,14 @@
 namespace ipass {
 
 struct TessellationPass::Impl {
-    GPUContext gpu_ctx;
     uint32_t maxPatches;
 
     Tessellator tess;
     uint32_t numQuads = 0;
     bool initialized = false;
 
-    Impl(wgpu::Device dev, wgpu::Queue q, uint32_t maxP)
-        : gpu_ctx{dev, q}, maxPatches(maxP), tess(gpu_ctx) {}
+    Impl(wgpu::Device device, wgpu::Queue queue, uint32_t maxP)
+        : maxPatches(maxP), tess(device, queue) {}
 };
 
 TessellationPass::TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config)

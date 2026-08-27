@@ -1,5 +1,4 @@
 #include "ipass/LODPass.h"
-#include "GPUContext.h"
 #include "IPass.h"
 #include "Shader.h"
 #include <algorithm>
@@ -7,12 +6,11 @@
 namespace ipass {
 
 struct LODPass::Impl {
-    GPUContext gpu_ctx;
     IPass pass;
     uint32_t patchCount = 0;
 
     Impl(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit)
-        : gpu_ctx{device, queue}, pass(gpu_ctx, patchLimit) {}
+        : pass(device, queue, patchLimit) {}
 };
 
 LODPass::LODPass(wgpu::Device device, wgpu::Queue queue, const Config& config)

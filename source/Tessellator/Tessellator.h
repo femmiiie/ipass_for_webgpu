@@ -29,7 +29,7 @@ class Tessellator : public ComputePass {
     uint32_t num_quads = 0;
 
 public:
-    Tessellator(GPUContext& ctx) : ComputePass(ctx) {}
+    Tessellator(wgpu::Device device, wgpu::Queue queue) : ComputePass(device, queue) {}
 
     bool Init(uint32_t max_quads, wgpu::Buffer ipass_levels);
     void Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
