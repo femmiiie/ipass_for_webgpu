@@ -7,12 +7,13 @@
 
 #include "PatchData.h"
 
+struct IPass;
+
 namespace ipass {
 
 class LODPass {
 private:
-    struct Impl; 
-    Impl* impl = nullptr;
+    IPass* impl = nullptr;
 
 public:
     // C compatible constructors 
@@ -30,8 +31,8 @@ public:
 
     LODPass(const LODPass&)            = delete;
     LODPass& operator=(const LODPass&) = delete;
-    LODPass(LODPass&&)                   noexcept;
-    LODPass& operator=(LODPass&&)        noexcept;
+    LODPass(LODPass&&)                 = delete;
+    LODPass& operator=(LODPass&&)      = delete;
 
     Status UploadPatches(const PatchData& data);
 
@@ -41,7 +42,7 @@ public:
     Status Dispatch(WGPUCommandEncoder& encoder) { return Dispatch(wgpu::CommandEncoder(encoder)); }
     Status Dispatch(wgpu::CommandEncoder& encoder);
 
-    wgpu::Buffer GetLODBuffer() const;
+    wgpu::Buffer GetLODBuffer()  const;
     uint32_t     GetPatchCount() const;
 };
 
