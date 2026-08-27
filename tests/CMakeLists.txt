@@ -15,7 +15,7 @@ if(NOT COMMAND ipass_copy_webgpu_runtime)
   include(CopyRuntime)
 endif()
 
-set(TESSELLATOR_SHADER_DIR "${IPASS_SOURCE_DIR}/Tessellator")
+set(TESSELLATOR_SHADER_DIR "${IPASS_LIBRARY_SOURCE_DIR}/Tessellator")
 
 # copy tessellator shaders to target output directory
 function(copy_tess_shaders TARGET_NAME)
@@ -33,7 +33,7 @@ endfunction()
 # test_scan
 add_executable(test_scan
   test_scan.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/TessScanPass.cpp
 )
 
 set_target_properties(test_scan PROPERTIES
@@ -53,7 +53,7 @@ target_include_directories(test_scan PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${webgpu_hpp_SOURCE_DIR}
   ${IPASS_SOURCE_DIR}
-  ${IPASS_SOURCE_DIR}/Tessellator
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator
   ${IPASS_SOURCE_DIR}/Utils
   ${nfd_SOURCE_DIR}/src/include
 )
@@ -68,11 +68,11 @@ add_test(NAME scan_pass COMMAND test_scan)
 add_executable(test_tess_quad
   test_tess_quad.cpp
   ${IPASS_LIBRARY_SOURCE_DIR}/Pass/ComputePass/ComputePass.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/TessScanPass.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/TessGenPass.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/Tessellator.cpp
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator/Connectivity.cpp
 )
 
 set_target_properties(test_tess_quad PROPERTIES
@@ -94,7 +94,7 @@ target_include_directories(test_tess_quad PRIVATE
   ${webgpu_hpp_SOURCE_DIR}
   ${IPASS_SOURCE_DIR}
   ${IPASS_LIBRARY_SOURCE_DIR}/Pass/ComputePass
-  ${IPASS_SOURCE_DIR}/Tessellator
+  ${IPASS_LIBRARY_SOURCE_DIR}/Tessellator
   ${IPASS_SOURCE_DIR}/Utils
   ${nfd_SOURCE_DIR}/src/include
 )
