@@ -17,7 +17,6 @@
 #include <glm/glm.hpp>
 
 namespace ipass {
-namespace BVLoader {
 
 using utils::Vertex3D;
 using Patch = std::vector<Vertex3D>;
@@ -137,22 +136,12 @@ private:
     }
     return vec;
   }
-
-  // reads all floats on the next line
-  std::vector<glm::f32> getRowF32()
-  {
-    std::string line;
-    this->file >> std::ws;
-    std::getline(this->file, line);
-
-    std::istringstream iss(line);
-    return { std::istream_iterator<glm::f32>(iss), std::istream_iterator<glm::f32>() };
-  }
 };
+
 
 // tessellator requires corner data to allow for even tessellation on shared boundaries
 // so we weld close enough points together to record which indices are corners
-static std::vector<uint32_t> ComputeCornerIndices(
+std::vector<uint32_t> ComputeCornerIndices(
     const std::vector<Patch>& patches,
     const std::vector<std::pair<glm::u32, glm::u32>>& dims)
 {
@@ -196,12 +185,8 @@ static std::vector<uint32_t> ComputeCornerIndices(
   return cornerIndices;
 }
 
-PatchData Load(const std::string& filepath, Status* status)
-{
-    return Load(filepath, 0u, status); // 0 means no limit
-}
 
-PatchData Load(const std::string& filepath, uint32_t max_patches, Status* status)
+PatchData LoadBV(const std::string& filepath, Status* status, uint32_t max_patches)
 {
     Parser parser;
     parser.Parse(filepath);
@@ -239,5 +224,4 @@ PatchData Load(const std::string& filepath, uint32_t max_patches, Status* status
     return result;
 }
 
-}
 }
