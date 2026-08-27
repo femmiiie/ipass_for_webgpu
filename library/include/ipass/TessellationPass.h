@@ -7,12 +7,13 @@
 
 #include "PatchData.h"
 
+struct Tessellator; 
+
 namespace ipass {
 
 class TessellationPass {
 private:
-    struct Impl; 
-    Impl* impl = nullptr;
+    Tessellator* impl = nullptr;
 
 public:
     // C compatible constructors 
@@ -30,8 +31,8 @@ public:
 
     TessellationPass(const TessellationPass&)            = delete;
     TessellationPass& operator=(const TessellationPass&) = delete;
-    TessellationPass(TessellationPass&&)                   noexcept;
-    TessellationPass& operator=(TessellationPass&&)        noexcept;
+    TessellationPass(TessellationPass&&)                 = delete;
+    TessellationPass& operator=(TessellationPass&&)      = delete;
 
     Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
 

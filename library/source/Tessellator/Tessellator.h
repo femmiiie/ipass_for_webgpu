@@ -27,16 +27,21 @@ class Tessellator : public ComputePass {
 
     uint32_t max_quads = 0;
     uint32_t num_quads = 0;
+    bool initialized = false;
 
 public:
-    Tessellator(wgpu::Device device, wgpu::Queue queue) : ComputePass(device, queue) {}
+    Tessellator(wgpu::Device device, wgpu::Queue queue, uint32_t maxQuads)
+        : ComputePass(device, queue), max_quads(maxQuads) {}
 
-    bool Init(uint32_t max_quads, wgpu::Buffer ipass_levels);
+    bool Init(wgpu::Buffer ipass_levels);
     void Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
     bool Execute(wgpu::CommandEncoder& encoder) override;
     wgpu::Buffer GetVertexOutput() const { return buf_verts_out; }
     wgpu::Buffer GetControlPointBuffer() const { return buf_quads; }
     wgpu::Buffer GetTriCountBuffer() const { return buf_bs_total; }
+    uint32_t GetNumQuads() const { return num_quads; }
+    uint32_t GetMaxQuads() const { return max_quads; }
+    bool IsInitialized() const { return initialized; }
     void Terminate();
     void ClearBuffers();
 };

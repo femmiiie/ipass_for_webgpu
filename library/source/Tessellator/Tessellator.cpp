@@ -1,9 +1,7 @@
 #include "Tessellator.h"
 #include "Connectivity.h"
 
-bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
-    this->max_quads = max;
-
+bool Tessellator::Init(wgpu::Buffer ipass_levels) {
     if (!calc_pass.Init(device))
         return false;
     if (!scan_pass.Init(device))
@@ -103,6 +101,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         bg.release();
     }
 
+    initialized = true;
     return true;
 }
 
