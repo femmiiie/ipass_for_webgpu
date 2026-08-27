@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 
-get_filename_component(IPASS_SOURCE_DIR
-  "${CMAKE_CURRENT_SOURCE_DIR}/../source"
-  ABSOLUTE
-)
-
 if(NOT COMMAND ipass_embed_shaders)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
   include(EmbedShaders)
@@ -31,19 +26,17 @@ set(IPASS_SOURCES
     source/BVLoader.cpp
     source/Pass/ComputePass/ComputePass.cpp
     source/Pass/ComputePass/IPass.cpp
-
-    # not yet moved into the library
-    ${IPASS_SOURCE_DIR}/Tessellator/Tessellator.cpp
-    ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
-    ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
-    ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
-    ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
-    ${IPASS_SOURCE_DIR}/Utils/Elevation.cpp
+    source/Tessellator/Tessellator.cpp
+    source/Tessellator/TessCalcPass.cpp
+    source/Tessellator/TessScanPass.cpp
+    source/Tessellator/TessGenPass.cpp
+    source/Tessellator/Connectivity.cpp
+    source/Utils/Elevation.cpp
 )
 
 set(IPASS_PRIVATE_INCLUDES
-    ${IPASS_SOURCE_DIR}/Tessellator
     ${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator
     ${CMAKE_CURRENT_SOURCE_DIR}/source/Utils
 )
 
@@ -55,9 +48,9 @@ if(EMSCRIPTEN)
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
         SOURCES
             "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
-            "${IPASS_SOURCE_DIR}/Tessellator/tess-calc.wgsl"
-            "${IPASS_SOURCE_DIR}/Tessellator/tess-scan.wgsl"
-            "${IPASS_SOURCE_DIR}/Tessellator/tess-gen.wgsl"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
+            "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
         NAMES ipass tess_calc tess_scan tess_gen
     )
 else()
