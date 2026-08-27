@@ -51,18 +51,13 @@ if(EMSCRIPTEN)
   ipass_embed_shaders(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
     SOURCES
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
     NAMES
-      ipass blinn_phong flat parametric_error triangle_size
-      ui tess_calc tess_scan tess_gen
+    blinn_phong flat parametric_error triangle_size ui
   )
 endif()
 
@@ -130,12 +125,15 @@ else() # WGPU or DAWN backend
     if(GLFW_BUILD_X11)
       target_compile_definitions(glfw3webgpu PRIVATE _GLFW_X11)
     endif()
+
     if(GLFW_BUILD_WAYLAND)
       target_compile_definitions(glfw3webgpu PRIVATE _GLFW_WAYLAND)
     endif()
+
     if(WIN32)
       target_compile_definitions(glfw3webgpu PRIVATE _GLFW_WIN32 GLFW_EXPOSE_NATIVE_WIN32)
     endif()
+
     if(APPLE)
       target_compile_definitions(glfw3webgpu PRIVATE _GLFW_COCOA)
     endif()
@@ -172,30 +170,37 @@ if(EMSCRIPTEN)
   )
 endif()
 
-# Copy shader files to output directory
-file(GLOB_RECURSE SHADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/source/*.wgsl")
-
+# Copy shader files to the output directory
 set(SHADER_STAMP_DIR "${CMAKE_BINARY_DIR}/shader_stamps")
 set(SHADER_STAMP_FILES "")
+set(SHADER_FILES "")
 
-foreach(SHADER_FILE ${SHADER_FILES})
-  file(RELATIVE_PATH SHADER_RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/source" "${SHADER_FILE}")
-  string(REPLACE "/" "_" SHADER_STAMP_NAME "${SHADER_RELATIVE}")
-  set(STAMP_FILE "${SHADER_STAMP_DIR}/${SHADER_STAMP_NAME}.stamp")
+macro(ipass_stage_shaders BASE_DIR)
+  file(GLOB_RECURSE _base_shader_files CONFIGURE_DEPENDS "${BASE_DIR}/*.wgsl")
+  list(APPEND SHADER_FILES ${_base_shader_files})
 
-  get_filename_component(SHADER_OUT_DIR "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}" DIRECTORY)
+  foreach(SHADER_FILE ${_base_shader_files})
+    file(RELATIVE_PATH SHADER_RELATIVE "${BASE_DIR}" "${SHADER_FILE}")
+    string(REPLACE "/" "_" SHADER_STAMP_NAME "${SHADER_RELATIVE}")
+    set(STAMP_FILE "${SHADER_STAMP_DIR}/${SHADER_STAMP_NAME}.stamp")
 
-  add_custom_command(
-    OUTPUT "${STAMP_FILE}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E copy "${SHADER_FILE}" "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_STAMP_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E touch "${STAMP_FILE}"
-    DEPENDS "${SHADER_FILE}"
-    COMMENT "Copying shader: ${SHADER_RELATIVE}"
-  )
-  list(APPEND SHADER_STAMP_FILES "${STAMP_FILE}")
-endforeach()
+    get_filename_component(SHADER_OUT_DIR "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}" DIRECTORY)
+
+    add_custom_command(
+      OUTPUT "${STAMP_FILE}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E copy "${SHADER_FILE}" "${CMAKE_BINARY_DIR}/${SHADER_RELATIVE}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_STAMP_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E touch "${STAMP_FILE}"
+      DEPENDS "${SHADER_FILE}"
+      COMMENT "Copying shader: ${SHADER_RELATIVE}"
+    )
+    list(APPEND SHADER_STAMP_FILES "${STAMP_FILE}")
+  endforeach()
+endmacro()
+
+ipass_stage_shaders("${CMAKE_CURRENT_SOURCE_DIR}/source")
+ipass_stage_shaders("${CMAKE_CURRENT_SOURCE_DIR}/library/source")
 
 add_custom_target(copy_shaders ALL DEPENDS ${SHADER_STAMP_FILES})
 add_dependencies(ipass_webgpu copy_shaders)
