@@ -6,7 +6,7 @@ wgpu::Buffer ComputePass::CreateBuffer(uint64_t size, wgpu::BufferUsage usage, b
   desc.size = size;
   desc.usage = usage;
   desc.mappedAtCreation = mapped;
-  return this->context.device.createBuffer(desc);
+  return this->device.createBuffer(desc);
 }
 
 wgpu::BindGroupLayoutEntry ComputePass::CreateTextureLayout(uint16_t binding, wgpu::ShaderStage visibility)
@@ -43,7 +43,7 @@ wgpu::BindGroupLayout ComputePass::CreateBindGroupLayout(std::vector<wgpu::BindG
   wgpu::BindGroupLayoutDescriptor desc;
   desc.entryCount = entries.size();
   desc.entries = entries.data();
-  return this->context.device.createBindGroupLayout(desc);
+  return this->device.createBindGroupLayout(desc);
 }
 
 wgpu::BindGroupEntry ComputePass::CreateBinding(uint16_t entry, wgpu::TextureView& view)
@@ -78,7 +78,7 @@ wgpu::BindGroup ComputePass::CreateBindGroup(std::vector<wgpu::BindGroupEntry> b
   desc.layout = bindLayout;
   desc.entryCount = bindings.size();
   desc.entries = bindings.data();
-  return this->context.device.createBindGroup(desc);
+  return this->device.createBindGroup(desc);
 }
 
 void ComputePass::ClearBuffer(wgpu::CommandEncoder& encoder, wgpu::Buffer& buffer)

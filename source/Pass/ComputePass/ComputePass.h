@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Shader.h"
-#include "GPUContext.h"
 
 #include <vector>
 #include <string>
@@ -11,11 +10,12 @@
 class ComputePass
 {
 public:
-  ComputePass(GPUContext& ctx) : context(ctx) {}
+  ComputePass(wgpu::Device device, wgpu::Queue queue) : device(device), queue(queue) {}
   virtual ~ComputePass() = default;
   virtual bool Execute(wgpu::CommandEncoder& encoder) = 0;
 
-  GPUContext& context;
+  wgpu::Device device;
+  wgpu::Queue queue;
 
   wgpu::ComputePipeline pipeline;
 

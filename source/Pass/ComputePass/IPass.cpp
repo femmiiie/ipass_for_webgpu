@@ -45,10 +45,10 @@ void IPass::EnsureStorageCapacity(uint32_t requiredVertices)
   this->storageBindGroup = this->CreateBindGroup(resizedStorageBindings, this->storageBindGroupLayout);
 }
 
-IPass::IPass(GPUContext& ctx, uint32_t patchLimit) 
-  : ComputePass(ctx), patchCapacity(patchLimit)
+IPass::IPass(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit)
+  : ComputePass(device, queue), patchCapacity(patchLimit)
 {
-  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/ComputePass/ipass.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->device, "Pass/ComputePass/ipass.wgsl");
   if (!shaderModule)
   {
     throw new ComputePassException("Failed to load shader module.");
@@ -104,18 +104,18 @@ IPass::IPass(GPUContext& ctx, uint32_t patchLimit)
   layoutDesc.bindGroupLayoutCount = 2;
   layoutDesc.bindGroupLayouts = reinterpret_cast<WGPUBindGroupLayout const*>(bindGroupLayouts.data());
 
-  wgpu::PipelineLayout pipelineLayout = this->context.device.createPipelineLayout(layoutDesc);
+  wgpu::PipelineLayout pipelineLayout = this->device.createPipelineLayout(layoutDesc);
 
   wgpu::ComputePipelineDescriptor pipelineDesc;
   pipelineDesc.layout = pipelineLayout;
   pipelineDesc.compute.module = shaderModule;
   pipelineDesc.compute.entryPoint = {"ipass", 5};
-  this->pipeline = this->context.device.createComputePipeline(pipelineDesc);
+  this->pipeline = this->device.createComputePipeline(pipelineDesc);
 }
 
 void IPass::SetMVP(const glm::mat4& mvp)
 {
-  this->context.queue.writeBuffer(this->mvpBuffer, 0, &mvp, sizeof(glm::mat4));
+  this->queue.writeBuffer(this->mvpBuffer, 0, &mvp, sizeof(glm::mat4));
 }
 
 void IPass::UploadPatches(const std::vector<Vertex3D>& bicubicVerts)
@@ -135,8 +135,8 @@ void IPass::UploadPatches(const std::vector<Vertex3D>& bicubicVerts)
   this->EnsureStorageCapacity(count);
 
   if (count > 0)
-    this->context.queue.writeBuffer(this->verticesBuffer, 0, bicubicVerts.data(), sizeof(Vertex3D) * count);
-  this->context.queue.writeBuffer(this->vertCountBuffer, 0, &count, sizeof(uint32_t));
+    this->queue.writeBuffer(this->verticesBuffer, 0, bicubicVerts.data(), sizeof(Vertex3D) * count);
+  this->queue.writeBuffer(this->vertCountBuffer, 0, &count, sizeof(uint32_t));
 }
 
 IPass::~IPass()
@@ -155,7 +155,7 @@ bool IPass::Execute(wgpu::CommandEncoder& encoder)
   if (pSize != this->pixelSize)
   {
     this->pixelSize = pSize;
-    this->context.queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));
+    this->queue.writeBuffer(this->pixelSizeBuffer, 0, &pixelSize, sizeof(float));
   }
 
   wgpu::ComputePassDescriptor desc;

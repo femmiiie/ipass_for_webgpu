@@ -79,8 +79,7 @@ int main() {
 
     const uint32_t num_quads = 1;
 
-    GPUContext ctx = {device, queue};
-    Tessellator tess(ctx);
+    Tessellator tess(device, queue);
     if (!tess.Init(num_quads, wgpu::Buffer())) { // needs to be fixed to setup ipass buffer
         std::cerr << "Failed to init Tessellator\n";
         return 1;

@@ -4,11 +4,11 @@
 bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
     this->max_quads = max;
 
-    if (!calc_pass.Init(context.device))
+    if (!calc_pass.Init(device))
         return false;
-    if (!scan_pass.Init(context.device))
+    if (!scan_pass.Init(device))
         return false;
-    if (!gen_pass.Init(context.device))
+    if (!gen_pass.Init(device))
         return false;
 
     buf_quads = this->CreateBuffer((uint64_t)max_quads * 16 * sizeof(glm::vec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
@@ -32,7 +32,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = calc_pass.GetTessFactorBGL();
         desc.entryCount = 2;
         desc.entries = tf_entries;
-        auto bg_tf = context.device.createBindGroup(desc);
+        auto bg_tf = device.createBindGroup(desc);
 
         wgpu::BindGroupEntry cc_entries[3] = {
             this->CreateBinding(0, buf_tess_factors),
@@ -42,7 +42,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = calc_pass.GetCalcCountsBGL();
         desc.entryCount = 3;
         desc.entries = cc_entries;
-        auto bg_cc = context.device.createBindGroup(desc);
+        auto bg_cc = device.createBindGroup(desc);
 
         calc_pass.SetBindGroups(bg_tf, bg_cc);
         bg_tf.release();
@@ -59,7 +59,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = scan_pass.GetLevel1BGL();
         desc.entryCount = 3;
         desc.entries = l1_entries;
-        auto bg_l1 = context.device.createBindGroup(desc);
+        auto bg_l1 = device.createBindGroup(desc);
 
         wgpu::BindGroupEntry l2_entries[2] = {
             this->CreateBinding(0, buf_block_sums),
@@ -68,7 +68,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = scan_pass.GetLevel2BGL();
         desc.entryCount = 2;
         desc.entries = l2_entries;
-        auto bg_l2 = context.device.createBindGroup(desc);
+        auto bg_l2 = device.createBindGroup(desc);
 
         wgpu::BindGroupEntry comb_entries[2] = {
             this->CreateBinding(1, buf_tri_offsets),
@@ -77,7 +77,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = scan_pass.GetCombineBGL();
         desc.entryCount = 2;
         desc.entries = comb_entries;
-        auto bg_comb = context.device.createBindGroup(desc);
+        auto bg_comb = device.createBindGroup(desc);
 
         scan_pass.SetBindGroups(bg_l1, bg_l2, bg_comb);
         bg_l1.release();
@@ -97,7 +97,7 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
         desc.layout = gen_pass.GetBindGroupLayout();
         desc.entryCount = 5;
         desc.entries = entries;
-        auto bg = context.device.createBindGroup(desc);
+        auto bg = device.createBindGroup(desc);
 
         gen_pass.SetBindGroup(bg);
         bg.release();
@@ -107,12 +107,12 @@ bool Tessellator::Init(uint32_t max, wgpu::Buffer ipass_levels) {
 }
 
 void Tessellator::ClearBuffers() {
-    if (!context.device || !context.queue)
+    if (!device || !queue)
         return;
 
     wgpu::CommandEncoderDescriptor encoder_desc = {};
     encoder_desc.label = WGPU_STRING_VIEW_INIT;
-    wgpu::CommandEncoder encoder = context.device.createCommandEncoder(encoder_desc);
+    wgpu::CommandEncoder encoder = device.createCommandEncoder(encoder_desc);
 
     this->ClearBuffer(encoder, buf_quads);
     this->ClearBuffer(encoder, buf_tess_factors);
@@ -128,7 +128,7 @@ void Tessellator::ClearBuffers() {
     wgpu::CommandBuffer command = encoder.finish(cmd_desc);
     encoder.release();
 
-    context.queue.submit(1, &command);
+    queue.submit(1, &command);
     command.release();
 }
 
@@ -137,10 +137,10 @@ void Tessellator::Upload(const glm::vec4* control_points, const uint32_t* indice
 
     num_quads = count;
 
-    context.queue.writeBuffer(buf_quads, 0, control_points, (uint64_t)count * 16 * sizeof(glm::vec4));
+    queue.writeBuffer(buf_quads, 0, control_points, (uint64_t)count * 16 * sizeof(glm::vec4));
 
     std::vector<glm::ivec4> connectivity = buildQuadConnectivity(indices, count);
-    context.queue.writeBuffer(buf_connectivity, 0, connectivity.data(), (uint64_t)count * 2 * sizeof(glm::ivec4));
+    queue.writeBuffer(buf_connectivity, 0, connectivity.data(), (uint64_t)count * 2 * sizeof(glm::ivec4));
 }
 
 bool Tessellator::Execute(wgpu::CommandEncoder& encoder) {

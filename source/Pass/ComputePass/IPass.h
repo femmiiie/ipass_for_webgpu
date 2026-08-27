@@ -9,7 +9,7 @@ class IPass : public ComputePass
 {
 public:
 
-  IPass(GPUContext& ctx, uint32_t patchLimit);
+  IPass(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit);
   ~IPass();
   bool Execute(wgpu::CommandEncoder& encoder) override;
 
