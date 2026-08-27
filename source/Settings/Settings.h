@@ -76,6 +76,10 @@ public:
 
   static inline Setting<MVP> mvp = {MVP()};
 
+  static inline glm::vec3 translation = { 0.0f, 0.0f, 0.0f };
+  static inline glm::vec3 rotation    = { 0.0f, 0.0f, 0.0f }; // euler degrees, applied zyx
+  static inline glm::vec3 scale       = { 1.0f, 1.0f, 1.0f };
+
   static inline Setting<ShadingMode>        shadingMode = {ShadingMode::BlinnPhong};
   static inline Setting<PresentModeSetting> presentMode = {PresentModeSetting::Fifo};
 
@@ -85,9 +89,9 @@ public:
 
 private:
   // snapshots for checkUpdates
-  static inline glm::vec3 prevTranslation = mvp.get().translation;
-  static inline glm::vec3 prevRotation    = mvp.get().rotation;
-  static inline glm::vec3 prevScale       = mvp.get().scale;
+  static inline glm::vec3 prevTranslation = translation;
+  static inline glm::vec3 prevRotation    = rotation;
+  static inline glm::vec3 prevScale       = scale;
   static inline glm::vec4 prevClearColor  = clearColor;
 
   // update flags

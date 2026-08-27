@@ -16,10 +16,10 @@ struct fsInput {
 }
 
 struct MVP {
-  M    : mat4x4f,
-  M_inv: mat4x4f,
-  V    : mat4x4f,
-  P    : mat4x4f
+  M        : mat4x4f,
+  M_inv    : mat4x4f,
+  VP       : mat4x4f,
+  cameraPos: vec4f,
 }
 
 struct Light {
@@ -35,22 +35,14 @@ struct LightArray {
 @group(0) @binding(0) var<uniform> mvp: MVP;
 @group(0) @binding(1) var<uniform> lights: LightArray;
 
-fn cameraWorldPos() -> vec3f {
-  return vec3f(
-    -dot(mvp.V[0].xyz, mvp.V[3].xyz),
-    -dot(mvp.V[1].xyz, mvp.V[3].xyz),
-    -dot(mvp.V[2].xyz, mvp.V[3].xyz)
-  );
-}
-
 @vertex
 fn vs_main(input: vsInput) -> fsInput {
   var out: fsInput;
   let worldPos     = mvp.M * input.position;
-  out.position     = mvp.P * mvp.V * worldPos;
+  out.position     = mvp.VP * worldPos;
   out.normal       = transpose(mvp.M_inv) * input.normal;
   out.color        = input.color;
-  out.eyevector    = vec4f(cameraWorldPos() - worldPos.xyz, 0.0);
+  out.eyevector    = vec4f(mvp.cameraPos.xyz - worldPos.xyz, 0.0);
   out.viewPosition = worldPos;
 
   return out;
