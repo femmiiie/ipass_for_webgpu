@@ -5,11 +5,9 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-
-#ifdef __EMSCRIPTEN__
 #include <unordered_map>
+
 #include "embedded_shaders.h"
-#endif
 
 #include <webgpu/webgpu.hpp>
 
@@ -27,7 +25,28 @@ namespace utils
     glm::vec2 _pad; // padding
   };
 
-  inline wgpu::ShaderModule LoadShaderFromSource(wgpu::Device& device, const std::string& source)
+  struct Vertex2D
+  {
+    glm::vec2 pos;
+    glm::vec2 tex;
+    glm::vec4 color;
+  };
+
+  inline void SetEntryPoint(WGPUStringView& entryPoint, const char* name)
+  {
+    entryPoint.data = name;
+    entryPoint.length = strlen(name);
+  }
+
+  template <typename T>
+  uint32_t aligned_size(const T& value, uint32_t alignment = 256)
+  {
+    (void)value; //removes unused parameter warning
+    uint32_t size = sizeof(T);
+    return ((size + alignment - 1) / alignment) * alignment;
+  }
+
+  static inline wgpu::ShaderModule LoadShaderFromSource(wgpu::Device& device, const std::string& source)
   {
     wgpu::ShaderModuleDescriptor shaderDesc;
     wgpu::ShaderSourceWGSL shaderCodeDesc;
@@ -42,14 +61,14 @@ namespace utils
     return device.createShaderModule(shaderDesc);
   }
 
-  inline wgpu::ShaderModule LoadShader(wgpu::Device& device, std::string filepath)
+  static inline wgpu::ShaderModule LoadShader(wgpu::Device& device, std::string filepath)
   {
-#ifdef __EMSCRIPTEN__
     static const std::unordered_map<std::string, const std::string*> embedded = {
-  {"ipass.wgsl",     &embedded_shaders::ipass},
-  {"tess-calc.wgsl", &embedded_shaders::tess_calc},
-  {"tess-scan.wgsl", &embedded_shaders::tess_scan},
-  {"tess-gen.wgsl",  &embedded_shaders::tess_gen},
+  {"blinn_phong.wgsl",      &embedded_shaders::blinn_phong},
+  {"flat.wgsl",             &embedded_shaders::flat},
+  {"parametric_error.wgsl", &embedded_shaders::parametric_error},
+  {"triangle_size.wgsl",    &embedded_shaders::triangle_size},
+  {"ui.wgsl",               &embedded_shaders::ui},
     };
 
     auto pos = filepath.find_last_of("/\\");
@@ -59,7 +78,6 @@ namespace utils
     {
       return LoadShaderFromSource(device, *it->second);
     }
-#endif
 
     std::ifstream fs(filepath);
 

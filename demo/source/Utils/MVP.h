@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-struct MVP //for passing directly to gpu
+struct MVP
 {
   glm::mat4 M         = glm::mat4(1.0f);
   glm::mat4 M_inv     = glm::mat4(1.0f);
