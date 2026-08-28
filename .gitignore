@@ -2,7 +2,7 @@
 **/*.exe
 build*/
 external/
-demo/
+demo/build*/
 
 fiveserver.config.js
 
