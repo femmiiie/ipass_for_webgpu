@@ -78,9 +78,16 @@ int main() {
     uint32_t indices[4] = {0, 1, 2, 3};
 
     const uint32_t num_quads = 1;
+    const float tess_level = 4.0f;
+
+    BufferDescriptor ipassLevelsDesc = {};
+    ipassLevelsDesc.size = (uint64_t)num_quads * sizeof(float);
+    ipassLevelsDesc.usage = BufferUsage::Storage | BufferUsage::CopyDst;
+    Buffer ipass_levels = device.createBuffer(ipassLevelsDesc);
+    queue.writeBuffer(ipass_levels, 0, &tess_level, sizeof(float));
 
     Tessellator tess(device, queue, num_quads);
-    if (!tess.Init(wgpu::Buffer())) { // needs to be fixed to setup ipass buffer
+    if (!tess.Init(ipass_levels)) {
         std::cerr << "Failed to init Tessellator\n";
         return 1;
     }
@@ -134,6 +141,7 @@ int main() {
 
     tess.Terminate();
     staging.release();
+    ipass_levels.release();
     queue.release();
     device.release();
     adapter.release();
