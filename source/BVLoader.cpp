@@ -1,4 +1,4 @@
-#include "ipass/BVLoader.h"
+#include "ipass/ipass.h"
 #include "Elevation.h"
 #include "Shader.h"
 

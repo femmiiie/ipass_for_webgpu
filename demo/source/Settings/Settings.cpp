@@ -32,6 +32,6 @@ void Settings::checkUpdates()
 
   if (tessellation.pending()) tessellation.notify();
   if (patches.pending())      patches.notify();
-  if (shadingMode.pending()) shadingMode.notify();
-  if (presentMode.pending()) presentMode.notify();
+  if (shadingMode.pending())  shadingMode.notify();
+  if (presentMode.pending())  presentMode.notify();
 }

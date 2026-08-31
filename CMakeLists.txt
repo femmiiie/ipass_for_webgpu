@@ -27,8 +27,7 @@ set(IPASS_SOURCES
     source/TessellationPass.cpp
     source/Pipeline.cpp
     source/BVLoader.cpp
-    source/Pass/ComputePass/ComputePass.cpp
-    source/Pass/ComputePass/IPass.cpp
+    source/Pass/IPass.cpp
     source/Tessellator/Tessellator.cpp
     source/Tessellator/TessCalcPass.cpp
     source/Tessellator/TessScanPass.cpp
@@ -38,7 +37,7 @@ set(IPASS_SOURCES
 )
 
 set(IPASS_PRIVATE_INCLUDES
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/Pass
     ${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator
     ${CMAKE_CURRENT_SOURCE_DIR}/source/Utils
 )
@@ -53,7 +52,7 @@ endif()
 ipass_embed_shaders(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
     SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ComputePass/ipass.wgsl"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ipass.wgsl"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-calc.wgsl"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-scan.wgsl"
         "${CMAKE_CURRENT_SOURCE_DIR}/source/Tessellator/tess-gen.wgsl"

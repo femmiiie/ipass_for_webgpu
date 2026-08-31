@@ -5,13 +5,16 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
-#include "ComputePass.h"
+#include "GPU.h"
 #include "TessCalcPass.h"
 #include "TessScanPass.h"
 #include "TessGenPass.h"
 #include "TessConstants.h"
 
-class Tessellator : public ComputePass {
+class Tessellator {
+    wgpu::Device device;
+    wgpu::Queue queue;
+
     TessCalcPass calc_pass;
     TessScanPass scan_pass;
     TessGenPass gen_pass;
@@ -31,11 +34,11 @@ class Tessellator : public ComputePass {
 
 public:
     Tessellator(wgpu::Device device, wgpu::Queue queue, uint32_t maxQuads)
-        : ComputePass(device, queue), max_quads(maxQuads) {}
+        : device(device), queue(queue), max_quads(maxQuads) {}
 
     bool Init(wgpu::Buffer ipass_levels);
     void Upload(const glm::vec4* control_points, const uint32_t* indices, uint32_t num_quads);
-    bool Execute(wgpu::CommandEncoder& encoder) override;
+    bool Execute(wgpu::CommandEncoder& encoder);
     wgpu::Buffer GetVertexOutput() const { return buf_verts_out; }
     wgpu::Buffer GetControlPointBuffer() const { return buf_quads; }
     wgpu::Buffer GetTriCountBuffer() const { return buf_bs_total; }
