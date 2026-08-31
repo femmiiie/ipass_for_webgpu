@@ -52,11 +52,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 ipass_embed_shaders(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
   SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/blinn_phong.wgsl"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/flat.wgsl"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/parametric_error.wgsl"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/shaders/triangle_size.wgsl"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/RenderPass/ui.wgsl"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/shaders/blinn_phong.wgsl"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/shaders/flat.wgsl"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/shaders/parametric_error.wgsl"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/shaders/triangle_size.wgsl"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/Pass/ui.wgsl"
   NAMES
   blinn_phong flat parametric_error triangle_size ui
 )

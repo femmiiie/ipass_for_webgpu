@@ -1,9 +1,12 @@
-#include "SceneRenderPass.h"
+#include "ScenePass.h"
+#include "GPU.h"
+#include "Shader.h"
 #include "Settings.h"
 
 #include <cmath>
+#include <stdexcept>
 
-void SceneRenderPass::LoadPatches(const ipass::PatchData& data)
+void ScenePass::LoadPatches(const ipass::PatchData& data)
 {
   constexpr glm::u32 ROWS = 4, COLS = 4; // PatchData control points are always bicubic
 
@@ -69,7 +72,8 @@ void SceneRenderPass::LoadPatches(const ipass::PatchData& data)
   this->vertexBuffer = nullptr;
   this->ownsVertexBuffer = true;
 
-  this->vertexBuffer = this->CreateBuffer(
+  this->vertexBuffer = utils::CreateBuffer(
+    this->context.device,
     vertexData.size() * sizeof(glm::f32),
     wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex)),
     false
@@ -95,7 +99,8 @@ void SceneRenderPass::LoadPatches(const ipass::PatchData& data)
   if (this->wireframeIndexBuffer)
     this->wireframeIndexBuffer.destroy();
 
-  this->wireframeIndexBuffer = this->CreateBuffer(
+  this->wireframeIndexBuffer = utils::CreateBuffer(
+    this->context.device,
     wireframeIndices.size() * sizeof(glm::u32),
     wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index)),
     false
@@ -105,7 +110,7 @@ void SceneRenderPass::LoadPatches(const ipass::PatchData& data)
   std::cout << "[LoadPatches] Generated " << this->vertexCount << " vertices from " << data.num_patches << " patches." << std::endl;
 }
 
-SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
+ScenePass::ScenePass(Context& context) : context(context)
 {
   camera.setScrollScaling(0.5f);
   float vp_width = context.sceneViewport.width;
@@ -138,11 +143,12 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
 
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
 
-  this->mvpBuffer      = this->CreateBuffer(utils::aligned_size(Settings::mvp.get()), uniformUsage);
-  this->lightBuffer    = this->CreateBuffer(utils::aligned_size(this->lightsData), uniformUsage);
-  this->viewportBuffer = this->CreateBuffer(utils::aligned_size(this->viewportData), uniformUsage);
+  this->mvpBuffer      = utils::CreateBuffer(this->context.device, utils::aligned_size(Settings::mvp.get()), uniformUsage);
+  this->lightBuffer    = utils::CreateBuffer(this->context.device, utils::aligned_size(this->lightsData), uniformUsage);
+  this->viewportBuffer = utils::CreateBuffer(this->context.device, utils::aligned_size(this->viewportData), uniformUsage);
 
-  this->controlPointsBuffer = this->CreateBuffer( // dummy initial buffer
+  this->controlPointsBuffer = utils::CreateBuffer( // dummy initial buffer
+    this->context.device,
     16 * sizeof(glm::vec4),
     wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst
   );
@@ -187,7 +193,7 @@ SceneRenderPass::SceneRenderPass(Context& context) : RenderPass(context)
   this->InitializeShaderVariants();
 }
 
-SceneRenderPass::~SceneRenderPass()
+ScenePass::~ScenePass()
 {
   for (auto& v : this->shaderVariants)
   {
@@ -205,7 +211,7 @@ SceneRenderPass::~SceneRenderPass()
 }
 
 
-void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
+void ScenePass::Execute(wgpu::RenderPassEncoder& encoder)
 {
   const Context::Viewport& vp = context.sceneViewport;
   encoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0f, 1.0f);
@@ -242,7 +248,7 @@ void SceneRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   }
 }
 
-void SceneRenderPass::OnResize(glm::uvec2 size)
+void ScenePass::OnResize(glm::uvec2 size)
 {
   const Context::Viewport& vp = context.sceneViewport;
   camera.getAspect_M() = (vp.height > 0.0f) ? vp.width / vp.height : 1.0f;
@@ -256,7 +262,7 @@ void SceneRenderPass::OnResize(glm::uvec2 size)
   this->context.queue.writeBuffer(this->viewportBuffer, 0, &this->viewportData, sizeof(ViewportData));
 }
 
-wgpu::RenderPipeline SceneRenderPass::CreatePipeline(wgpu::ShaderModule& shader,
+wgpu::RenderPipeline ScenePass::CreatePipeline(wgpu::ShaderModule& shader,
                                                      wgpu::PipelineLayout& pipelineLayout,
                                                      wgpu::PrimitiveTopology topology)
 {
@@ -321,7 +327,7 @@ wgpu::RenderPipeline SceneRenderPass::CreatePipeline(wgpu::ShaderModule& shader,
   return this->context.device.createRenderPipeline(pipelineDesc);
 }
 
-void SceneRenderPass::InitializeShaderVariants()
+void ScenePass::InitializeShaderVariants()
 {
   const wgpu::ShaderStage vsfs = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
   const wgpu::ShaderStage fs   = wgpu::ShaderStage::Fragment;
@@ -329,15 +335,16 @@ void SceneRenderPass::InitializeShaderVariants()
   { //blinn-phong shader
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::BlinnPhong)];
 
-    v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
-      this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightsData)),
+    v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
+      utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
+      utils::CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightsData)),
     });
 
-    v.bindGroup = this->CreateBindGroup(
+    v.bindGroup = utils::CreateBindGroup(
+      this->context.device,
       std::vector<wgpu::BindGroupEntry>{
-        this->CreateBinding(0, this->mvpBuffer),
-        this->CreateBinding(1, this->lightBuffer),
+        utils::CreateBinding(0, this->mvpBuffer),
+        utils::CreateBinding(1, this->lightBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -346,8 +353,8 @@ void SceneRenderPass::InitializeShaderVariants()
     v.layout = this->context.device.createPipelineLayout(layoutDesc);
 
     wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/RenderPass/shaders/blinn_phong.wgsl");
-    if (!shader) throw new RenderPassException("Failed to load blinn_phong.wgsl");
+                                  "Pass/shaders/blinn_phong.wgsl");
+    if (!shader) throw std::runtime_error("Failed to load blinn_phong.wgsl");
     v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
     v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
     shader.release();
@@ -356,13 +363,14 @@ void SceneRenderPass::InitializeShaderVariants()
   { //flat shader
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::Flat)];
 
-    v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
+    v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
+      utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
     });
 
-    v.bindGroup = this->CreateBindGroup(
+    v.bindGroup = utils::CreateBindGroup(
+      this->context.device,
       std::vector<wgpu::BindGroupEntry>{
-        this->CreateBinding(0, this->mvpBuffer),
+        utils::CreateBinding(0, this->mvpBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -371,8 +379,8 @@ void SceneRenderPass::InitializeShaderVariants()
     v.layout = this->context.device.createPipelineLayout(layoutDesc);
 
     wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/RenderPass/shaders/flat.wgsl");
-    if (!shader) throw new RenderPassException("Failed to load flat.wgsl");
+                                  "Pass/shaders/flat.wgsl");
+    if (!shader) throw std::runtime_error("Failed to load flat.wgsl");
     v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
     v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
     shader.release();
@@ -381,17 +389,18 @@ void SceneRenderPass::InitializeShaderVariants()
   { //parametric error shader
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::ParametricError)];
 
-    v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform,         utils::aligned_size(Settings::mvp.get())),
-      this->CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform,         utils::aligned_size(this->viewportData)),
-      this->CreateBufferLayout(2, fs,   wgpu::BufferBindingType::ReadOnlyStorage, 0),
+    v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
+      utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform,         utils::aligned_size(Settings::mvp.get())),
+      utils::CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform,         utils::aligned_size(this->viewportData)),
+      utils::CreateBufferLayout(2, fs,   wgpu::BufferBindingType::ReadOnlyStorage, 0),
     });
 
-    v.bindGroup = this->CreateBindGroup(
+    v.bindGroup = utils::CreateBindGroup(
+      this->context.device,
       std::vector<wgpu::BindGroupEntry>{
-        this->CreateBinding(0, this->mvpBuffer),
-        this->CreateBinding(1, this->viewportBuffer),
-        this->CreateBinding(2, this->controlPointsBuffer),
+        utils::CreateBinding(0, this->mvpBuffer),
+        utils::CreateBinding(1, this->viewportBuffer),
+        utils::CreateBinding(2, this->controlPointsBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -400,8 +409,8 @@ void SceneRenderPass::InitializeShaderVariants()
     v.layout = this->context.device.createPipelineLayout(layoutDesc);
 
     wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/RenderPass/shaders/parametric_error.wgsl");
-    if (!shader) throw new RenderPassException("Failed to load parametric_error.wgsl");
+                                  "Pass/shaders/parametric_error.wgsl");
+    if (!shader) throw std::runtime_error("Failed to load parametric_error.wgsl");
     v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
     v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
     shader.release();
@@ -410,13 +419,14 @@ void SceneRenderPass::InitializeShaderVariants()
   { //triangle size shader
     auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::TriangleSize)];
 
-    v.bindGroupLayout = this->CreateBindGroupLayout({
-      this->CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
+    v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
+      utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
     });
 
-    v.bindGroup = this->CreateBindGroup(
+    v.bindGroup = utils::CreateBindGroup(
+      this->context.device,
       std::vector<wgpu::BindGroupEntry>{
-        this->CreateBinding(0, this->mvpBuffer),
+        utils::CreateBinding(0, this->mvpBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -425,15 +435,15 @@ void SceneRenderPass::InitializeShaderVariants()
     v.layout = this->context.device.createPipelineLayout(layoutDesc);
 
     wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/RenderPass/shaders/triangle_size.wgsl");
-    if (!shader) throw new RenderPassException("Failed to load triangle_size.wgsl");
+                                  "Pass/shaders/triangle_size.wgsl");
+    if (!shader) throw std::runtime_error("Failed to load triangle_size.wgsl");
     v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
     v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
     shader.release();
   }
 }
 
-wgpu::VertexAttribute SceneRenderPass::CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset)
+wgpu::VertexAttribute ScenePass::CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset)
 {
   wgpu::VertexAttribute attr;
   attr.shaderLocation = location;
@@ -442,7 +452,7 @@ wgpu::VertexAttribute SceneRenderPass::CreateAttribute(glm::u32 location, wgpu::
   return attr;
 }
 
-wgpu::BlendState SceneRenderPass::GetBlendState()
+wgpu::BlendState ScenePass::GetBlendState()
 {
   wgpu::BlendState state;
   state.color.srcFactor = wgpu::BlendFactor::SrcAlpha;
@@ -454,7 +464,7 @@ wgpu::BlendState SceneRenderPass::GetBlendState()
   return state;
 }
 
-void SceneRenderPass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
+void ScenePass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
 {
   if (this->vertexBuffer && this->ownsVertexBuffer)
     this->vertexBuffer.destroy();
@@ -474,7 +484,7 @@ void SceneRenderPass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
   }
 }
 
-void SceneRenderPass::CreateDepthTexture(glm::uvec2 size)
+void ScenePass::CreateDepthTexture(glm::uvec2 size)
 {
   if (this->depthTextureView) this->depthTextureView.release();
   if (this->depthTexture)     this->depthTexture.destroy();
@@ -503,14 +513,15 @@ void SceneRenderPass::CreateDepthTexture(glm::uvec2 size)
   this->depthTextureView = this->depthTexture.createView(viewDesc);
 }
 
-void SceneRenderPass::RebuildParametricErrorBindGroup()
+void ScenePass::RebuildParametricErrorBindGroup()
 {
   auto& v = this->shaderVariants[static_cast<size_t>(ShadingMode::ParametricError)];
   if (v.bindGroup) v.bindGroup.release();
-  v.bindGroup = this->CreateBindGroup(
+  v.bindGroup = utils::CreateBindGroup(
+    this->context.device,
     std::vector<wgpu::BindGroupEntry>{
-      this->CreateBinding(0, this->mvpBuffer),
-      this->CreateBinding(1, this->viewportBuffer),
-      this->CreateBinding(2, this->controlPointsBuffer),
+      utils::CreateBinding(0, this->mvpBuffer),
+      utils::CreateBinding(1, this->viewportBuffer),
+      utils::CreateBinding(2, this->controlPointsBuffer),
     }, v.bindGroupLayout);
 }

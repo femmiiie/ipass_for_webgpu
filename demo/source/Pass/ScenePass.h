@@ -3,19 +3,19 @@
 #include <array>
 
 #include "Camera.h"
+#include "Context.h"
 #include "InputManager.h"
-#include "RenderPass.h"
 #include "Settings.h"
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
 
-class SceneRenderPass : public RenderPass
+class ScenePass
 {
 public:
-  SceneRenderPass(Context& context);
-  ~SceneRenderPass();
-  void Execute(wgpu::RenderPassEncoder& encoder) override;
+  ScenePass(Context& context);
+  ~ScenePass();
+  void Execute(wgpu::RenderPassEncoder& encoder);
 
   void OnResize(glm::uvec2 size);
 
@@ -30,6 +30,10 @@ public:
   wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
 private:
+  Context& context;
+  glm::u32 vertexCount = 0;
+  wgpu::Buffer vertexBuffer;
+
   Camera camera;
 
   wgpu::Texture depthTexture;

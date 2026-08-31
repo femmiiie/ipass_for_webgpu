@@ -6,14 +6,15 @@
 
 #include <nuklear.h>
 
-#include "RenderPass.h"
+#include "Context.h"
 #include "File.h"
+#include "Shader.h"
 
 #include <string>
 
 using Vertex = utils::Vertex2D;
 
-class UIRenderPass : public RenderPass
+class UIPass
 {
 public:
 
@@ -25,9 +26,9 @@ public:
   static constexpr float BASE_FONT_SIZE  = 13.0f;
   static constexpr float MAX_FONT_SCALE  = 4.0f;
 
-  UIRenderPass(Context& context, const std::string& fontPath = "");
-  ~UIRenderPass();
-  void Execute(wgpu::RenderPassEncoder& encoder) override;
+  UIPass(Context& context, const std::string& fontPath = "");
+  ~UIPass();
+  void Execute(wgpu::RenderPassEncoder& encoder);
   void RenderUI();
 
   void InitSampler();
@@ -50,6 +51,13 @@ private:
   void RenderPerformanceWindow();
   bool DrawCombo(std::vector<const char*> items, glm::u32& selected);
   void ComponentLabel(nk_context* ctx, const char* text);
+
+  Context& context;
+  wgpu::PipelineLayout layout;
+  wgpu::BindGroup bindGroup;
+  wgpu::BindGroupLayout bindGroupLayout;
+  wgpu::RenderPipeline pipeline;
+  wgpu::Buffer vertexBuffer;
 
   nk_context uiContext;
   nk_font_atlas atlas;

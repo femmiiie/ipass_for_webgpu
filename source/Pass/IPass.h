@@ -1,17 +1,18 @@
 #pragma once
 
-#include "ComputePass.h"
+#include "GPU.h"
+#include "Shader.h"
 #include "TessConstants.h"
 #include <cstdint>
 
 
-class IPass : public ComputePass
+class IPass
 {
 public:
 
   IPass(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit);
   ~IPass();
-  bool Execute(wgpu::CommandEncoder& encoder) override;
+  bool Execute(wgpu::CommandEncoder& encoder);
 
   uint32_t GetPatchCount() { return patchCount; }
   wgpu::Buffer& GetOutputBuffer() { return patchesBuffer; }
@@ -20,6 +21,11 @@ public:
   void SetViewportWidth(float width) { viewportWidth = width; }
   void UploadPatches(const std::vector<utils::Vertex3D>& bicubicVerts);
   void SetPatchCount(uint32_t count) { patchCount = count; }
+
+  wgpu::Device device;
+  wgpu::Queue queue;
+
+  wgpu::ComputePipeline pipeline;
 
   // group 0 storage buffers
   wgpu::Buffer verticesBuffer;

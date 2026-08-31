@@ -1,6 +1,7 @@
 #include "IPass.h"
 #include "Shader.h"
 #include <webgpu/webgpu.h>
+#include <stdexcept>
 #include <vector>
 
 using Vertex3D = utils::Vertex3D;
@@ -36,22 +37,22 @@ void IPass::EnsureStorageCapacity(uint32_t requiredVertices)
   this->storageBindGroup.release();
   this->verticesBuffer.destroy();
 
-  this->verticesBuffer = this->CreateBuffer(resizedVerticesSize, storageReadUsage, false);
+  this->verticesBuffer = utils::CreateBuffer(this->device, resizedVerticesSize, storageReadUsage, false);
 
   std::vector<wgpu::BindGroupEntry> resizedStorageBindings = {
-    this->CreateBinding(0, this->verticesBuffer),
-    this->CreateBinding(1, this->patchesBuffer),
+    utils::CreateBinding(0, this->verticesBuffer),
+    utils::CreateBinding(1, this->patchesBuffer),
   };
-  this->storageBindGroup = this->CreateBindGroup(resizedStorageBindings, this->storageBindGroupLayout);
+  this->storageBindGroup = utils::CreateBindGroup(this->device, resizedStorageBindings, this->storageBindGroupLayout);
 }
 
 IPass::IPass(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit)
-  : ComputePass(device, queue), patchCapacity(patchLimit)
+  : device(device), queue(queue), patchCapacity(patchLimit)
 {
-  wgpu::ShaderModule shaderModule = utils::LoadShader(this->device, "Pass/ComputePass/ipass.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->device, "Pass/ipass.wgsl");
   if (!shaderModule)
   {
-    throw new ComputePassException("Failed to load shader module.");
+    throw std::runtime_error("Failed to load shader module.");
   }
 
   const wgpu::BufferUsage storageReadUsage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
@@ -62,41 +63,41 @@ IPass::IPass(wgpu::Device device, wgpu::Queue queue, uint32_t patchLimit)
   const uint64_t verticesSize = static_cast<uint64_t>(this->vertexCapacity) * sizeof(Vertex3D);
   const uint64_t patchesSize  = static_cast<uint64_t>(this->patchCapacity)  * sizeof(float);
 
-  this->verticesBuffer = this->CreateBuffer(verticesSize, storageReadUsage, false);
-  this->patchesBuffer  = this->CreateBuffer(patchesSize,  storageReadWriteUsage, false);
+  this->verticesBuffer = utils::CreateBuffer(this->device, verticesSize, storageReadUsage, false);
+  this->patchesBuffer  = utils::CreateBuffer(this->device, patchesSize,  storageReadWriteUsage, false);
 
   std::vector<wgpu::BindGroupEntry> storageBindings = {
-    this->CreateBinding(0, this->verticesBuffer),
-    this->CreateBinding(1, this->patchesBuffer),
+    utils::CreateBinding(0, this->verticesBuffer),
+    utils::CreateBinding(1, this->patchesBuffer),
   };
 
-  this->storageBindGroupLayout = this->CreateBindGroupLayout({
-    this->CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::ReadOnlyStorage, verticesSize),
-    this->CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Storage, patchesSize),
+  this->storageBindGroupLayout = utils::CreateBindGroupLayout(this->device, {
+    utils::CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::ReadOnlyStorage, verticesSize),
+    utils::CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Storage, patchesSize),
   });
 
-  this->storageBindGroup = this->CreateBindGroup(storageBindings, this->storageBindGroupLayout);
+  this->storageBindGroup = utils::CreateBindGroup(this->device, storageBindings, this->storageBindGroupLayout);
 
 
   const wgpu::BufferUsage uniformUsage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
 
-  wgpu::BindGroupLayout uniformLayout = this->CreateBindGroupLayout({
-    this->CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(glm::mat4))),
-    this->CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(uint32_t))),
-    this->CreateBufferLayout(2, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(float))),
+  wgpu::BindGroupLayout uniformLayout = utils::CreateBindGroupLayout(this->device, {
+    utils::CreateBufferLayout(0, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(glm::mat4))),
+    utils::CreateBufferLayout(1, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(uint32_t))),
+    utils::CreateBufferLayout(2, wgpu::ShaderStage::Compute, wgpu::BufferBindingType::Uniform, static_cast<uint64_t>(sizeof(float))),
   });
 
-  this->mvpBuffer       = this->CreateBuffer(sizeof(glm::mat4), uniformUsage, false);
-  this->vertCountBuffer = this->CreateBuffer(sizeof(glm::u32), uniformUsage, false);
-  this->pixelSizeBuffer = this->CreateBuffer(sizeof(glm::f32), uniformUsage, false);
+  this->mvpBuffer       = utils::CreateBuffer(this->device, sizeof(glm::mat4), uniformUsage, false);
+  this->vertCountBuffer = utils::CreateBuffer(this->device, sizeof(glm::u32), uniformUsage, false);
+  this->pixelSizeBuffer = utils::CreateBuffer(this->device, sizeof(glm::f32), uniformUsage, false);
 
   std::vector<wgpu::BindGroupEntry> uniformBindings = {
-    this->CreateBinding(0, this->mvpBuffer),
-    this->CreateBinding(1, this->vertCountBuffer),
-    this->CreateBinding(2, this->pixelSizeBuffer),
+    utils::CreateBinding(0, this->mvpBuffer),
+    utils::CreateBinding(1, this->vertCountBuffer),
+    utils::CreateBinding(2, this->pixelSizeBuffer),
   };
 
-  this->uniformBindGroup = this->CreateBindGroup(uniformBindings, uniformLayout);
+  this->uniformBindGroup = utils::CreateBindGroup(this->device, uniformBindings, uniformLayout);
 
   const std::vector<wgpu::BindGroupLayout> bindGroupLayouts = { this->storageBindGroupLayout, uniformLayout };
 

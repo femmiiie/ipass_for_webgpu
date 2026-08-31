@@ -1,16 +1,19 @@
-#include "UIRenderPass.h"
+#include "UIPass.h"
+#include "GPU.h"
+#include "Shader.h"
 #include "Renderer.h"
 #include "Settings.h"
 #include "UIStyle.h"
 
-#include "ipass/BVLoader.h"
+#include "ipass/ipass.h"
 
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
-UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : RenderPass(context)
+UIPass::UIPass(Context& context, const std::string& fontPath) : context(context)
 {
   this->uiScale = glm::max(1.0f, (float)context.size.y / 1080.0f);
 
@@ -71,13 +74,15 @@ UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : Rend
   this->convertConfig.arc_segment_count = 22;
   this->convertConfig.tex_null = nullTex;
 
-  this->vertexBuffer = this->CreateBuffer(
+  this->vertexBuffer = utils::CreateBuffer(
+    this->context.device,
     MAX_VERTEX_BUFFER_SIZE,
     wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex)),
     false
   );
 
-  this->indexBuffer = this->CreateBuffer(
+  this->indexBuffer = utils::CreateBuffer(
+    this->context.device,
     MAX_INDEX_BUFFER_SIZE,
     wgpu::BufferUsage(static_cast<WGPUBufferUsage>(wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index)),
     false
@@ -128,11 +133,11 @@ UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : Rend
 
   wgpu::SamplerBindingType samplerType = wgpu::SamplerBindingType::Filtering;
   std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts {
-    this->CreateSamplerLayout(0, wgpu::ShaderStage::Fragment, samplerType),
-    this->CreateTextureLayout(1, wgpu::ShaderStage::Fragment),
-    this->CreateBufferLayout(2, wgpu::ShaderStage::Vertex, wgpu::BufferBindingType::Uniform, 64),
+    utils::CreateSamplerLayout(0, wgpu::ShaderStage::Fragment, samplerType),
+    utils::CreateTextureLayout(1, wgpu::ShaderStage::Fragment),
+    utils::CreateBufferLayout(2, wgpu::ShaderStage::Vertex, wgpu::BufferBindingType::Uniform, 64),
   };
-  this->bindGroupLayout = this->CreateBindGroupLayout(bindingLayouts);
+  this->bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, bindingLayouts);
 
   wgpu::BindGroupEntry projEntry = wgpu::Default;
   projEntry.binding = 2;
@@ -141,16 +146,16 @@ UIRenderPass::UIRenderPass(Context& context, const std::string& fontPath) : Rend
   projEntry.size = 64;
 
   std::vector<wgpu::BindGroupEntry> bindings {
-    this->CreateBinding(0, this->sampler),
-    this->CreateBinding(1, view),
+    utils::CreateBinding(0, this->sampler),
+    utils::CreateBinding(1, view),
     projEntry
   };
-  this->bindGroup = this->CreateBindGroup(bindings);
+  this->bindGroup = utils::CreateBindGroup(this->context.device, bindings, this->bindGroupLayout);
 
   this->InitializeRenderPipeline();
 }
 
-UIRenderPass::~UIRenderPass()
+UIPass::~UIPass()
 {
   nk_buffer_free(&this->cmds);
   nk_buffer_free(&this->verts);
@@ -172,7 +177,7 @@ UIRenderPass::~UIRenderPass()
   this->texture.release();
 }
 
-void UIRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
+void UIPass::Execute(wgpu::RenderPassEncoder& encoder)
 {
   this->RenderUI();
 
@@ -207,12 +212,12 @@ void UIRenderPass::Execute(wgpu::RenderPassEncoder& encoder)
   nk_clear(&this->uiContext);
 }
 
-void UIRenderPass::InitializeRenderPipeline()
+void UIPass::InitializeRenderPipeline()
 {
-  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/RenderPass/ui.wgsl");
+  wgpu::ShaderModule shaderModule = utils::LoadShader(this->context.device, "Pass/ui.wgsl");
   if (!shaderModule)
   {
-    throw new RenderPassException("Failed to load shader module.");
+    throw std::runtime_error("Failed to load shader module.");
   }
 
   wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -281,7 +286,7 @@ void UIRenderPass::InitializeRenderPipeline()
   shaderModule.release();
 }
 
-wgpu::VertexAttribute UIRenderPass::CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset)
+wgpu::VertexAttribute UIPass::CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset)
 {
   wgpu::VertexAttribute attr;
   attr.shaderLocation = location;
@@ -290,7 +295,7 @@ wgpu::VertexAttribute UIRenderPass::CreateAttribute(glm::u32 location, wgpu::Ver
   return attr;
 }
 
-wgpu::BlendState UIRenderPass::GetBlendState()
+wgpu::BlendState UIPass::GetBlendState()
 {
   wgpu::BlendState state;
   state.color.srcFactor = wgpu::BlendFactor::SrcAlpha;
@@ -302,7 +307,7 @@ wgpu::BlendState UIRenderPass::GetBlendState()
   return state;
 }
 
-void UIRenderPass::InitSampler()
+void UIPass::InitSampler()
 {
   wgpu::SamplerDescriptor samplerDesc;
   samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -319,7 +324,7 @@ void UIRenderPass::InitSampler()
 }
 
 
-void UIRenderPass::UpdateProjection(glm::uvec2 size)
+void UIPass::UpdateProjection(glm::uvec2 size)
 {
   this->context.size = size;
   this->uiScale = glm::max(1.0f, (float)size.y / 1080.0f);
@@ -337,7 +342,7 @@ void UIRenderPass::UpdateProjection(glm::uvec2 size)
   this->lastScreenSize = size;
 }
 
-bool UIRenderPass::DrawCombo(std::vector<const char*> items, glm::u32& selected)
+bool UIPass::DrawCombo(std::vector<const char*> items, glm::u32& selected)
 {
   bool changed = false;
   nk_context* ctx = &this->uiContext;
@@ -373,7 +378,7 @@ bool UIRenderPass::DrawCombo(std::vector<const char*> items, glm::u32& selected)
   return changed;
 }
 
-void UIRenderPass::RenderUI()
+void UIPass::RenderUI()
 {
   nk_color checkColor = nk_rgba_f(Settings::clearColor.r, Settings::clearColor.g, Settings::clearColor.b, 1.0f);
   this->uiContext.style.checkbox.cursor_normal = nk_style_item_color(checkColor);
@@ -402,7 +407,7 @@ void UIRenderPass::RenderUI()
 }
 
 
-void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
+void UIPass::RenderMainPanel(glm::vec2 menu_size)
 {
   nk_context* ctx = &this->uiContext;
   static nk_flags flags = NK_WINDOW_BORDER;
@@ -410,7 +415,7 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
   if (nk_begin(ctx, "Test Window", nk_rect(0, 0, menu_size.x, menu_size.y), flags))
   {
     nk_layout_row_dynamic(ctx, 0, 2);
-    
+
     nk_label(ctx, this->current_filename.c_str(), NK_TEXT_LEFT);
     if (nk_button_label(ctx, "Open File"))
       utils::OpenFile("BezierView File", "bv", [this](std::string s){
@@ -420,7 +425,7 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
         ipass::Status status;
         Settings::patches.modify() = ipass::LoadBV(s, &status);
         if (status != ipass::Status::Success)
-          std::cerr << "[UIRenderPass] Failed to load " << s << std::endl;
+          std::cerr << "[UIPass] Failed to load " << s << std::endl;
       });
 
     {
@@ -453,7 +458,7 @@ void UIRenderPass::RenderMainPanel(glm::vec2 menu_size)
   nk_end(&this->uiContext);
 }
 
-void UIRenderPass::ComponentLabel(nk_context* ctx, const char* text)
+void UIPass::ComponentLabel(nk_context* ctx, const char* text)
 {
   nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, 1.0f));
   nk_layout_row_dynamic(ctx, 0, 1);
@@ -461,7 +466,7 @@ void UIRenderPass::ComponentLabel(nk_context* ctx, const char* text)
   nk_style_pop_vec2(ctx);
 }
 
-void UIRenderPass::RenderObjectPropertiesSection()
+void UIPass::RenderObjectPropertiesSection()
 {
   nk_context* ctx = &this->uiContext;
   float s = this->uiScale;
@@ -508,7 +513,7 @@ void UIRenderPass::RenderObjectPropertiesSection()
   nk_spacer(ctx);
 }
 
-void UIRenderPass::RenderDebugSection()
+void UIPass::RenderDebugSection()
 {
   nk_context* ctx = &this->uiContext;
 
@@ -551,7 +556,7 @@ void UIRenderPass::RenderDebugSection()
   nk_style_pop_vec2(ctx);
 }
 
-void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
+void UIPass::RenderSettingsSection(glm::vec2 menu_size)
 {
   nk_context* ctx = &this->uiContext;
   float s = this->uiScale;
@@ -603,7 +608,7 @@ void UIRenderPass::RenderSettingsSection(glm::vec2 menu_size)
   Settings::clearColor = { color.r, color.g, color.b, color.a };
 }
 
-void UIRenderPass::RenderShadingLegend(glm::vec2 menu_size)
+void UIPass::RenderShadingLegend(glm::vec2 menu_size)
 {
   ShadingMode activeMode = Settings::shadingMode.get();
   if (activeMode != ShadingMode::ParametricError && activeMode != ShadingMode::TriangleSize)
@@ -619,7 +624,7 @@ void UIRenderPass::RenderShadingLegend(glm::vec2 menu_size)
 
   float swatch_w = 16.0f * s;
   float text_w   = font.width(font.userdata, font.height, ">= 20 px", 8) + 8.0f * s;
-  
+
   float width = swatch_w + text_w + win.padding.x * 2.0f;
 
   float row_height    = std::max(font.height, swatch_w) * 1.1f;
@@ -669,7 +674,7 @@ void UIRenderPass::RenderShadingLegend(glm::vec2 menu_size)
   nk_end(ctx);
 }
 
-void UIRenderPass::RenderPerformanceWindow()
+void UIPass::RenderPerformanceWindow()
 {
   if (!Settings::perfWindow.get())
     return;

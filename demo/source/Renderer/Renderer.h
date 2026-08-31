@@ -20,8 +20,8 @@
 
 #include "Context.h"
 #include "ipass/Pipeline.h"
-#include "SceneRenderPass.h"
-#include "UIRenderPass.h"
+#include "ScenePass.h"
+#include "UIPass.h"
 #include "File.h"
 
 class Renderer
@@ -47,8 +47,8 @@ public:
   void OnResize(int w, int h);
 
 private:
-  SceneRenderPass *scenePass = nullptr;
-  UIRenderPass *uiPass = nullptr;
+  ScenePass *scenePass = nullptr;
+  UIPass *uiPass = nullptr;
   ipass::Pipeline *pipeline = nullptr;
 
   void UpdateSceneViewport();
