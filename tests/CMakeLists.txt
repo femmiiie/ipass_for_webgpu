@@ -15,6 +15,14 @@ if(NOT COMMAND ipass_embed_shaders)
   include(EmbedShaders)
 endif()
 
+include(FetchContent)
+FetchContent_Declare(Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG v3.7.1
+)
+FetchContent_MakeAvailable(Catch2)
+list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
+
 ipass_embed_shaders(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_shaders.h"
   SOURCES
@@ -25,40 +33,8 @@ ipass_embed_shaders(
   NAMES ipass tess_calc tess_scan tess_gen
 )
 
-# test_scan
-add_executable(test_scan
-  test_scan.cpp
-  ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
-)
-
-set_target_properties(test_scan PROPERTIES
-  CXX_STANDARD 23
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-)
-
-if(MSVC)
-  target_compile_options(test_scan PRIVATE /W4)
-else()
-  target_compile_options(test_scan PRIVATE -Wall -Wextra -pedantic)
-endif()
-
-target_link_libraries(test_scan PRIVATE webgpu glm::glm)
-target_include_directories(test_scan PRIVATE
-  ${webgpu_SOURCE_DIR}/include
-  ${IPASS_SOURCE_DIR}/Tessellator
-  ${IPASS_SOURCE_DIR}/Utils
-  ${CMAKE_CURRENT_BINARY_DIR}
-)
-target_compile_definitions(test_scan PRIVATE WEBGPU_BACKEND_${BACKEND})
-
-ipass_copy_webgpu_runtime(test_scan)
-
-add_test(NAME scan_pass COMMAND test_scan)
-
-# test_tess_quad
-add_executable(test_tess_quad
-  test_tess_quad.cpp
+add_executable(ipass_tests
+  tests.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessCalcPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessScanPass.cpp
   ${IPASS_SOURCE_DIR}/Tessellator/TessGenPass.cpp
@@ -66,26 +42,28 @@ add_executable(test_tess_quad
   ${IPASS_SOURCE_DIR}/Tessellator/Connectivity.cpp
 )
 
-set_target_properties(test_tess_quad PROPERTIES
+set_target_properties(ipass_tests PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
 )
 
 if(MSVC)
-  target_compile_options(test_tess_quad PRIVATE /W4 /Zi /Od)
-  target_link_options(test_tess_quad PRIVATE /DEBUG)
+  target_compile_options(ipass_tests PRIVATE /W4)
 else()
-  target_compile_options(test_tess_quad PRIVATE -Wall -Wextra -pedantic -g -O0)
+  target_compile_options(ipass_tests PRIVATE -Wall -Wextra -pedantic)
 endif()
 
-target_link_libraries(test_tess_quad PRIVATE webgpu glm::glm)
-target_include_directories(test_tess_quad PRIVATE
+target_link_libraries(ipass_tests PRIVATE webgpu glm::glm Catch2::Catch2WithMain)
+target_include_directories(ipass_tests PRIVATE
   ${webgpu_SOURCE_DIR}/include
   ${IPASS_SOURCE_DIR}/Tessellator
   ${IPASS_SOURCE_DIR}/Utils
   ${CMAKE_CURRENT_BINARY_DIR}
 )
-target_compile_definitions(test_tess_quad PRIVATE WEBGPU_BACKEND_${BACKEND})
+target_compile_definitions(ipass_tests PRIVATE WEBGPU_BACKEND_${BACKEND})
 
-ipass_copy_webgpu_runtime(test_tess_quad)
+ipass_copy_webgpu_runtime(ipass_tests)
+
+include(Catch)
+catch_discover_tests(ipass_tests)
