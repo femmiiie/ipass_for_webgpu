@@ -50,7 +50,7 @@ Renderer::Renderer()
   this->pipeline = new ipass::Pipeline(this->context.device, this->context.queue);
   this->pipeline->SetViewport(this->context.sceneViewport.width, this->context.sceneViewport.height);
   this->scenePass = new ScenePass(this->context);
-  this->uiPass = new UIPass(this->context, "fonts/Inter-VariableFont.ttf");
+  this->uiPass = new UIPass(this->context, "./fonts/Inter-VariableFont.ttf");
 
   this->stagingSize = this->pipeline->GetLODBuffer().getSize();
   wgpu::BufferDescriptor stagingDesc{};
