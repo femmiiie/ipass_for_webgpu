@@ -1,0 +1,50 @@
+#pragma once
+
+#include <webgpu/webgpu.hpp>
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+
+#include "PatchData.h"
+
+struct Tessellator; 
+
+namespace ipass {
+
+class TessellationPass {
+private:
+    Tessellator* impl = nullptr;
+
+public:
+    // C compatible constructors 
+    TessellationPass(WGPUDevice device, const Config& config = {})
+        : TessellationPass(wgpu::Device(device), config) {}
+    TessellationPass(WGPUDevice device, WGPUQueue queue, const Config& config = {})
+        : TessellationPass(wgpu::Device(device), wgpu::Queue(queue), config) {}
+
+    // C++ compatible construtors 
+    TessellationPass(wgpu::Device device, const Config& config = {})
+        : TessellationPass(device, device.getQueue(), config) {};
+    TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
+    
+    ~TessellationPass();
+
+    TessellationPass(const TessellationPass&)            = delete;
+    TessellationPass& operator=(const TessellationPass&) = delete;
+    TessellationPass(TessellationPass&&)                 = delete;
+    TessellationPass& operator=(TessellationPass&&)      = delete;
+
+    Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
+
+    Status Dispatch(WGPUCommandEncoder& encoder) { return Dispatch(wgpu::CommandEncoder(encoder)); }
+    Status Dispatch(wgpu::CommandEncoder& encoder);
+
+    wgpu::Buffer GetVertexBuffer() const;
+    wgpu::Buffer GetControlPointBuffer() const;
+    wgpu::Buffer GetTriCountBuffer() const;
+    uint32_t     GetMaxVertexCount() const;
+    uint32_t     GetPatchCount() const;
+
+};
+
+}

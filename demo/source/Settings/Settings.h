@@ -1,0 +1,100 @@
+#pragma once
+
+#include <functional>
+#include <vector>
+#include <variant>
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+
+#include <webgpu/webgpu.hpp>
+
+#include "ipass/PatchData.h"
+#include "MVP.h"
+
+struct TessOutput {
+  wgpu::Buffer buffer = nullptr;
+  uint32_t vertexCount = 0;
+  wgpu::Buffer controlPoints = nullptr;
+  uint32_t patchCount = 0;
+  uint32_t triangleCount = 0;
+};
+
+enum class ShadingMode { BlinnPhong = 0, Flat = 1, ParametricError = 2, TriangleSize = 3 };
+enum class PresentModeSetting { Fifo = 0, Immediate = 1, Mailbox = 2 };
+
+class Settings
+{
+public:
+  template<typename T>
+  struct Setting
+  {
+  private:
+    T value;
+    bool needsUpdate = false;
+    std::vector<std::function<void(const T&)>> subscribers;
+
+  public:
+    Setting() {};
+    Setting(T val) : value(val) {} 
+    T& get() { return this->value; }
+    void mark() { this->needsUpdate = true; }
+
+    T& modify()  {
+      this->needsUpdate = true;
+      return this->value;
+    }
+
+    bool pending() const { return this->needsUpdate; }
+
+    bool observe() {
+      bool state = this->needsUpdate;
+      this->needsUpdate = false;
+      return state;
+    }
+
+    void subscribe(std::function<void(const T&)> callback) {
+      this->subscribers.push_back(std::move(callback));
+    }
+
+    void notify() {
+      if (!this->needsUpdate) return;
+      this->needsUpdate = false;
+      for (auto& cb : this->subscribers)
+        cb(this->value);
+    }
+
+  };
+
+  static inline Setting<bool> wireframe    = {false};
+  static inline Setting<bool> tessellation = {false};
+  static inline Setting<bool> perfWindow   = {false};
+
+  static inline Setting<ipass::PatchData> patches;
+
+  static inline Setting<TessOutput> tessOutput;
+
+  static inline Setting<MVP> mvp = {MVP()};
+
+  static inline glm::vec3 translation = { 0.0f, 0.0f, 0.0f };
+  static inline glm::vec3 rotation    = { 0.0f, 0.0f, 0.0f }; // euler degrees, applied zyx
+  static inline glm::vec3 scale       = { 1.0f, 1.0f, 1.0f };
+
+  static inline Setting<ShadingMode>        shadingMode = {ShadingMode::BlinnPhong};
+  static inline Setting<PresentModeSetting> presentMode = {PresentModeSetting::Fifo};
+
+  static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
+
+  static void checkUpdates();
+
+private:
+  // snapshots for checkUpdates
+  static inline glm::vec3 prevTranslation = translation;
+  static inline glm::vec3 prevRotation    = rotation;
+  static inline glm::vec3 prevScale       = scale;
+  static inline glm::vec4 prevClearColor  = clearColor;
+
+  // update flags
+  static inline bool clearColorNeedsUpdate = true;
+  static inline bool surfaceNeedsUpdate    = true;
+};
