@@ -9,16 +9,16 @@ bool Tessellator::Init(wgpu::Buffer ipass_levels) {
     if (!gen_pass.Init(device))
         return false;
 
-    buf_quads = utils::CreateBuffer(device, (uint64_t)max_quads * 16 * sizeof(glm::vec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
-    buf_tess_factors = utils::CreateBuffer(device, (uint64_t)max_quads * sizeof(float), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
-    buf_tri_counts = utils::CreateBuffer(device, (uint64_t)max_quads * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
-    buf_tri_offsets = utils::CreateBuffer(device, (uint64_t)max_quads * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
-    buf_connectivity = utils::CreateBuffer(device, (uint64_t)max_quads * 2 * sizeof(glm::ivec4), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_quads = utils::CreateBuffer(device, (uint64_t)max_quads * patch::QUAD_BYTES, wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_tess_factors = utils::CreateBuffer(device, (uint64_t)max_quads * patch::TESS_FACTOR_BYTES, wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_tri_counts = utils::CreateBuffer(device, (uint64_t)max_quads * patch::TRI_COUNT_BYTES, wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_tri_offsets = utils::CreateBuffer(device, (uint64_t)max_quads * patch::TRI_OFFSET_BYTES, wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
+    buf_connectivity = utils::CreateBuffer(device, (uint64_t)max_quads * patch::CONNECTIVITY_BYTES, wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
     buf_block_sums = utils::CreateBuffer(device, 256 * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
     buf_bs_total = utils::CreateBuffer(device, sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc);
     // set output to be vertex buffer, can directly pass into scene
     // tess-gen writes 4 vec4 values per output vertex: pos, normal, color, uv/pad
-    buf_verts_out = utils::CreateBuffer(device, (uint64_t)max_quads * tess::MAX_TRIS_PER_PATCH * 3 * 4 * sizeof(glm::vec4),
+    buf_verts_out = utils::CreateBuffer(device, (uint64_t)max_quads * patch::VERTS_OUT_BYTES,
         wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex);
 
     {
