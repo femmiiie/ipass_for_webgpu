@@ -17,7 +17,7 @@ bool Tessellator::Init(wgpu::Buffer ipass_levels) {
     buf_block_sums = utils::CreateBuffer(device, 256 * sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst);
     buf_bs_total = utils::CreateBuffer(device, sizeof(uint32_t), wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc);
     // set output to be vertex buffer, can directly pass into scene
-    // tess-gen writes 4 vec4 values per output vertex: pos, normal, color, uv/pad
+    // tess-gen writes 3 vec4 values per output vertex: pos, normal, uv/pad
     buf_verts_out = utils::CreateBuffer(device, (uint64_t)max_quads * patch::VERTS_OUT_BYTES,
         wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex);
 

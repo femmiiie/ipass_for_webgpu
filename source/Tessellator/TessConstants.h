@@ -12,7 +12,7 @@ namespace patch {
   inline constexpr uint64_t TRI_COUNT_BYTES    = 4;        // buf_tri_counts: 1 uint32
   inline constexpr uint64_t TRI_OFFSET_BYTES   = 4;        // buf_tri_offsets: 1 uint32
   inline constexpr uint64_t CONNECTIVITY_BYTES = 2 * 16;   // buf_connectivity: 2 ivec4
-  inline constexpr uint64_t VERTS_OUT_BYTES    = MAX_TRIS * 3 * 4 * 16;
+  inline constexpr uint64_t VERTS_OUT_BYTES    = MAX_TRIS * 3 * 3 * 16;
 
   inline constexpr uint64_t BYTES_PER_PATCH =
       QUAD_BYTES + TESS_FACTOR_BYTES + TRI_COUNT_BYTES +

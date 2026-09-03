@@ -1,18 +1,16 @@
 struct vsInput {
   @location(0) position: vec4f,
   @location(1) normal: vec4f,
-  @location(2) color: vec4f,
-  @location(3) tex: vec2f,
-  @location(4) patch_idx: f32,
-  @location(5) bary_id: f32,
+  @location(2) tex: vec2f,
+  @location(3) patch_idx: f32,
+  @location(4) bary_id: f32,
 }
 
 struct fsInput {
   @builtin(position) position: vec4f,
   @location(0) normal: vec4f,
-  @location(1) color: vec4f,
-  @location(2) eyevector: vec4f,
-  @location(3) viewPosition: vec4f,
+  @location(1) eyevector: vec4f,
+  @location(2) viewPosition: vec4f,
 }
 
 struct MVP {
@@ -34,6 +32,7 @@ struct LightArray {
 
 @group(0) @binding(0) var<uniform> mvp: MVP;
 @group(0) @binding(1) var<uniform> lights: LightArray;
+@group(0) @binding(2) var<uniform> baseColor: vec4f;
 
 @vertex
 fn vs_main(input: vsInput) -> fsInput {
@@ -41,7 +40,6 @@ fn vs_main(input: vsInput) -> fsInput {
   let worldPos     = mvp.M * input.position;
   out.position     = mvp.VP * worldPos;
   out.normal       = transpose(mvp.M_inv) * input.normal;
-  out.color        = input.color;
   out.eyevector    = vec4f(mvp.cameraPos.xyz - worldPos.xyz, 0.0);
   out.viewPosition = worldPos;
 
@@ -79,7 +77,7 @@ fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,
 
 @fragment
 fn fs_main(input: fsInput) -> @location(0) vec4f {
-  let color = blinn_phong(input.color, 0.1, 10.0,
+  let color = blinn_phong(baseColor, 0.1, 10.0,
                           normalize(input.normal), normalize(input.eyevector),
                           input.viewPosition);
   return vec4f(color, 1.0);

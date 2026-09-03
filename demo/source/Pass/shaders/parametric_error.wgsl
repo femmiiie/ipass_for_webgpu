@@ -1,10 +1,9 @@
 struct vsInput {
   @location(0) position: vec4f,
   @location(1) normal: vec4f,
-  @location(2) color: vec4f,
-  @location(3) tex: vec2f,
-  @location(4) patch_idx: f32,
-  @location(5) bary_id: f32,
+  @location(2) tex: vec2f,
+  @location(3) patch_idx: f32,
+  @location(4) bary_id: f32,
 }
 
 struct fsInput {
