@@ -74,6 +74,7 @@ private:
   wgpu::Buffer mvpBuffer;
   wgpu::Buffer lightBuffer;
   wgpu::Buffer viewportBuffer;
+  wgpu::Buffer colorBuffer;
   wgpu::Buffer controlPointsBuffer;
   bool ownsControlPointsBuffer = false;
 
