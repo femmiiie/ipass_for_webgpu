@@ -72,11 +72,10 @@
 
     // Write a vertex into the output buffer
     fn write_vert(vi: u32, vert: Vertex, uv: vec2f, patch_idx: u32) {
-        let base = vi * 4u;
+        let base = vi * 3u;
         tg_vertsOut[base]      = vert.pos;
         tg_vertsOut[base + 1u] = vert.norm;
-        tg_vertsOut[base + 2u] = vec4f(0.8, 0.85, 0.9, 1.0);  // default color
-        tg_vertsOut[base + 3u] = vec4f(uv.x, uv.y, f32(patch_idx), f32(vi % 3u));
+        tg_vertsOut[base + 2u] = vec4f(uv.x, uv.y, f32(patch_idx), f32(vi % 3u));
     }
 
     fn st_to_uv(st: vec2f, side: u32) -> vec2f {

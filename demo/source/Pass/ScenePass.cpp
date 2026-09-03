@@ -40,14 +40,13 @@ void ScenePass::LoadPatches(const ipass::PatchData& data)
         );
         if (glm::length(n) > 0.0f) n = glm::normalize(n);
 
-        // pos(xyzw) normal(xyzw) color(rgba) uv(uv) patch_index, bary_id - 16f size
+        // pos(xyzw) normal(xyzw) uv(uv) patch_index, bary_id - 12f size
         auto pushVert = [&](const glm::vec4& p, float bary_id) {
           float w = std::abs(p.w) > 1e-7f ? p.w : 1.0f;
           glm::vec4 pos = p / w;
           vertexData.insert(vertexData.end(), {
             pos.x, pos.y, pos.z, 1.0f,
             n.x,   n.y,   n.z,   0.0f,
-            1.0f,  1.0f,  1.0f,  1.0f,
             1.0f,  1.0f,  0.0f,  bary_id
           });
         };
@@ -65,7 +64,7 @@ void ScenePass::LoadPatches(const ipass::PatchData& data)
     return;
   }
 
-  this->vertexCount = (glm::u32)vertexData.size() / 16;
+  this->vertexCount = (glm::u32)vertexData.size() / 12;
 
   if (this->vertexBuffer && this->ownsVertexBuffer)
     this->vertexBuffer.destroy();
@@ -146,6 +145,7 @@ ScenePass::ScenePass(Context& context) : context(context)
   this->mvpBuffer      = utils::CreateBuffer(this->context.device, utils::aligned_size(Settings::mvp.get()), uniformUsage);
   this->lightBuffer    = utils::CreateBuffer(this->context.device, utils::aligned_size(this->lightsData), uniformUsage);
   this->viewportBuffer = utils::CreateBuffer(this->context.device, utils::aligned_size(this->viewportData), uniformUsage);
+  this->colorBuffer    = utils::CreateBuffer(this->context.device, utils::aligned_size(glm::vec4()), uniformUsage);
 
   this->controlPointsBuffer = utils::CreateBuffer( // dummy initial buffer
     this->context.device,
@@ -154,9 +154,12 @@ ScenePass::ScenePass(Context& context) : context(context)
   );
   this->ownsControlPointsBuffer = true;
 
+  const glm::vec4 defaultBaseColor(0.8f, 0.85f, 0.9f, 1.0f);
+
   this->context.queue.writeBuffer(this->mvpBuffer,      0, &Settings::mvp.get(), sizeof(MVP));
-  this->context.queue.writeBuffer(this->lightBuffer,    0, &this->lightsData,  sizeof(LightsData));
-  this->context.queue.writeBuffer(this->viewportBuffer, 0, &this->viewportData, sizeof(ViewportData));
+  this->context.queue.writeBuffer(this->lightBuffer,    0, &this->lightsData,    sizeof(LightsData));
+  this->context.queue.writeBuffer(this->viewportBuffer, 0, &this->viewportData,  sizeof(ViewportData));
+  this->context.queue.writeBuffer(this->colorBuffer,    0, &defaultBaseColor,    sizeof(glm::vec4));
 
   Settings::mvp.subscribe([this](const MVP& m) {
     this->context.queue.writeBuffer(this->mvpBuffer, 0, &m, sizeof(MVP));
@@ -269,16 +272,15 @@ wgpu::RenderPipeline ScenePass::CreatePipeline(wgpu::ShaderModule& shader,
   std::vector<wgpu::VertexAttribute> vertexAttrs {
     this->CreateAttribute(0, wgpu::VertexFormat::Float32x4, 0),
     this->CreateAttribute(1, wgpu::VertexFormat::Float32x4, 4 * sizeof(glm::f32)),
-    this->CreateAttribute(2, wgpu::VertexFormat::Float32x4, 8 * sizeof(glm::f32)),
-    this->CreateAttribute(3, wgpu::VertexFormat::Float32x2, 12 * sizeof(glm::f32)),
-    this->CreateAttribute(4, wgpu::VertexFormat::Float32,   14 * sizeof(glm::f32)),
-    this->CreateAttribute(5, wgpu::VertexFormat::Float32,   15 * sizeof(glm::f32)),
+    this->CreateAttribute(2, wgpu::VertexFormat::Float32x2, 8 * sizeof(glm::f32)),
+    this->CreateAttribute(3, wgpu::VertexFormat::Float32,   10 * sizeof(glm::f32)),
+    this->CreateAttribute(4, wgpu::VertexFormat::Float32,   11 * sizeof(glm::f32)),
   };
 
   wgpu::VertexBufferLayout vertexBufferLayout;
   vertexBufferLayout.attributeCount = vertexAttrs.size();
   vertexBufferLayout.attributes     = vertexAttrs.data();
-  vertexBufferLayout.arrayStride    = 16 * sizeof(glm::f32);
+  vertexBufferLayout.arrayStride    = 12 * sizeof(glm::f32);
   vertexBufferLayout.stepMode       = wgpu::VertexStepMode::Vertex;
 
   wgpu::BlendState blend = this->GetBlendState();
@@ -338,6 +340,7 @@ void ScenePass::InitializeShaderVariants()
     v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
       utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
       utils::CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(this->lightsData)),
+      utils::CreateBufferLayout(2, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(glm::vec4())),
     });
 
     v.bindGroup = utils::CreateBindGroup(
@@ -345,6 +348,7 @@ void ScenePass::InitializeShaderVariants()
       std::vector<wgpu::BindGroupEntry>{
         utils::CreateBinding(0, this->mvpBuffer),
         utils::CreateBinding(1, this->lightBuffer),
+        utils::CreateBinding(2, this->colorBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -365,12 +369,14 @@ void ScenePass::InitializeShaderVariants()
 
     v.bindGroupLayout = utils::CreateBindGroupLayout(this->context.device, {
       utils::CreateBufferLayout(0, vsfs, wgpu::BufferBindingType::Uniform, utils::aligned_size(Settings::mvp.get())),
+      utils::CreateBufferLayout(1, fs,   wgpu::BufferBindingType::Uniform, utils::aligned_size(glm::vec4())),
     });
 
     v.bindGroup = utils::CreateBindGroup(
       this->context.device,
       std::vector<wgpu::BindGroupEntry>{
         utils::CreateBinding(0, this->mvpBuffer),
+        utils::CreateBinding(1, this->colorBuffer),
       }, v.bindGroupLayout);
 
     wgpu::PipelineLayoutDescriptor layoutDesc;
@@ -472,7 +478,7 @@ void ScenePass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
   this->ownsVertexBuffer = false;
   this->vertexBuffer    = buf;
 
-  const uint64_t stride = 16ull * sizeof(glm::f32);
+  const uint64_t stride = 12ull * sizeof(glm::f32);
   const uint64_t maxVertsByBuffer = stride > 0 ? (buf.getSize() / stride) : 0;
   this->vertexCount = static_cast<glm::u32>(std::min<uint64_t>(count, maxVertsByBuffer));
 
