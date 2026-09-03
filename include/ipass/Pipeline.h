@@ -18,15 +18,15 @@ private:
 
 public:
     // C compatible constructors 
-    Pipeline(WGPUDevice device, const Config& config = {})
+    Pipeline(WGPUDevice device, Config config = {})
         : Pipeline(wgpu::Device(device), config) {}
-    Pipeline(WGPUDevice device, WGPUQueue queue, const Config& config = {})
+    Pipeline(WGPUDevice device, WGPUQueue queue, Config config = {})
         : Pipeline(wgpu::Device(device), wgpu::Queue(queue), config) {}
 
     // C++ compatible construtors 
-    Pipeline(wgpu::Device device, const Config& config = {})
+    Pipeline(wgpu::Device device, Config config = {})
         : Pipeline(device, device.getQueue(), config) {}
-    Pipeline(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
+    Pipeline(wgpu::Device device, wgpu::Queue queue, Config config = {});
 
     ~Pipeline();
 
