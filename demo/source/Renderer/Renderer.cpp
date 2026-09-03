@@ -136,7 +136,9 @@ void Renderer::Initialize()
   if (adapter.getLimits(&supported)) //request max buffer size
   {
     wgpu::Limits required = wgpu::Default;
-    required.maxBufferSize = supported.maxBufferSize;
+    required.maxBufferSize = (supported.maxBufferSize != WGPU_LIMIT_U64_UNDEFINED)
+      ? supported.maxBufferSize
+      : supported.maxStorageBufferBindingSize;
     required.maxStorageBufferBindingSize = supported.maxStorageBufferBindingSize;
     deviceDesc.requiredLimits = &required;
     this->context.device = adapter.requestDevice(deviceDesc);
