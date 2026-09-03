@@ -52,7 +52,7 @@ Renderer::Renderer()
   this->scenePass = new ScenePass(this->context);
   this->uiPass = new UIPass(this->context, "./fonts/Inter-VariableFont.ttf");
 
-  this->stagingSize = this->pipeline->GetLODBuffer().getSize();
+  this->stagingSize = (size_t)this->pipeline->GetLODBuffer().getSize();
   wgpu::BufferDescriptor stagingDesc{};
   stagingDesc.size            = this->stagingSize;
   stagingDesc.usage           = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
@@ -407,7 +407,7 @@ wgpu::RenderPassDescriptor Renderer::GetRenderDescriptor(wgpu::TextureView& view
   return renderPassDesc;
 }
 
-void Renderer::MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, std::function<void()> onSuccess)
+void Renderer::MapBufferForRead(wgpu::Buffer& buffer, size_t size, std::function<void()> onSuccess)
 {
 #ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
   auto* cb = new std::function<void()>(std::move(onSuccess));

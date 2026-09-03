@@ -58,13 +58,13 @@ private:
   );
   void Initialize();
   void ConfigureSurface();
-  void MapBufferForRead(wgpu::Buffer& buffer, uint64_t size, std::function<void()> onSuccess);
+  void MapBufferForRead(wgpu::Buffer& buffer, size_t size, std::function<void()> onSuccess);
   void GetSurfaceFormat();
 
   wgpu::Texture texture;
 
   wgpu::Buffer stagingBuffer;
-  uint64_t     stagingSize  = 0;
+  size_t       stagingSize  = 0;
   bool         stagingBusy  = false;
   std::vector<glm::f32> debugReadback;
 
