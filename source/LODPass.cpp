@@ -1,22 +1,15 @@
 #include "ipass/LODPass.h"
 #include "IPass.h"
 #include "Shader.h"
-#include <algorithm>
 
 namespace ipass {
 
 LODPass::LODPass(wgpu::Device device, wgpu::Queue queue, const Config& config)
 {
-    uint32_t patchLimit = config.max_patches;
-    if (patchLimit == 0) {
-        wgpu::Limits limits = wgpu::Default;
-        if (device.getLimits(&limits))
-            patchLimit = tess::ComputeMaxPatches(std::min<uint64_t>(
-                limits.maxBufferSize, limits.maxStorageBufferBindingSize));
-        else
-            patchLimit = 64;
-    }
-    impl = new IPass(device, queue, patchLimit);
+    uint32_t maxPatches = config.max_patches ?
+        config.max_patches :
+        patch::ResolveMax(device);
+    impl = new IPass(device, queue, maxPatches);
 }
 
 LODPass::~LODPass()

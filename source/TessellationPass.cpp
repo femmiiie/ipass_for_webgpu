@@ -10,14 +10,9 @@ namespace ipass {
 
 TessellationPass::TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config)
 {
-  uint32_t maxPatches = config.max_patches;
-  if (maxPatches == 0) {
-    maxPatches = 64; // fallback if device limit query fails
-    wgpu::Limits limits = wgpu::Default;
-    if (device.getLimits(&limits))
-      maxPatches = tess::ComputeMaxPatches(std::min<uint64_t>(
-        limits.maxBufferSize, limits.maxStorageBufferBindingSize));
-  }
+  uint32_t maxPatches = config.max_patches ?
+    config.max_patches :
+    patch::ResolveMax(device);
 
   impl = new Tessellator(device, queue, maxPatches);
 }
@@ -78,7 +73,7 @@ wgpu::Buffer TessellationPass::GetTriCountBuffer() const
 
 uint32_t TessellationPass::GetMaxVertexCount() const
 {
-    return impl->GetNumQuads() * tess::MAX_TRIS_PER_PATCH * 3;
+    return impl->GetNumQuads() * patch::MAX_TRIS * 3;
 }
 
 uint32_t TessellationPass::GetPatchCount() const

@@ -1,6 +1,5 @@
 #include "ipass/Pipeline.h"
 #include "TessConstants.h"
-#include <algorithm>
 
 namespace ipass {
 
@@ -13,18 +12,13 @@ struct Pipeline::Impl {
         : lod(device, queue, config), tess(device, queue, config) {}
 };
 
-Pipeline::Pipeline(wgpu::Device device, wgpu::Queue queue, const Config& config)
+Pipeline::Pipeline(wgpu::Device device, wgpu::Queue queue, Config config)
 {
+    if (!config.max_patches)
+        config.max_patches = patch::ResolveMax(device);
+
     Config resolved = config;
-    if (resolved.max_patches == 0) {
-        wgpu::Limits limits = wgpu::Default;
-        if (device.getLimits(&limits))
-            resolved.max_patches = tess::ComputeMaxPatches(std::min<uint64_t>(
-                limits.maxBufferSize, limits.maxStorageBufferBindingSize));
-        else
-            resolved.max_patches = 64;
-    }
-    impl = new Impl(device, queue, resolved);
+    impl = new Impl(device, queue, config);
 }
 
 Pipeline::~Pipeline()
