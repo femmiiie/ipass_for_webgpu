@@ -37,11 +37,10 @@ struct LightArray {
 @vertex
 fn vs_main(input: vsInput) -> fsInput {
   var out: fsInput;
-  let worldPos     = mvp.M * input.position;
-  out.position     = mvp.VP * worldPos;
+  out.viewPosition = mvp.M * input.position;
+  out.position     = mvp.VP * out.viewPosition;
   out.normal       = transpose(mvp.M_inv) * input.normal;
-  out.eyevector    = vec4f(mvp.cameraPos.xyz - worldPos.xyz, 0.0);
-  out.viewPosition = worldPos;
+  out.eyevector    = vec4f(mvp.cameraPos.xyz - out.viewPosition.xyz, 0.0);
 
   return out;
 }
