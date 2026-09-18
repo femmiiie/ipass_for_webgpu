@@ -44,32 +44,71 @@ private:
 
   void ParsePatch()
   {
-    while (this->file.good())
+    // patches are always positive ints, skip any line that doesn't start with that
+    if (!std::isdigit(this->file.peek()))
     {
-      if (!this->file.good()) return;
+      std::string line;
+      std::getline(this->file, line);
+      return;
+    }
 
-      // patches are always positive ints, skip any line that doesn't start with that
-      if (!std::isdigit(this->file.peek()))
+    auto row = this->getRowU32(1);
+    if (row.empty()) return;
+
+    switch (row[0])
+    {
+      case 1:
+        return this->ParsePolyhedron();
+      case 4:
+        return this->ParseSquareTensorPatch();
+      case 5:
+        return this->ParseRectTensorPatch(3);
+      case 8:
+        return this->ParseRectTensorPatch(4); // rational: xyzw control points
+      default:
+        return;
+    }
+  }
+
+  void ParsePolyhedron()
+  {
+    auto header = this->getRowU32(2);
+    if (header.empty()) return;
+    glm::u32 vnum = header[0];
+    glm::u32 fnum = header[1];
+
+    std::vector<glm::vec3> verts(vnum);
+    for (glm::u32 v = 0; v < vnum; v++)
+    {
+      auto pos = this->getRowF32(3);
+      if (pos.empty()) return;
+      verts[v] = glm::vec3(pos[0], pos[1], pos[2]);
+    }
+
+    for (glm::u32 f = 0; f < fnum; f++)
+    {
+      glm::u32 count = this->getRowU32(1)[0];
+      auto indices = this->getRowU32(count);
+
+      //if count is 3, we record a degenerate patch that visits the third point twice
+      std::vector<glm::vec3> face = {
+        verts[indices[0]], verts[indices[1]], verts[indices[2]], verts[indices[2]],
+      };
+      if (count == 4) { face[2] = verts[indices[3]]; }
+
+      this->dims.emplace_back(2, 2);
+      Patch patch;
+
+      for (const glm::vec3& p : face)
       {
-        std::string line;
-        std::getline(this->file, line);
-        continue;
+        patch.emplace_back(Vertex3D{
+          .pos   = glm::vec4(p, 1.0f),
+          .color = glm::vec4(1),
+          .tex   = glm::vec2(1),
+          ._pad  = glm::vec2(0)
+        });
       }
-
-      auto row = this->getRowU32(1);
-      if (row.empty()) return;
-
-      switch (row[0])
-      {
-        case 4:
-          return this->ParseSquareTensorPatch();
-        case 5:
-          return this->ParseRectTensorPatch(3);
-        case 8:
-          return this->ParseRectTensorPatch(4); // rational: xyzw control points
-        default:
-          return;
-      }
+      this->patches.emplace_back(patch);
     }
   }
 
@@ -84,7 +123,7 @@ private:
   void ParseRectTensorPatch(int coordDim)
   {
     auto row = this->getRowU32(2);
-    if (row.size() < 2) return;
+    if (row.empty()) return;
     this->ParseTensorPatch(row[0], row[1], coordDim);
   }
 
@@ -97,7 +136,7 @@ private:
       for (glm::u32 j = 0; j <= degV; j++)
       {
         auto pos = this->getRowF32(coordDim);
-        if (pos.size() < 3) continue;
+        if (pos.empty()) continue;
 
         glm::vec4 glm_pos = coordDim >= 4
           ? glm::vec4(pos[0], pos[1], pos[2], pos[3])
