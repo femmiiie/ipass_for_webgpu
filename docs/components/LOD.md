@@ -16,7 +16,7 @@ Standalone compute pass that determines the tessellation level for each patch ba
 **Copy/Move**
  
 - **Copy** is *not* supported
-- **Move** is supported
+- **Move** is *not* supported
  
 **Public Methods**
  
