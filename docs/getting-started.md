@@ -49,7 +49,7 @@ target_link_libraries(my_app PRIVATE ipass_lib)
 target_compile_features(my_app PRIVATE cxx_std_23)
 ```
 
-### Initializing Pipeline
+#### Initializing Pipeline
 
 ```cpp
 #include <ipass/ipass.h>
