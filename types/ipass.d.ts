@@ -17,12 +17,13 @@ export interface BVLoadResult {
 }
 
 export interface OutputVertexLayout {
-    FLOATS_PER_VERTEX: 16;
-    BYTES_PER_VERTEX: 64;
+    FLOATS_PER_VERTEX: 12;
+    BYTES_PER_VERTEX: 48;
     POSITION_OFFSET: 0;
     NORMAL_OFFSET: 16;
-    COLOR_OFFSET: 32;
-    UV_OFFSET: 48;
+    UV_OFFSET: 32;
+    PATCH_INDEX_OFFSET: 40;
+    BARY_ID_OFFSET: 44;
 }
 
 export declare enum Status {
