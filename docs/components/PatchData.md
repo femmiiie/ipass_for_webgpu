@@ -41,10 +41,11 @@ Contains constant information about the library instance
 
 - `uint32_t FLOATS_PER_VERTEX`: number of floating-point values per vertex
 - `uint32_t BYTES_PER_VERTEX`: size of a vertex in bytes (generally 4 * FLOATS_PER_VERTEX)
-- `uint32_t POSITION_OFFSET`: byte offset of the position attribute in the vertex
-- `uint32_t NORMAL_OFFSET`: byte offset of the normal attribute in the vertex
-- `uint32_t COLOR_OFFSET`: byte offset of the color attribute in the vertex
-- `uint32_t UV_OFFSET`: byte offset of the UV attribute in the vertex
+- `uint32_t POSITION_OFFSET`: byte offset of the position attribute (`vec4`) in the vertex
+- `uint32_t NORMAL_OFFSET`: byte offset of the normal attribute (`vec4`) in the vertex
+- `uint32_t UV_OFFSET`: byte offset of the UV attribute (`vec2`) in the vertex
+- `uint32_t PATCH_INDEX_OFFSET`: byte offset of the source patch index (`float`) in the vertex
+- `uint32_t BARY_ID_OFFSET`: byte offset of the vertex's position within its triangle, 0-2 (`float`) in the vertex
 
 ---
 
