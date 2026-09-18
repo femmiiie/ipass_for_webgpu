@@ -16,7 +16,7 @@ Standalone compute pass that generates tessellated vertex data from patch contro
 **Copy/Move**
 
 - **Copy** is *not* supported
-- **Move** is supported
+- **Move** is *not* supported
 
 **Public Methods**
 

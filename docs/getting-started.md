@@ -3,7 +3,7 @@
 ## Building
 
 Building the main app with CMake builds the library by default, below is instructions for building the library separately.
-Clone the repository using `git clone https://github.com/femmiiie/senior_project.git`.
+Clone the repository using `git clone https://github.com/femmiiie/ipass_for_webgpu.git`.
 
 ### C++
 
@@ -58,7 +58,7 @@ ipass::Config config; //optional
 ipass::Pipeline pipeline(device, queue, config);
 
 ipass::Status loadStatus;
-ipass::PatchData patches = ipass::BVLoader::Load("input.bv":, &loadStatus);
+ipass::PatchData patches = ipass::LoadBV("input.bv", &loadStatus);
 if (loadStatus != ipass::Status::Success)
   return;
 
@@ -85,7 +85,7 @@ if VIEWPORT_DIFFERENT
   pipeline.SetViewport(/*width*/, /*height*/);
 
 wgpu::CommandEncoderDescriptor encoderDescriptor;
-encoderDesc.label = WGPU_STRING_VIEW_INIT;
+encoderDescriptor.label = WGPU_STRING_VIEW_INIT;
 wgpu::CommandEncoder encoder = device.createCommandEncoder(encoderDescriptor);
 
 if (pipeline.Execute(encoder) != ipass::Status::Success) {
