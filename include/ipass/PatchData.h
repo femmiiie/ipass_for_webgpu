@@ -27,12 +27,13 @@ struct PatchData {
 
 //Utility struct for end users to get output information
 struct OutputVertexLayout {
-    static constexpr uint32_t FLOATS_PER_VERTEX = 16;
-    static constexpr uint32_t BYTES_PER_VERTEX  = 64;
-    static constexpr uint32_t POSITION_OFFSET   = 0;
-    static constexpr uint32_t NORMAL_OFFSET     = 16;
-    static constexpr uint32_t COLOR_OFFSET      = 32;
-    static constexpr uint32_t UV_OFFSET         = 48;
+    static constexpr uint32_t FLOATS_PER_VERTEX  = 12;
+    static constexpr uint32_t BYTES_PER_VERTEX   = 48;
+    static constexpr uint32_t POSITION_OFFSET    = 0;
+    static constexpr uint32_t NORMAL_OFFSET      = 16;
+    static constexpr uint32_t UV_OFFSET          = 32;
+    static constexpr uint32_t PATCH_INDEX_OFFSET = 40;
+    static constexpr uint32_t BARY_ID_OFFSET     = 44;
 };
 
 

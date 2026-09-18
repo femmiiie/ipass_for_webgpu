@@ -135,8 +135,9 @@ EMSCRIPTEN_BINDINGS(ipass_module) {
     emscripten::constant("BYTES_PER_VERTEX", ipass::OutputVertexLayout::BYTES_PER_VERTEX);
     emscripten::constant("POSITION_OFFSET", ipass::OutputVertexLayout::POSITION_OFFSET);
     emscripten::constant("NORMAL_OFFSET", ipass::OutputVertexLayout::NORMAL_OFFSET);
-    emscripten::constant("COLOR_OFFSET", ipass::OutputVertexLayout::COLOR_OFFSET);
     emscripten::constant("UV_OFFSET", ipass::OutputVertexLayout::UV_OFFSET);
+    emscripten::constant("PATCH_INDEX_OFFSET", ipass::OutputVertexLayout::PATCH_INDEX_OFFSET);
+    emscripten::constant("BARY_ID_OFFSET", ipass::OutputVertexLayout::BARY_ID_OFFSET);
 
 
     emscripten::enum_<ipass::Status>("Status")
