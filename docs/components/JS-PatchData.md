@@ -57,9 +57,10 @@ Contains constant information about the layout of the tessellated vertex output.
 
 **Fields (All Constant)**
 
-- `FLOATS_PER_VERTEX: 16`: number of floating-point values per vertex.
-- `BYTES_PER_VERTEX: 64`: size of a vertex in bytes.
-- `POSITION_OFFSET: 0`: byte offset of the position attribute in the vertex.
-- `NORMAL_OFFSET: 16`: byte offset of the normal attribute in the vertex.
-- `COLOR_OFFSET: 32`: byte offset of the color attribute in the vertex.
-- `UV_OFFSET: 48`: byte offset of the UV attribute in the vertex.
+- `FLOATS_PER_VERTEX: 12`: number of floating-point values per vertex.
+- `BYTES_PER_VERTEX: 48`: size of a vertex in bytes.
+- `POSITION_OFFSET: 0`: byte offset of the position attribute (`vec4`) in the vertex.
+- `NORMAL_OFFSET: 16`: byte offset of the normal attribute (`vec4`) in the vertex.
+- `UV_OFFSET: 32`: byte offset of the UV attribute (`vec2`) in the vertex.
+- `PATCH_INDEX_OFFSET: 40`: byte offset of the source patch index (`float`) in the vertex.
+- `BARY_ID_OFFSET: 44`: byte offset of the vertex's position within its triangle, 0-2 (`float`) in the vertex.
