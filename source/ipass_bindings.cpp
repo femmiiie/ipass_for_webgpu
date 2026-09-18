@@ -91,9 +91,7 @@ public:
 
 emscripten::val loadBVFile(const std::string& filepath, uint32_t maxPatches) {
     ipass::Status status;
-    ipass::PatchData data = (maxPatches > 0)
-        ? ipass::BVLoader::Load(filepath, maxPatches, &status)
-        : ipass::BVLoader::Load(filepath, &status);
+    ipass::PatchData data = ipass::LoadBV(filepath, &status, maxPatches);
 
     emscripten::val result = emscripten::val::object();
     result.set("status", static_cast<int>(status));
