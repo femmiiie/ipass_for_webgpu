@@ -11,3 +11,5 @@ fiveserver.config.js
 
 .vscode/
 fiveserver.config.js
+
+docs/_site/*
