@@ -47,6 +47,7 @@ namespace utils
   {"tess-calc.wgsl", &embedded_shaders::tess_calc},
   {"tess-scan.wgsl", &embedded_shaders::tess_scan},
   {"tess-gen.wgsl",  &embedded_shaders::tess_gen},
+  {"tess-direct.wgsl", &embedded_shaders::tess_direct},
     };
 
     auto pos = filepath.find_last_of("/\\");
@@ -70,5 +71,19 @@ namespace utils
     std::string shaderSource = ss.str();
 
     return LoadShaderFromSource(device, shaderSource);
+  }
+
+  // one compute pass with a single pipeline and a bind group at index 0, 256 threads per workgroup
+  static inline void DispatchCompute(wgpu::CommandEncoder& encoder, wgpu::ComputePipeline pipeline, wgpu::BindGroup bg, uint32_t threads)
+  {
+    const uint32_t workgroup_size = 256;
+
+    wgpu::ComputePassDescriptor pd;
+    wgpu::ComputePassEncoder pass = encoder.beginComputePass(pd);
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bg, 0, nullptr);
+    pass.dispatchWorkgroups((threads + workgroup_size - 1) / workgroup_size, 1, 1);
+    pass.end();
+    pass.release();
   }
 }

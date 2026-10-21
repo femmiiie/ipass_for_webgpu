@@ -1,7 +1,3 @@
-export interface PipelineOptions {
-    maxPatches?: number;
-}
-
 export interface PatchData {
     controlPoints: Float32Array;
     cornerIndices: Uint32Array;
@@ -34,9 +30,8 @@ export declare enum Status {
     LoadFailed = 5,
 }
 
-export declare class Pipeline {
-    constructor(device: GPUDevice, options?: PipelineOptions);
-
+// methods both pipelines share
+declare abstract class PipelineBase {
     loadPatches(data: PatchData): number;
     setMVP(matrix: Float32Array | number[]): void;
     setViewport(width: number, height: number): void;
@@ -45,19 +40,36 @@ export declare class Pipeline {
     dispatchLOD(encoder: GPUCommandEncoder): number;
     dispatchTessellation(encoder: GPUCommandEncoder): number;
 
-    getVertexBuffer(): GPUBuffer;
     getLODBuffer(): GPUBuffer;
-    getMaxVertexCount(): number;
 
     destroy(): void;
 }
 
+// Tessellates into a vertex buffer, see OutputVertexLayout.
+export declare class ComputePipeline extends PipelineBase {
+    constructor(device: GPUDevice, maxPatches?: number); // 0 autosizes based on device limits
+
+    getVertexBuffer(): GPUBuffer;
+    getMaxVertexCount(): number;
+}
+
+// Evaluates the surface in your vertex shader, see draw.
+export declare class VertexPipeline extends PipelineBase {
+    constructor(device: GPUDevice, maxPatches?: number); // 0 autosizes based on device limits
+
+    draw(pass: GPURenderPassEncoder): number;
+    getSurfaceBindGroupLayout(): GPUBindGroupLayout;
+    static getSurfaceShaderSource(): string;
+}
+
 export interface IPASSModule {
-    Pipeline: typeof Pipeline;
+    ComputePipeline: typeof ComputePipeline;
+    VertexPipeline: typeof VertexPipeline;
     OutputVertexLayout: OutputVertexLayout;
     Status: typeof Status;
+    SURFACE_BIND_GROUP: 1;
 
-    loadBVFile(data: ArrayBuffer, options?: { maxPatches?: number }): BVLoadResult;
+    loadBVFile(data: ArrayBuffer, maxPatches?: number): BVLoadResult; // 0 loads every patch
 }
 
 declare function createIPASS(): Promise<IPASSModule>;

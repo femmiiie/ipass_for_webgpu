@@ -68,7 +68,7 @@ namespace utils
     return binding;
   }
 
-  static inline wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer& buffer)
+  static inline wgpu::BindGroupEntry CreateBinding(uint16_t entry, wgpu::Buffer buffer)
   {
     wgpu::BindGroupEntry binding = wgpu::Default;
     binding.binding = entry;
@@ -78,7 +78,7 @@ namespace utils
     return binding;
   }
 
-  static inline wgpu::BindGroup CreateBindGroup(wgpu::Device device, std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout& bindLayout)
+  static inline wgpu::BindGroup CreateBindGroup(wgpu::Device device, std::vector<wgpu::BindGroupEntry> bindings, wgpu::BindGroupLayout bindLayout)
   {
     wgpu::BindGroupDescriptor desc;
     desc.layout = bindLayout;
@@ -92,5 +92,37 @@ namespace utils
     const uint64_t size = buffer.getSize();
     if (size == 0) return;
     encoder.clearBuffer(buffer, 0, size);
+  }
+
+  // clears every created buffer in a single submit
+  static inline void ClearBuffers(wgpu::Device device, wgpu::Queue queue, const std::vector<wgpu::Buffer*>& buffers)
+  {
+    wgpu::CommandEncoderDescriptor encoder_desc = {};
+    encoder_desc.label = WGPU_STRING_VIEW_INIT;
+    wgpu::CommandEncoder encoder = device.createCommandEncoder(encoder_desc);
+
+    for (wgpu::Buffer* buf : buffers) {
+      if (*buf)
+        ClearBuffer(encoder, *buf);
+    }
+
+    wgpu::CommandBufferDescriptor cmd_desc = {};
+    cmd_desc.label = WGPU_STRING_VIEW_INIT;
+    wgpu::CommandBuffer command = encoder.finish(cmd_desc);
+    encoder.release();
+
+    queue.submit(1, &command);
+    command.release();
+  }
+
+  // releases every created buffer, leaving them null
+  static inline void ReleaseBuffers(const std::vector<wgpu::Buffer*>& buffers)
+  {
+    for (wgpu::Buffer* buf : buffers) {
+      if (*buf) {
+        buf->release();
+        *buf = nullptr;
+      }
+    }
   }
 }

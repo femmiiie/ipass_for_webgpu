@@ -4,12 +4,9 @@
 
 namespace ipass {
 
-LODPass::LODPass(wgpu::Device device, wgpu::Queue queue, const Config& config)
+LODPass::LODPass(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches)
 {
-    uint32_t maxPatches = config.max_patches ?
-        config.max_patches :
-        patch::ResolveMax(device);
-    impl = new IPass(device, queue, maxPatches);
+    impl = new IPass(device, queue, patch::ResolveMax(device, max_patches, patch::INPUT_BYTES));
 }
 
 LODPass::~LODPass()

@@ -7,32 +7,40 @@
 
 #include "PatchData.h"
 
-struct Tessellator; 
+#include <string>
+
+class ComputeTessellator;
+class VertexTessellator;
 
 namespace ipass {
 
-class TessellationPass {
+// bindgroup index of the surface bindings
+inline constexpr uint32_t SURFACE_BIND_GROUP = 1;
+
+class ComputeTessPass {
 private:
-    Tessellator* impl = nullptr;
+    ComputeTessellator* impl = nullptr;
 
 public:
-    // C compatible constructors 
-    TessellationPass(WGPUDevice device, const Config& config = {})
-        : TessellationPass(wgpu::Device(device), config) {}
-    TessellationPass(WGPUDevice device, WGPUQueue queue, const Config& config = {})
-        : TessellationPass(wgpu::Device(device), wgpu::Queue(queue), config) {}
+    // max_patches=0 autosizes based on device limits
 
-    // C++ compatible construtors 
-    TessellationPass(wgpu::Device device, const Config& config = {})
-        : TessellationPass(device, device.getQueue(), config) {};
-    TessellationPass(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
-    
-    ~TessellationPass();
+    // C compatible constructors
+    ComputeTessPass(WGPUDevice device, uint32_t max_patches = 0)
+        : ComputeTessPass(wgpu::Device(device), max_patches) {}
+    ComputeTessPass(WGPUDevice device, WGPUQueue queue, uint32_t max_patches = 0)
+        : ComputeTessPass(wgpu::Device(device), wgpu::Queue(queue), max_patches) {}
 
-    TessellationPass(const TessellationPass&)            = delete;
-    TessellationPass& operator=(const TessellationPass&) = delete;
-    TessellationPass(TessellationPass&&)                 = delete;
-    TessellationPass& operator=(TessellationPass&&)      = delete;
+    // C++ compatible construtors
+    ComputeTessPass(wgpu::Device device, uint32_t max_patches = 0)
+        : ComputeTessPass(device, device.getQueue(), max_patches) {}
+    ComputeTessPass(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches = 0);
+
+    ~ComputeTessPass();
+
+    ComputeTessPass(const ComputeTessPass&)            = delete;
+    ComputeTessPass& operator=(const ComputeTessPass&) = delete;
+    ComputeTessPass(ComputeTessPass&&)                 = delete;
+    ComputeTessPass& operator=(ComputeTessPass&&)      = delete;
 
     Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
 
@@ -40,11 +48,56 @@ public:
     Status Dispatch(wgpu::CommandEncoder& encoder);
 
     wgpu::Buffer GetVertexBuffer() const;
-    wgpu::Buffer GetControlPointBuffer() const;
-    wgpu::Buffer GetTriCountBuffer() const;
     uint32_t     GetMaxVertexCount() const;
-    uint32_t     GetPatchCount() const;
 
+    wgpu::Buffer GetControlPointBuffer() const;
+    wgpu::Buffer GetTriCountBuffer() const; // total triangle count
+    uint32_t     GetPatchCount() const;
+};
+
+class VertexTessPass {
+private:
+    VertexTessellator* impl = nullptr;
+
+public:
+    // max_patches=0 autosizes based on device limits
+
+    // C compatible constructors
+    VertexTessPass(WGPUDevice device, uint32_t max_patches = 0)
+        : VertexTessPass(wgpu::Device(device), max_patches) {}
+    VertexTessPass(WGPUDevice device, WGPUQueue queue, uint32_t max_patches = 0)
+        : VertexTessPass(wgpu::Device(device), wgpu::Queue(queue), max_patches) {}
+
+    // C++ compatible construtors
+    VertexTessPass(wgpu::Device device, uint32_t max_patches = 0)
+        : VertexTessPass(device, device.getQueue(), max_patches) {}
+    VertexTessPass(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches = 0);
+
+    ~VertexTessPass();
+
+    VertexTessPass(const VertexTessPass&)            = delete;
+    VertexTessPass& operator=(const VertexTessPass&) = delete;
+    VertexTessPass(VertexTessPass&&)                 = delete;
+    VertexTessPass& operator=(VertexTessPass&&)      = delete;
+
+    Status UploadPatches(const PatchData& data, wgpu::Buffer lod_buffer);
+
+    Status Dispatch(WGPUCommandEncoder& encoder) { return Dispatch(wgpu::CommandEncoder(encoder)); }
+    Status Dispatch(wgpu::CommandEncoder& encoder);
+
+    // binds the surface bindgroup and issue an indirect draw
+    Status Draw(WGPURenderPassEncoder pass) { wgpu::RenderPassEncoder p(pass); return Draw(p); }
+    Status Draw(wgpu::RenderPassEncoder& pass);
+
+    // available before patches are loaded, so render pipelines can be built up front
+    wgpu::BindGroupLayout GetSurfaceBindGroupLayout() const;
+
+    // WGSL code defining ipass_vertex(vertex_index, instance_index) with its bindings at SURFACE_BIND_GROUP
+    static const std::string& GetSurfaceShaderSource();
+
+    wgpu::Buffer GetControlPointBuffer() const;
+    wgpu::Buffer GetTriCountBuffer() const; // total triangle count, written by Dispatch
+    uint32_t     GetPatchCount() const;
 };
 
 }

@@ -1,4 +1,5 @@
 #include "TessScanPass.h"
+#include "GPU.h"
 #include "Shader.h"
 #include <cstring>
 
@@ -41,6 +42,28 @@ bool TessScanPass::SetBindGroups(wgpu::BindGroup lvl1, wgpu::BindGroup lvl2, wgp
     bg_lvl2.addRef();
     bg_comb = comb;
     bg_comb.addRef();
+    return true;
+}
+
+bool TessScanPass::Bind(wgpu::Buffer counts, wgpu::Buffer offsets, wgpu::Buffer block_sums, wgpu::Buffer total) {
+    wgpu::BindGroup lvl1 = utils::CreateBindGroup(device, {
+        utils::CreateBinding(0, counts),
+        utils::CreateBinding(1, offsets),
+        utils::CreateBinding(2, block_sums),
+    }, GetLevel1BGL());
+    wgpu::BindGroup lvl2 = utils::CreateBindGroup(device, {
+        utils::CreateBinding(0, block_sums),
+        utils::CreateBinding(1, total),
+    }, GetLevel2BGL());
+    wgpu::BindGroup comb = utils::CreateBindGroup(device, {
+        utils::CreateBinding(1, offsets),
+        utils::CreateBinding(2, block_sums),
+    }, GetCombineBGL());
+
+    SetBindGroups(lvl1, lvl2, comb);
+    lvl1.release();
+    lvl2.release();
+    comb.release();
     return true;
 }
 

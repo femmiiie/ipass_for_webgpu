@@ -1,66 +1,87 @@
 (function () {
-    if (Module['Pipeline']) {
+    if (Module['ComputePipeline'] || Module['VertexPipeline']) {
         return;
     }
 
-    function Pipeline(gpuDevice, options) {
-        options = options || {};
-        var maxPatches = (typeof options.maxPatches === 'number') ? options.maxPatches : 0;
-        this._inner = new Module._Pipeline(gpuDevice, maxPatches);
+    // maxPatches = 0 autosizes based on device limits
+    function ComputePipeline(gpuDevice, maxPatches) {
+        this._inner = new Module._GeometryPipeline(gpuDevice, maxPatches || 0);
     }
 
-    Pipeline.prototype.loadPatches = function (patchData) {
-        return this._inner.loadPatches(
-            patchData.controlPoints,
-            patchData.cornerIndices,
-            patchData.numPatches
-        );
-    };
+    function VertexPipeline(gpuDevice, maxPatches) {
+        this._inner = new Module._DirectPipeline(gpuDevice, maxPatches || 0);
+    }
 
-    Pipeline.prototype.setMVP = function (matrix) {
-        var f32 = (matrix instanceof Float32Array) ? matrix : new Float32Array(matrix);
-        this._inner.setMVP(f32);
-    };
+    // methods both pipelines share
+    function addSharedMethods(proto) {
+        proto.loadPatches = function (patchData) {
+            return this._inner.loadPatches(
+                patchData.controlPoints,
+                patchData.cornerIndices,
+                patchData.numPatches
+            );
+        };
 
-    Pipeline.prototype.setViewport = function (width, height) {
-        this._inner.setViewport(width, height);
-    };
+        proto.setMVP = function (matrix) {
+            var f32 = (matrix instanceof Float32Array) ? matrix : new Float32Array(matrix);
+            this._inner.setMVP(f32);
+        };
 
-    Pipeline.prototype.execute = function (commandEncoder) {
-        return this._inner.execute(commandEncoder);
-    };
+        proto.setViewport = function (width, height) {
+            this._inner.setViewport(width, height);
+        };
 
-    Pipeline.prototype.dispatchLOD = function (commandEncoder) {
-        return this._inner.dispatchLOD(commandEncoder);
-    };
+        proto.execute = function (commandEncoder) {
+            return this._inner.execute(commandEncoder);
+        };
 
-    Pipeline.prototype.dispatchTessellation = function (commandEncoder) {
-        return this._inner.dispatchTessellation(commandEncoder);
-    };
+        proto.dispatchLOD = function (commandEncoder) {
+            return this._inner.dispatchLOD(commandEncoder);
+        };
 
-    Pipeline.prototype.getVertexBuffer = function () {
+        proto.dispatchTessellation = function (commandEncoder) {
+            return this._inner.dispatchTessellation(commandEncoder);
+        };
+
+        proto.getLODBuffer = function () {
+            return this._inner.getLODBuffer();
+        };
+
+        proto.destroy = function () {
+            if (this._inner) {
+                this._inner.delete();
+                this._inner = null;
+            }
+        };
+    }
+
+    addSharedMethods(ComputePipeline.prototype);
+    addSharedMethods(VertexPipeline.prototype);
+
+    ComputePipeline.prototype.getVertexBuffer = function () {
         return this._inner.getVertexBuffer();
     };
 
-    Pipeline.prototype.getLODBuffer = function () {
-        return this._inner.getLODBuffer();
-    };
-
-    Pipeline.prototype.getMaxVertexCount = function () {
+    ComputePipeline.prototype.getMaxVertexCount = function () {
         return this._inner.getMaxVertexCount();
     };
 
-    Pipeline.prototype.destroy = function () {
-        if (this._inner) {
-            this._inner.delete();
-            this._inner = null;
-        }
+    VertexPipeline.prototype.draw = function (renderPassEncoder) {
+        return this._inner.draw(renderPassEncoder);
+    };
+
+    VertexPipeline.prototype.getSurfaceBindGroupLayout = function () {
+        return this._inner.getSurfaceBindGroupLayout();
+    };
+
+    VertexPipeline.getSurfaceShaderSource = function () {
+        return Module._DirectPipeline.getSurfaceShaderSource();
     };
 
 
-    function loadBVFile(arrayBuffer, options) {
-        options = options || {};
-        var maxPatches = options.maxPatches || 0;
+    // maxPatches = 0 loads every patch
+    function loadBVFile(arrayBuffer, maxPatches) {
+        maxPatches = maxPatches || 0;
         var filename = '/tmp/ipass_' + Date.now() + '.bv';
 
         // write to virtual FS
@@ -95,9 +116,11 @@
         LoadFailed: Number(Module.Status.LoadFailed)
     };
 
-    Module['Pipeline'] = Pipeline;
+    Module['ComputePipeline'] = ComputePipeline;
+    Module['VertexPipeline'] = VertexPipeline;
     Module['loadBVFile'] = loadBVFile;
     Module['Status'] = Status;
+    Module['SURFACE_BIND_GROUP'] = Module.SURFACE_BIND_GROUP;
     Module['OutputVertexLayout'] = {
         FLOATS_PER_VERTEX: Module.FLOATS_PER_VERTEX,
         BYTES_PER_VERTEX: Module.BYTES_PER_VERTEX,

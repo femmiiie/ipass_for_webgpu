@@ -16,16 +16,18 @@ private:
     IPass* impl = nullptr;
 
 public:
-    // C compatible constructors 
-    LODPass(WGPUDevice device, const Config& config = {}) 
-        : LODPass(wgpu::Device(device), config) {}
-    LODPass(WGPUDevice device, WGPUQueue queue, const Config& config = {})
-        : LODPass(wgpu::Device(device), wgpu::Queue(queue), config) {}
+    // max_patches=0 autosizes based on device limits
 
-    // C++ compatible construtors 
-    LODPass(wgpu::Device device, const Config& config = {})
-        : LODPass(device, device.getQueue(), config) {}
-    LODPass(wgpu::Device device, wgpu::Queue queue, const Config& config = {});
+    // C compatible constructors
+    LODPass(WGPUDevice device, uint32_t max_patches = 0)
+        : LODPass(wgpu::Device(device), max_patches) {}
+    LODPass(WGPUDevice device, WGPUQueue queue, uint32_t max_patches = 0)
+        : LODPass(wgpu::Device(device), wgpu::Queue(queue), max_patches) {}
+
+    // C++ compatible construtors
+    LODPass(wgpu::Device device, uint32_t max_patches = 0)
+        : LODPass(device, device.getQueue(), max_patches) {}
+    LODPass(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches = 0);
 
     ~LODPass();
 

@@ -21,5 +21,6 @@ public:
     wgpu::BindGroupLayout GetLevel2BGL();
     wgpu::BindGroupLayout GetCombineBGL();
     bool SetBindGroups(wgpu::BindGroup local, wgpu::BindGroup block, wgpu::BindGroup add);
+    bool Bind(wgpu::Buffer counts, wgpu::Buffer offsets, wgpu::Buffer block_sums, wgpu::Buffer total);
     bool Execute(wgpu::CommandEncoder encoder, uint32_t max_tris);
 };

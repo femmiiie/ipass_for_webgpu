@@ -3,35 +3,61 @@
 
 namespace ipass {
 
-struct Pipeline::Impl {
+namespace {
+
+template <class Pass>
+struct PipelineImpl {
     LODPass lod;
-    TessellationPass tess;
+    Pass tess;
     bool patchesLoaded = false;
 
-    Impl(wgpu::Device device, wgpu::Queue queue, const Config& config)
-        : lod(device, queue, config), tess(device, queue, config) {}
+    PipelineImpl(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches)
+        : lod(device, queue, max_patches), tess(device, queue, max_patches) {}
+
+    Status LoadPatches(const PatchData& data)
+    {
+        Status s = lod.UploadPatches(data);
+        if (s != Status::Success) return s;
+
+        s = tess.UploadPatches(data, lod.GetLODBuffer());
+        if (s != Status::Success) return s;
+
+        patchesLoaded = true;
+        return Status::Success;
+    }
+
+    Status Execute(wgpu::CommandEncoder& encoder)
+    {
+        if (!patchesLoaded) return Status::PatchesNotLoaded;
+        lod.Dispatch(encoder);
+        tess.Dispatch(encoder);
+        return Status::Success;
+    }
 };
 
-Pipeline::Pipeline(wgpu::Device device, wgpu::Queue queue, Config config)
-{
-    if (!config.max_patches)
-        config.max_patches = patch::ResolveMax(device);
-
-    Config resolved = config;
-    impl = new Impl(device, queue, config);
 }
 
-Pipeline::~Pipeline()
-{
-    delete impl;
-}
+struct ComputePipeline::Impl : PipelineImpl<ComputeTessPass> {
+    using PipelineImpl::PipelineImpl;
+};
 
-Pipeline::Pipeline(Pipeline&& other) noexcept : impl(other.impl)
+struct DirectPipeline::Impl : PipelineImpl<VertexTessPass> {
+    using PipelineImpl::PipelineImpl;
+};
+
+// GeometryPipeline
+
+ComputePipeline::ComputePipeline(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches)
+    : impl(new Impl(device, queue, patch::ResolveMax(device, max_patches, patch::GEOMETRY_BYTES))) {}
+
+ComputePipeline::~ComputePipeline() { delete impl; }
+
+ComputePipeline::ComputePipeline(ComputePipeline&& other) noexcept : impl(other.impl)
 {
     other.impl = nullptr;
 }
 
-Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
+ComputePipeline& ComputePipeline::operator=(ComputePipeline&& other) noexcept
 {
     if (this != &other) {
         delete impl;
@@ -41,74 +67,164 @@ Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
     return *this;
 }
 
-Status Pipeline::LoadPatches(const PatchData& data)
+Status ComputePipeline::LoadPatches(const PatchData& data)
 {
-    if (!impl) return Status::NotInitialized;
-
-    Status s = impl->lod.UploadPatches(data);
-    if (s != Status::Success) return s;
-
-    s = impl->tess.UploadPatches(data, impl->lod.GetLODBuffer());
-    if (s != Status::Success) return s;
-
-    impl->patchesLoaded = true;
-    return Status::Success;
+    return impl ? impl->LoadPatches(data) : Status::NotInitialized;
 }
 
-void Pipeline::SetMVP(const glm::mat4& mvp)
+void ComputePipeline::SetMVP(const glm::mat4& mvp)
 {
     if (impl) impl->lod.SetMVP(mvp);
 }
 
-void Pipeline::SetViewport(float width, float height)
+void ComputePipeline::SetViewport(float width, float height)
 {
     if (impl) impl->lod.SetViewport(width, height);
 }
 
-Status Pipeline::DispatchLOD(wgpu::CommandEncoder& encoder)
+Status ComputePipeline::DispatchLOD(wgpu::CommandEncoder& encoder)
 {
-    if (!impl) return Status::NotInitialized;
-    return impl->lod.Dispatch(encoder);
+    return impl ? impl->lod.Dispatch(encoder) : Status::NotInitialized;
 }
 
-Status Pipeline::DispatchTessellation(wgpu::CommandEncoder& encoder)
+Status ComputePipeline::DispatchTessellation(wgpu::CommandEncoder& encoder)
 {
-    if (!impl) return Status::NotInitialized;
-    return impl->tess.Dispatch(encoder);
+    return impl ? impl->tess.Dispatch(encoder) : Status::NotInitialized;
 }
 
-Status Pipeline::Execute(wgpu::CommandEncoder& encoder)
+Status ComputePipeline::Execute(wgpu::CommandEncoder& encoder)
 {
-    if (!impl) return Status::NotInitialized;
-    if (!impl->patchesLoaded) return Status::PatchesNotLoaded;
-    impl->lod.Dispatch(encoder);
-    impl->tess.Dispatch(encoder);
-    return Status::Success;
+    return impl ? impl->Execute(encoder) : Status::NotInitialized;
 }
 
-wgpu::Buffer Pipeline::GetVertexBuffer() const
+wgpu::Buffer ComputePipeline::GetVertexBuffer() const
 {
-    if (!impl) return nullptr;
-    return impl->tess.GetVertexBuffer();
+    return impl ? impl->tess.GetVertexBuffer() : nullptr;
 }
 
-uint32_t Pipeline::GetMaxVertexCount() const
+uint32_t ComputePipeline::GetMaxVertexCount() const
 {
     return impl ? impl->tess.GetMaxVertexCount() : 0;
 }
 
-wgpu::Buffer Pipeline::GetLODBuffer() const
+wgpu::Buffer ComputePipeline::GetLODBuffer() const
 {
-    if (!impl) return nullptr;
-    return impl->lod.GetLODBuffer();
+    return impl ? impl->lod.GetLODBuffer() : nullptr;
 }
 
-LODPass& Pipeline::GetLOD()
+wgpu::Buffer ComputePipeline::GetControlPointBuffer() const
+{
+    return impl ? impl->tess.GetControlPointBuffer() : nullptr;
+}
+
+wgpu::Buffer ComputePipeline::GetTriCountBuffer() const
+{
+    return impl ? impl->tess.GetTriCountBuffer() : nullptr;
+}
+
+uint32_t ComputePipeline::GetPatchCount() const
+{
+    return impl ? impl->tess.GetPatchCount() : 0;
+}
+
+LODPass& ComputePipeline::GetLOD()
 {
     return impl->lod;
 }
 
-TessellationPass& Pipeline::GetTessellationPass()
+ComputeTessPass& ComputePipeline::GetTessellationPass()
+{
+    return impl->tess;
+}
+
+// DirectPipeline
+
+DirectPipeline::DirectPipeline(wgpu::Device device, wgpu::Queue queue, uint32_t max_patches)
+    : impl(new Impl(device, queue, patch::ResolveMax(device, max_patches, patch::DIRECT_BYTES))) {}
+
+DirectPipeline::~DirectPipeline() { delete impl; }
+
+DirectPipeline::DirectPipeline(DirectPipeline&& other) noexcept : impl(other.impl)
+{
+    other.impl = nullptr;
+}
+
+DirectPipeline& DirectPipeline::operator=(DirectPipeline&& other) noexcept
+{
+    if (this != &other) {
+        delete impl;
+        impl = other.impl;
+        other.impl = nullptr;
+    }
+    return *this;
+}
+
+Status DirectPipeline::LoadPatches(const PatchData& data)
+{
+    return impl ? impl->LoadPatches(data) : Status::NotInitialized;
+}
+
+void DirectPipeline::SetMVP(const glm::mat4& mvp)
+{
+    if (impl) impl->lod.SetMVP(mvp);
+}
+
+void DirectPipeline::SetViewport(float width, float height)
+{
+    if (impl) impl->lod.SetViewport(width, height);
+}
+
+Status DirectPipeline::DispatchLOD(wgpu::CommandEncoder& encoder)
+{
+    return impl ? impl->lod.Dispatch(encoder) : Status::NotInitialized;
+}
+
+Status DirectPipeline::DispatchTessellation(wgpu::CommandEncoder& encoder)
+{
+    return impl ? impl->tess.Dispatch(encoder) : Status::NotInitialized;
+}
+
+Status DirectPipeline::Execute(wgpu::CommandEncoder& encoder)
+{
+    return impl ? impl->Execute(encoder) : Status::NotInitialized;
+}
+
+Status DirectPipeline::Draw(wgpu::RenderPassEncoder& pass)
+{
+    return impl ? impl->tess.Draw(pass) : Status::NotInitialized;
+}
+
+wgpu::BindGroupLayout DirectPipeline::GetSurfaceBindGroupLayout() const
+{
+    return impl ? impl->tess.GetSurfaceBindGroupLayout() : nullptr;
+}
+
+wgpu::Buffer DirectPipeline::GetLODBuffer() const
+{
+    return impl ? impl->lod.GetLODBuffer() : nullptr;
+}
+
+wgpu::Buffer DirectPipeline::GetControlPointBuffer() const
+{
+    return impl ? impl->tess.GetControlPointBuffer() : nullptr;
+}
+
+wgpu::Buffer DirectPipeline::GetTriCountBuffer() const
+{
+    return impl ? impl->tess.GetTriCountBuffer() : nullptr;
+}
+
+uint32_t DirectPipeline::GetPatchCount() const
+{
+    return impl ? impl->tess.GetPatchCount() : 0;
+}
+
+LODPass& DirectPipeline::GetLOD()
+{
+    return impl->lod;
+}
+
+VertexTessPass& DirectPipeline::GetTessellationPass()
 {
     return impl->tess;
 }

@@ -1,3 +1,41 @@
+    @group(0) @binding(0) var<storage, read> cc_tessFactors : array<f32>;
+    @group(0) @binding(1) var<storage, read_write> cc_triCount : array<u32>;
+    @group(0) @binding(2) var<storage, read> cc_connectivity : array<vec4<i32>>;
+
+    @compute @workgroup_size(256)
+    fn calc_counts(@builtin(global_invocation_id) gid : vec3u) {
+        let i = gid.x;
+        if (i >= arrayLength(&cc_triCount)) {
+            return;
+        }
+
+        let this_level = cc_tessFactors[i];
+        if (this_level <= 0.0) { cc_triCount[i] = 0u; return; }
+        let nb = cc_connectivity[i * 2u + 0u];
+
+        var OL0 = u32(ceil(this_level));
+        if (nb.x >= 0) {
+            OL0 = u32(ceil(max(this_level, cc_tessFactors[u32(nb.x)])));
+        }
+        var OL1 = u32(ceil(this_level));
+        if (nb.y >= 0) {
+            OL1 = u32(ceil(max(this_level, cc_tessFactors[u32(nb.y)])));
+        }
+        var OL2 = u32(ceil(this_level));
+        if (nb.z >= 0) {
+            OL2 = u32(ceil(max(this_level, cc_tessFactors[u32(nb.z)])));
+        }
+        var OL3 = u32(ceil(this_level));
+        if (nb.w >= 0) {
+            OL3 = u32(ceil(max(this_level, cc_tessFactors[u32(nb.w)])));
+        }
+
+        var IL0 = max(u32(ceil(this_level)), 2u);
+        var IL1 = max(u32(ceil(this_level)), 2u);
+
+        cc_triCount[i] = 2u * ((IL0 - 2u)*(IL1 - 2u)) + OL0 + OL1 + OL2 + OL3 + 2u*IL0 + 2u*IL1 - 8u;
+    }
+
     @group(0) @binding(0) var<storage, read> tg_quadsIn : array<vec4f>;
     @group(0) @binding(1) var<storage, read> tg_tessFactors : array<f32>;
     @group(0) @binding(2) var<storage, read> tg_triOffsets : array<u32>;
@@ -200,10 +238,7 @@
             inner_i = 1u;
 
             while (inner_i < inner_max - 1u || outer_i < outer_max) {
-                let next_outer_s = select(1.0, f32(outer_i + 1u) / f32(outer_max), outer_i < outer_max);
-                let next_inner_s = select(1.0, f32(inner_i + 1u) / f32(inner_max), inner_i < inner_max - 1u);
-
-                if (outer_i < outer_max && (inner_i == inner_max - 1u || next_outer_s <= next_inner_s)) {
+                if (outer_i < outer_max && (inner_i == inner_max - 1u || (outer_i + 1u) * inner_max <= (inner_i + 1u) * outer_max)) {
                     let next_outer_uv = st_to_uv(vec2f(f32(outer_i + 1u) / f32(outer_max), outer_t), side);
                     let next_outer = eval_bicubic_vert(patch_offset, next_outer_uv);
                     write_vert((tri_offset + k) * 3u,      curr_outer, curr_outer_uv, i);

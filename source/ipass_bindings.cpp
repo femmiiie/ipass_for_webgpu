@@ -9,20 +9,23 @@
 #include <vector>
 #include <cstring>
 
-class PipelineBinding {
-    ipass::Pipeline* pipeline = nullptr;
+static emscripten::val webgpu() {
+    return emscripten::val::module_property("WebGPU");
+}
 
-    static emscripten::val webgpu() {
-        return emscripten::val::module_property("WebGPU");
-    }
+static emscripten::val toJs(void* handle) {
+    return webgpu().call<emscripten::val>("getJsObject", reinterpret_cast<uintptr_t>(handle));
+}
+
+template <class P>
+class PipelineBinding {
+    P* pipeline = nullptr;
 
 public:
     PipelineBinding(emscripten::val jsDevice, uint32_t maxPatches) {
         uintptr_t h = webgpu().call<uintptr_t>("importJsDevice", jsDevice);
         wgpu::Device device(reinterpret_cast<WGPUDevice>(h));
-        ipass::Config config;
-        config.max_patches = maxPatches;
-        pipeline = new ipass::Pipeline(device, config);
+        pipeline = new P(device, maxPatches);
     }
 
     ~PipelineBinding() {
@@ -72,28 +75,53 @@ public:
         return static_cast<int>(pipeline->DispatchTessellation(encoder));
     }
 
-    emscripten::val getVertexBuffer() {
-        wgpu::Buffer buf = pipeline->GetVertexBuffer();
-        uintptr_t h = reinterpret_cast<uintptr_t>(static_cast<WGPUBuffer>(buf));
-        return webgpu().call<emscripten::val>("getJsObject", h);
+    emscripten::val getLODBuffer() {
+        return toJs(static_cast<WGPUBuffer>(pipeline->GetLODBuffer()));
     }
 
-    emscripten::val getLODBuffer() {
-        wgpu::Buffer buf = pipeline->GetLODBuffer();
-        uintptr_t h = reinterpret_cast<uintptr_t>(static_cast<WGPUBuffer>(buf));
-        return webgpu().call<emscripten::val>("getJsObject", h);
+
+    emscripten::val getVertexBuffer() {
+        return toJs(static_cast<WGPUBuffer>(pipeline->GetVertexBuffer()));
     }
 
     uint32_t getMaxVertexCount() {
         return pipeline->GetMaxVertexCount();
     }
+
+    int draw(emscripten::val jsPass) {
+        uintptr_t h = webgpu().call<uintptr_t>("importJsRenderPassEncoder", jsPass);
+        wgpu::RenderPassEncoder pass(reinterpret_cast<WGPURenderPassEncoder>(h));
+        return static_cast<int>(pipeline->Draw(pass));
+    }
+
+    emscripten::val getSurfaceBindGroupLayout() {
+        return toJs(static_cast<WGPUBindGroupLayout>(pipeline->GetSurfaceBindGroupLayout()));
+    }
+
+    static std::string getSurfaceShaderSource() {
+        return P::GetSurfaceShaderSource();
+    }
 };
+
+using GeometryBinding = PipelineBinding<ipass::ComputePipeline>;
+using DirectBinding   = PipelineBinding<ipass::DirectPipeline>;
+
+// the methods both pipelines share
+template <class B>
+void bindShared(const emscripten::class_<B>& c) {
+    c.template constructor<emscripten::val, uint32_t>()
+        .function("loadPatches", &B::loadPatches)
+        .function("setMVP", &B::setMVP)
+        .function("setViewport", &B::setViewport)
+        .function("execute", &B::execute)
+        .function("dispatchLOD", &B::dispatchLOD)
+        .function("dispatchTessellation", &B::dispatchTessellation)
+        .function("getLODBuffer", &B::getLODBuffer);
+}
 
 emscripten::val loadBVFile(const std::string& filepath, uint32_t maxPatches) {
     ipass::Status status;
-    ipass::PatchData data = (maxPatches > 0)
-        ? ipass::BVLoader::Load(filepath, maxPatches, &status)
-        : ipass::BVLoader::Load(filepath, &status);
+    ipass::PatchData data = ipass::LoadBV(filepath, &status, maxPatches);
 
     emscripten::val result = emscripten::val::object();
     result.set("status", static_cast<int>(status));
@@ -119,20 +147,18 @@ emscripten::val loadBVFile(const std::string& filepath, uint32_t maxPatches) {
 }
 
 EMSCRIPTEN_BINDINGS(ipass_module) {
-    emscripten::class_<PipelineBinding>("_Pipeline")
-        .constructor<emscripten::val, uint32_t>()
-        .function("loadPatches", &PipelineBinding::loadPatches)
-        .function("setMVP", &PipelineBinding::setMVP)
-        .function("setViewport", &PipelineBinding::setViewport)
-        .function("execute", &PipelineBinding::execute)
-        .function("dispatchLOD", &PipelineBinding::dispatchLOD)
-        .function("dispatchTessellation", &PipelineBinding::dispatchTessellation)
-        .function("getVertexBuffer", &PipelineBinding::getVertexBuffer)
-        .function("getLODBuffer", &PipelineBinding::getLODBuffer)
-        .function("getMaxVertexCount", &PipelineBinding::getMaxVertexCount);
+    bindShared(emscripten::class_<GeometryBinding>("_GeometryPipeline")
+        .function("getVertexBuffer", &GeometryBinding::getVertexBuffer)
+        .function("getMaxVertexCount", &GeometryBinding::getMaxVertexCount));
+
+    bindShared(emscripten::class_<DirectBinding>("_DirectPipeline")
+        .function("draw", &DirectBinding::draw)
+        .function("getSurfaceBindGroupLayout", &DirectBinding::getSurfaceBindGroupLayout)
+        .class_function("getSurfaceShaderSource", &DirectBinding::getSurfaceShaderSource));
 
     function("_loadBVFile", &loadBVFile);
 
+    emscripten::constant("SURFACE_BIND_GROUP", ipass::SURFACE_BIND_GROUP);
     emscripten::constant("FLOATS_PER_VERTEX", ipass::OutputVertexLayout::FLOATS_PER_VERTEX);
     emscripten::constant("BYTES_PER_VERTEX", ipass::OutputVertexLayout::BYTES_PER_VERTEX);
     emscripten::constant("POSITION_OFFSET", ipass::OutputVertexLayout::POSITION_OFFSET);

@@ -35,11 +35,4 @@ struct OutputVertexLayout {
     static constexpr uint32_t UV_OFFSET         = 48;
 };
 
-
-//Configuration for library initialization.
-struct Config {
-    uint32_t    max_patches      = 0; //0 autosizes from device limit
-    const char* shader_base_path = ".";
-};
-
 }
