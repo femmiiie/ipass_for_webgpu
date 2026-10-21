@@ -22,8 +22,7 @@ struct MVP {
 @group(0) @binding(0) var<uniform> mvp: MVP;
 @group(0) @binding(1) var<uniform> baseColor: vec4f;
 
-@vertex
-fn vs_main(input: vsInput) -> fsInput {
+fn vs_common(input: vsInput) -> fsInput {
   var out: fsInput;
   let worldPos     = mvp.M * input.position;
   out.position     = mvp.VP * worldPos;
@@ -31,6 +30,18 @@ fn vs_main(input: vsInput) -> fsInput {
   out.eyevector    = vec4f(mvp.cameraPos.xyz - worldPos.xyz, 0.0);
 
   return out;
+}
+
+@vertex
+fn vs_main(input: vsInput) -> fsInput {
+  return vs_common(input);
+}
+
+// ScenePass appends ipass_vertex() to this at runtime
+@vertex
+fn vs_direct(@builtin(vertex_index) vid: u32, @builtin(instance_index) iid: u32) -> fsInput {
+  let v = ipass_vertex(vid, iid);
+  return vs_common(vsInput(v.position, v.normal, v.uv, f32(v.patch_idx), f32(v.bary_id)));
 }
 
 @fragment

@@ -6,6 +6,15 @@
 
 namespace utils
 {
+  static inline wgpu::VertexAttribute CreateAttribute(uint32_t shaderLocation, wgpu::VertexFormat format, uint64_t offset)
+  {
+    wgpu::VertexAttribute attribute;
+    attribute.shaderLocation = shaderLocation;
+    attribute.format = format;
+    attribute.offset = offset;
+    return attribute;
+  }
+
   static inline wgpu::Buffer CreateBuffer(wgpu::Device device, uint64_t size, wgpu::BufferUsage usage, bool mapped = false)
   {
     wgpu::BufferDescriptor desc;

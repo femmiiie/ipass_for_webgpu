@@ -434,6 +434,13 @@ void UIPass::RenderMainPanel(glm::vec2 menu_size)
         Settings::tessellation.modify() = (tess == nk_true);
     }
 
+    if (Settings::tessellation.get())
+    {
+      nk_bool direct = Settings::directDraw.get() ? nk_true : nk_false;
+      if (nk_checkbox_label(ctx, "Vertex Shader Tessellation", &direct))
+        Settings::directDraw.modify() = (direct == nk_true);
+    }
+
     nk_checkbox_label(ctx, "Show Performance Window", (nk_bool*)&Settings::perfWindow.get());
 
     if (nk_tree_push(ctx, NK_TREE_TAB, "Object Properties", NK_MINIMIZED))

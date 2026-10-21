@@ -34,8 +34,7 @@ struct LightArray {
 @group(0) @binding(1) var<uniform> lights: LightArray;
 @group(0) @binding(2) var<uniform> baseColor: vec4f;
 
-@vertex
-fn vs_main(input: vsInput) -> fsInput {
+fn vs_common(input: vsInput) -> fsInput {
   var out: fsInput;
   out.viewPosition = mvp.M * input.position;
   out.position     = mvp.VP * out.viewPosition;
@@ -43,6 +42,18 @@ fn vs_main(input: vsInput) -> fsInput {
   out.eyevector    = vec4f(mvp.cameraPos.xyz - out.viewPosition.xyz, 0.0);
 
   return out;
+}
+
+@vertex
+fn vs_main(input: vsInput) -> fsInput {
+  return vs_common(input);
+}
+
+// ScenePass appends ipass_vertex() to this at runtime
+@vertex
+fn vs_direct(@builtin(vertex_index) vid: u32, @builtin(instance_index) iid: u32) -> fsInput {
+  let v = ipass_vertex(vid, iid);
+  return vs_common(vsInput(v.position, v.normal, v.uv, f32(v.patch_idx), f32(v.bary_id)));
 }
 
 fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,

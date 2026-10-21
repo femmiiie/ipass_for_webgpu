@@ -47,12 +47,16 @@ Renderer::Renderer()
   // compute initial viewport (to the right of the ui panel)
   this->UpdateSceneViewport();
 
-  this->pipeline = new ipass::Pipeline(this->context.device, this->context.queue);
-  this->pipeline->SetViewport(this->context.sceneViewport.width, this->context.sceneViewport.height);
-  this->scenePass = new ScenePass(this->context);
+  this->geometryPass = new ipass::ComputeTessPass(this->context.device, this->context.queue);
+  this->directPass   = new ipass::VertexTessPass(this->context.device, this->context.queue);
+
+  this->scenePass = new ScenePass(this->context, *this->geometryPass, *this->directPass);
   this->uiPass = new UIPass(this->context, "./fonts/Inter-VariableFont.ttf");
 
-  this->stagingSize = (size_t)this->pipeline->GetLODBuffer().getSize();
+  this->iPass = new ipass::LODPass(this->context.device, this->context.queue);
+  this->iPass->SetViewport(this->context.sceneViewport.width, this->context.sceneViewport.height);
+
+  this->stagingSize = (size_t)this->iPass->GetLODBuffer().getSize();
   wgpu::BufferDescriptor stagingDesc{};
   stagingDesc.size            = this->stagingSize;
   stagingDesc.usage           = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
@@ -66,20 +70,16 @@ Renderer::Renderer()
   this->triCountStagingBuffer = this->context.device.createBuffer(triCountStagingDesc);
 
   Settings::mvp.subscribe([this](const MVP& m) {
-    this->pipeline->SetMVP(m.VP * m.M);
+    this->iPass->SetMVP(m.VP * m.M);
   });
 
   Settings::patches.subscribe([this](const ipass::PatchData& p) {
-    this->pipeline->LoadPatches(p);
+    this->LoadPatches(p);
+    this->UpdateTessOutput();
+  });
 
-
-    Settings::tessOutput.modify() = {
-      this->pipeline->GetVertexBuffer(),
-      this->pipeline->GetMaxVertexCount(),
-      this->pipeline->GetTessellationPass().GetControlPointBuffer(),
-      this->pipeline->GetTessellationPass().GetPatchCount()
-    };
-    Settings::tessOutput.notify();
+  Settings::directDraw.subscribe([this](const bool&) {
+    this->UpdateTessOutput();
   });
 
   Settings::presentMode.subscribe([this](const PresentModeSetting&) {
@@ -87,18 +87,41 @@ Renderer::Renderer()
   });
 
   if (Settings::patches.get().num_patches > 0)
-    this->pipeline->LoadPatches(Settings::patches.get());
+    this->LoadPatches(Settings::patches.get());
 
   std::cout << "Renderer initialized successfully" << std::endl;
 }
 
+void Renderer::LoadPatches(const ipass::PatchData& patches)
+{
+  if (this->iPass->UploadPatches(patches) != ipass::Status::Success)
+    return;
+
+  this->geometryPass->UploadPatches(patches, this->iPass->GetLODBuffer());
+  this->directPass->UploadPatches(patches, this->iPass->GetLODBuffer());
+}
+
+void Renderer::UpdateTessOutput()
+{
+  const uint32_t patchCount = Settings::directDraw.get()
+    ? this->directPass->GetPatchCount()
+    : this->geometryPass->GetPatchCount();
+
+  Settings::tessOutput.modify() = {
+    this->directPass->GetControlPointBuffer(), // superset of the geometry pass's patches
+    patchCount
+  };
+  Settings::tessOutput.notify();
+}
 
 
 Renderer::~Renderer()
 {
   if (this->stagingBuffer) this->stagingBuffer.release();
   if (this->triCountStagingBuffer) this->triCountStagingBuffer.release();
-  delete this->pipeline;
+  delete this->geometryPass;
+  delete this->directPass;
+  delete this->iPass;
   delete this->scenePass;
   delete this->uiPass;
 
@@ -266,7 +289,7 @@ void Renderer::OnResize(int w, int h)
   this->context.size = { (uint32_t)w, (uint32_t)h };
   this->ConfigureSurface();
   this->UpdateSceneViewport();
-  if (this->pipeline)  { this->pipeline->SetViewport(context.sceneViewport.width, context.sceneViewport.height); }
+  if (this->iPass)     { this->iPass->SetViewport(context.sceneViewport.width, context.sceneViewport.height); }
   if (this->uiPass)    { this->uiPass->UpdateProjection(context.size); }
   if (this->scenePass) { this->scenePass->OnResize(context.size); }
 }
@@ -297,17 +320,21 @@ void Renderer::MainLoop()
   encoderDesc.label = WGPU_STRING_VIEW_INIT;
   wgpu::CommandEncoder encoder = this->context.device.createCommandEncoder(encoderDesc);
 
-  if (Settings::tessellation.get() && this->pipeline)
+  const bool direct = Settings::directDraw.get();
+
+  if (Settings::tessellation.get())
   {
-    this->pipeline->Execute(encoder);
+    this->iPass->Dispatch(encoder);
+    if (direct) { this->directPass->Dispatch(encoder); }
+    else        { this->geometryPass->Dispatch(encoder); }
   }
 
   if (!this->stagingBusy)
-    encoder.copyBufferToBuffer(this->pipeline->GetLODBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
+    encoder.copyBufferToBuffer(this->iPass->GetLODBuffer(), 0, this->stagingBuffer, 0, this->stagingSize);
 
   if (Settings::tessellation.get() && !this->triCountStagingBusy)
   {
-    wgpu::Buffer triCountBuf = this->pipeline->GetTessellationPass().GetTriCountBuffer();
+    wgpu::Buffer triCountBuf = direct ? this->directPass->GetTriCountBuffer() : this->geometryPass->GetTriCountBuffer();
     if (triCountBuf)
       encoder.copyBufferToBuffer(triCountBuf, 0, this->triCountStagingBuffer, 0, sizeof(uint32_t));
   }

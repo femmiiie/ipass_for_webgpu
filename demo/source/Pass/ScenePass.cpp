@@ -6,6 +6,11 @@
 #include <cmath>
 #include <stdexcept>
 
+namespace
+{
+
+}
+
 void ScenePass::LoadPatches(const ipass::PatchData& data)
 {
   constexpr glm::u32 ROWS = 4, COLS = 4; // PatchData control points are always bicubic
@@ -66,10 +71,8 @@ void ScenePass::LoadPatches(const ipass::PatchData& data)
 
   this->vertexCount = (glm::u32)vertexData.size() / 12;
 
-  if (this->vertexBuffer && this->ownsVertexBuffer)
+  if (this->vertexBuffer)
     this->vertexBuffer.destroy();
-  this->vertexBuffer = nullptr;
-  this->ownsVertexBuffer = true;
 
   this->vertexBuffer = utils::CreateBuffer(
     this->context.device,
@@ -109,7 +112,8 @@ void ScenePass::LoadPatches(const ipass::PatchData& data)
   std::cout << "[LoadPatches] Generated " << this->vertexCount << " vertices from " << data.num_patches << " patches." << std::endl;
 }
 
-ScenePass::ScenePass(Context& context) : context(context)
+ScenePass::ScenePass(Context& context, ipass::ComputeTessPass& computeTessPass, ipass::VertexTessPass& vertexTessPass)
+  : context(context), computeTessPass(computeTessPass), vertexTessPass(vertexTessPass)
 {
   camera.setScrollScaling(0.5f);
   float vp_width = context.sceneViewport.width;
@@ -170,8 +174,6 @@ ScenePass::ScenePass(Context& context) : context(context)
   });
 
   Settings::tessOutput.subscribe([this](const TessOutput& out) {
-    if (Settings::tessellation.get() && out.buffer && out.vertexCount > 0)
-      this->UseGPUTessellated(out.buffer, out.vertexCount);
     if (out.controlPoints) {
       if (this->ownsControlPointsBuffer && this->controlPointsBuffer)
         this->controlPointsBuffer.destroy();
@@ -179,14 +181,6 @@ ScenePass::ScenePass(Context& context) : context(context)
       this->ownsControlPointsBuffer = false;
       this->RebuildParametricErrorBindGroup();
     }
-  });
-
-  Settings::tessellation.subscribe([this](const bool& enabled) {
-    const auto& out = Settings::tessOutput.get();
-    if (enabled && out.buffer && out.vertexCount > 0)
-      this->UseGPUTessellated(out.buffer, out.vertexCount);
-    else
-      this->LoadPatches(Settings::patches.get());
   });
 
   Settings::shadingMode.subscribe([this](const ShadingMode& mode) {
@@ -200,15 +194,19 @@ ScenePass::~ScenePass()
 {
   for (auto& v : this->shaderVariants)
   {
+    if (v.shader)            v.shader.release();
     if (v.pipeline)          v.pipeline.release();
     if (v.wireframePipeline) v.wireframePipeline.release();
     if (v.layout)            v.layout.release();
     if (v.bindGroupLayout)   v.bindGroupLayout.release();
     if (v.bindGroup)         v.bindGroup.release();
+    if (v.directPipeline)    v.directPipeline.release();
+    if (v.directLayout)      v.directLayout.release();
   }
 
   if (this->depthTextureView) this->depthTextureView.release();
   if (this->depthTexture)     this->depthTexture.destroy();
+  if (this->vertexBuffer)     this->vertexBuffer.destroy();
   if (this->wireframeIndexBuffer) this->wireframeIndexBuffer.destroy();
   if (this->ownsControlPointsBuffer && this->controlPointsBuffer) this->controlPointsBuffer.destroy();
 }
@@ -232,13 +230,35 @@ void ScenePass::Execute(wgpu::RenderPassEncoder& encoder)
 
   Settings::mvp.notify();
 
-  if (!this->vertexBuffer || this->vertexCount == 0) return;
-
   auto& variant = this->shaderVariants[static_cast<size_t>(this->activeMode)];
-  encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
   encoder.setBindGroup(0, variant.bindGroup, 0, nullptr);
 
-  if (!Settings::tessellation.get() && Settings::wireframe.get())
+  const bool tessellation = Settings::tessellation.get();
+
+  // draw with tessellation in vert shader
+  if (tessellation && Settings::directDraw.get())
+  {
+    encoder.setPipeline(variant.directPipeline);
+    this->vertexTessPass.Draw(encoder);
+    return;
+  }
+
+  // draw taking tessellated output from compute shader
+  wgpu::Buffer tessVertexBuffer = this->computeTessPass.GetVertexBuffer();
+  if (tessellation && tessVertexBuffer)
+  {
+    encoder.setPipeline(variant.pipeline);
+    encoder.setVertexBuffer(0, tessVertexBuffer, 0, tessVertexBuffer.getSize());
+    encoder.draw(this->computeTessPass.GetMaxVertexCount(), 1, 0, 0);
+    return;
+  }
+
+  // vs_main path: the control mesh
+  if (!this->vertexBuffer || this->vertexCount == 0) return;
+
+  encoder.setVertexBuffer(0, this->vertexBuffer, 0, this->vertexBuffer.getSize());
+
+  if (Settings::wireframe.get())
   {
     encoder.setPipeline(variant.wireframePipeline);
     encoder.setIndexBuffer(this->wireframeIndexBuffer, wgpu::IndexFormat::Uint32, 0, this->wireframeIndexBuffer.getSize());
@@ -266,23 +286,11 @@ void ScenePass::OnResize(glm::uvec2 size)
 }
 
 wgpu::RenderPipeline ScenePass::CreatePipeline(wgpu::ShaderModule& shader,
-                                                     wgpu::PipelineLayout& pipelineLayout,
-                                                     wgpu::PrimitiveTopology topology)
+                                               wgpu::PipelineLayout& pipelineLayout,
+                                               const char* vertexEntryPoint,
+                                               wgpu::PrimitiveTopology topology,
+                                               const wgpu::VertexBufferLayout* vertexLayout)
 {
-  std::vector<wgpu::VertexAttribute> vertexAttrs {
-    this->CreateAttribute(0, wgpu::VertexFormat::Float32x4, 0),
-    this->CreateAttribute(1, wgpu::VertexFormat::Float32x4, 4 * sizeof(glm::f32)),
-    this->CreateAttribute(2, wgpu::VertexFormat::Float32x2, 8 * sizeof(glm::f32)),
-    this->CreateAttribute(3, wgpu::VertexFormat::Float32,   10 * sizeof(glm::f32)),
-    this->CreateAttribute(4, wgpu::VertexFormat::Float32,   11 * sizeof(glm::f32)),
-  };
-
-  wgpu::VertexBufferLayout vertexBufferLayout;
-  vertexBufferLayout.attributeCount = vertexAttrs.size();
-  vertexBufferLayout.attributes     = vertexAttrs.data();
-  vertexBufferLayout.arrayStride    = 12 * sizeof(glm::f32);
-  vertexBufferLayout.stepMode       = wgpu::VertexStepMode::Vertex;
-
   wgpu::BlendState blend = this->GetBlendState();
 
   wgpu::ColorTargetState colorTarget;
@@ -308,12 +316,12 @@ wgpu::RenderPipeline ScenePass::CreatePipeline(wgpu::ShaderModule& shader,
   wgpu::RenderPipelineDescriptor pipelineDesc;
   pipelineDesc.layout = pipelineLayout;
 
-  pipelineDesc.vertex.bufferCount  = 1;
-  pipelineDesc.vertex.buffers      = &vertexBufferLayout;
+  pipelineDesc.vertex.bufferCount  = vertexLayout ? 1 : 0;
+  pipelineDesc.vertex.buffers      = vertexLayout;
   pipelineDesc.vertex.module       = shader;
   pipelineDesc.vertex.constantCount = 0;
   pipelineDesc.vertex.constants    = nullptr;
-  utils::SetEntryPoint(pipelineDesc.vertex.entryPoint, "vs_main");
+  utils::SetEntryPoint(pipelineDesc.vertex.entryPoint, vertexEntryPoint);
 
   pipelineDesc.primitive.topology         = topology;
   pipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
@@ -351,17 +359,7 @@ void ScenePass::InitializeShaderVariants()
         utils::CreateBinding(2, this->colorBuffer),
       }, v.bindGroupLayout);
 
-    wgpu::PipelineLayoutDescriptor layoutDesc;
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&v.bindGroupLayout;
-    v.layout = this->context.device.createPipelineLayout(layoutDesc);
-
-    wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/shaders/blinn_phong.wgsl");
-    if (!shader) throw std::runtime_error("Failed to load blinn_phong.wgsl");
-    v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
-    v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
-    shader.release();
+    this->BuildVariant(v, "blinn_phong.wgsl", embedded_shaders::blinn_phong);
   }
 
   { //flat shader
@@ -379,17 +377,7 @@ void ScenePass::InitializeShaderVariants()
         utils::CreateBinding(1, this->colorBuffer),
       }, v.bindGroupLayout);
 
-    wgpu::PipelineLayoutDescriptor layoutDesc;
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&v.bindGroupLayout;
-    v.layout = this->context.device.createPipelineLayout(layoutDesc);
-
-    wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/shaders/flat.wgsl");
-    if (!shader) throw std::runtime_error("Failed to load flat.wgsl");
-    v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
-    v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
-    shader.release();
+    this->BuildVariant(v, "flat.wgsl", embedded_shaders::flat);
   }
 
   { //parametric error shader
@@ -409,17 +397,7 @@ void ScenePass::InitializeShaderVariants()
         utils::CreateBinding(2, this->controlPointsBuffer),
       }, v.bindGroupLayout);
 
-    wgpu::PipelineLayoutDescriptor layoutDesc;
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&v.bindGroupLayout;
-    v.layout = this->context.device.createPipelineLayout(layoutDesc);
-
-    wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/shaders/parametric_error.wgsl");
-    if (!shader) throw std::runtime_error("Failed to load parametric_error.wgsl");
-    v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
-    v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
-    shader.release();
+    this->BuildVariant(v, "parametric_error.wgsl", embedded_shaders::parametric_error);
   }
 
   { //triangle size shader
@@ -435,27 +413,54 @@ void ScenePass::InitializeShaderVariants()
         utils::CreateBinding(0, this->mvpBuffer),
       }, v.bindGroupLayout);
 
-    wgpu::PipelineLayoutDescriptor layoutDesc;
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&v.bindGroupLayout;
-    v.layout = this->context.device.createPipelineLayout(layoutDesc);
-
-    wgpu::ShaderModule shader = utils::LoadShader(this->context.device,
-                                  "Pass/shaders/triangle_size.wgsl");
-    if (!shader) throw std::runtime_error("Failed to load triangle_size.wgsl");
-    v.pipeline          = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::TriangleList);
-    v.wireframePipeline = this->CreatePipeline(shader, v.layout, wgpu::PrimitiveTopology::LineList);
-    shader.release();
+    this->BuildVariant(v, "triangle_size.wgsl", embedded_shaders::triangle_size);
   }
 }
 
-wgpu::VertexAttribute ScenePass::CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset)
+void ScenePass::BuildVariant(ShaderVariant& v, const std::string& name, const std::string& source)
 {
-  wgpu::VertexAttribute attr;
-  attr.shaderLocation = location;
-  attr.format = format;
-  attr.offset = offset;
-  return attr;
+  // add ipass direct code to shader so it can call ipass_vertex()
+  const std::string fullSource = source + "\n" + ipass::VertexTessPass::GetSurfaceShaderSource();
+
+  v.shader = utils::LoadShaderFromSource(this->context.device, fullSource);
+  if (!v.shader) throw std::runtime_error("Failed to load " + name);
+
+  v.layout = this->CreatePipelineLayout({ v.bindGroupLayout });
+
+  static_assert(ipass::SURFACE_BIND_GROUP == 1, "directLayout places the surface layout at index 1");
+  v.directLayout = this->CreatePipelineLayout({ v.bindGroupLayout, this->vertexTessPass.GetSurfaceBindGroupLayout() });
+
+  // pos(xyzw) normal(xyzw) uv(uv) patch_index, bary_id - read by vs_main
+  static const std::array<wgpu::VertexAttribute, 5> attrs {
+    utils::CreateAttribute(0, wgpu::VertexFormat::Float32x4, 0),
+    utils::CreateAttribute(1, wgpu::VertexFormat::Float32x4, 4 * sizeof(glm::f32)),
+    utils::CreateAttribute(2, wgpu::VertexFormat::Float32x2, 8 * sizeof(glm::f32)),
+    utils::CreateAttribute(3, wgpu::VertexFormat::Float32,   10 * sizeof(glm::f32)),
+    utils::CreateAttribute(4, wgpu::VertexFormat::Float32,   11 * sizeof(glm::f32)),
+  };
+
+  static const wgpu::VertexBufferLayout vertexLayoutData = [] {
+    wgpu::VertexBufferLayout l;
+    l.attributeCount = attrs.size();
+    l.attributes     = attrs.data();
+    l.arrayStride    = 12 * sizeof(glm::f32);
+    l.stepMode       = wgpu::VertexStepMode::Vertex;
+    return l;
+  }();
+  
+  const wgpu::VertexBufferLayout* vertexLayout = &vertexLayoutData;
+  
+  v.pipeline          = this->CreatePipeline(v.shader, v.layout,       "vs_main",   wgpu::PrimitiveTopology::TriangleList, vertexLayout);
+  v.wireframePipeline = this->CreatePipeline(v.shader, v.layout,       "vs_main",   wgpu::PrimitiveTopology::LineList,     vertexLayout);
+  v.directPipeline    = this->CreatePipeline(v.shader, v.directLayout, "vs_direct", wgpu::PrimitiveTopology::TriangleList, nullptr);
+}
+
+wgpu::PipelineLayout ScenePass::CreatePipelineLayout(std::initializer_list<wgpu::BindGroupLayout> bindGroupLayouts)
+{
+  wgpu::PipelineLayoutDescriptor layoutDesc;
+  layoutDesc.bindGroupLayoutCount = bindGroupLayouts.size();
+  layoutDesc.bindGroupLayouts = (const WGPUBindGroupLayout*)bindGroupLayouts.begin();
+  return this->context.device.createPipelineLayout(layoutDesc);
 }
 
 wgpu::BlendState ScenePass::GetBlendState()
@@ -468,26 +473,6 @@ wgpu::BlendState ScenePass::GetBlendState()
   state.alpha.dstFactor = wgpu::BlendFactor::One;
   state.alpha.operation = wgpu::BlendOperation::Add;
   return state;
-}
-
-void ScenePass::UseGPUTessellated(wgpu::Buffer buf, uint32_t count)
-{
-  if (this->vertexBuffer && this->ownsVertexBuffer)
-    this->vertexBuffer.destroy();
-
-  this->ownsVertexBuffer = false;
-  this->vertexBuffer    = buf;
-
-  const uint64_t stride = 12ull * sizeof(glm::f32);
-  const uint64_t maxVertsByBuffer = stride > 0 ? (buf.getSize() / stride) : 0;
-  this->vertexCount = static_cast<glm::u32>(std::min<uint64_t>(count, maxVertsByBuffer));
-
-  if (this->vertexCount < count)
-  {
-    std::cerr << "[UseGPUTessellated] Clamped draw vertex count from " << count
-              << " to " << this->vertexCount
-              << " to fit the bound vertex buffer capacity." << std::endl;
-  }
 }
 
 void ScenePass::CreateDepthTexture(glm::uvec2 size)

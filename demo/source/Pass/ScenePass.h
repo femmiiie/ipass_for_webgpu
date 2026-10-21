@@ -6,6 +6,7 @@
 #include "Context.h"
 #include "InputManager.h"
 #include "Settings.h"
+#include "ipass/TessellationPass.h"
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,7 +14,7 @@
 class ScenePass
 {
 public:
-  ScenePass(Context& context);
+  ScenePass(Context& context, ipass::ComputeTessPass& computeTessPass, ipass::VertexTessPass& vertexTessPass);
   ~ScenePass();
   void Execute(wgpu::RenderPassEncoder& encoder);
 
@@ -22,15 +23,15 @@ public:
   void InitializeShaderVariants();
   void LoadPatches(const ipass::PatchData& data);
 
-  void UseGPUTessellated(wgpu::Buffer buf, uint32_t count);
-
   wgpu::TextureView GetDepthTextureView() { return this->depthTextureView; }
 
   wgpu::BlendState GetBlendState();
-  wgpu::VertexAttribute CreateAttribute(glm::u32 location, wgpu::VertexFormat format, uint64_t offset);
 
 private:
   Context& context;
+  ipass::ComputeTessPass& computeTessPass;
+  ipass::VertexTessPass&  vertexTessPass;
+
   glm::u32 vertexCount = 0;
   wgpu::Buffer vertexBuffer;
 
@@ -41,19 +42,24 @@ private:
   void CreateDepthTexture(glm::uvec2 size);
 
   struct ShaderVariant {
-    wgpu::RenderPipeline pipeline;
-    wgpu::RenderPipeline wireframePipeline;
-    wgpu::PipelineLayout layout;
+    wgpu::ShaderModule shader;
     wgpu::BindGroupLayout bindGroupLayout;
     wgpu::BindGroup bindGroup;
+
+    // vertex buffer path
+    wgpu::PipelineLayout layout;
+    wgpu::RenderPipeline pipeline;
+    wgpu::RenderPipeline wireframePipeline;
+
+    // direct draw path, with surface bindings at ipass::SURFACE_BIND_GROUP
+    wgpu::PipelineLayout directLayout;
+    wgpu::RenderPipeline directPipeline;
   };
   std::array<ShaderVariant, 4> shaderVariants;
   ShadingMode activeMode = ShadingMode::BlinnPhong;
 
   wgpu::Buffer wireframeIndexBuffer;
   glm::u32 wireframeIndexCount = 0;
-
-  bool ownsVertexBuffer = false;
 
   struct LightEntry
   {
@@ -78,9 +84,14 @@ private:
   wgpu::Buffer controlPointsBuffer;
   bool ownsControlPointsBuffer = false;
 
+  wgpu::PipelineLayout CreatePipelineLayout(std::initializer_list<wgpu::BindGroupLayout> bindGroupLayouts);
   wgpu::RenderPipeline CreatePipeline(wgpu::ShaderModule& shader,
                                       wgpu::PipelineLayout& pipelineLayout,
-                                      wgpu::PrimitiveTopology topology);
+                                      const char* vertexEntryPoint,
+                                      wgpu::PrimitiveTopology topology,
+                                      const wgpu::VertexBufferLayout* vertexLayout);
+                                      
+  void BuildVariant(ShaderVariant& variant, const std::string& name, const std::string& source);
 
   void RebuildParametricErrorBindGroup();
 };

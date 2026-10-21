@@ -19,7 +19,8 @@
 #include <functional>
 
 #include "Context.h"
-#include "ipass/Pipeline.h"
+#include "ipass/LODPass.h"
+#include "ipass/TessellationPass.h"
 #include "ScenePass.h"
 #include "UIPass.h"
 #include "File.h"
@@ -49,7 +50,11 @@ public:
 private:
   ScenePass *scenePass = nullptr;
   UIPass *uiPass = nullptr;
-  ipass::Pipeline *pipeline = nullptr;
+  ipass::LODPass         *iPass        = nullptr;
+  ipass::ComputeTessPass *geometryPass = nullptr;
+  ipass::VertexTessPass  *directPass   = nullptr;
+  void LoadPatches(const ipass::PatchData& patches);
+  void UpdateTessOutput();
 
   void UpdateSceneViewport();
   wgpu::RenderPassDescriptor GetRenderDescriptor(wgpu::TextureView& view,

@@ -13,8 +13,6 @@
 #include "MVP.h"
 
 struct TessOutput {
-  wgpu::Buffer buffer = nullptr;
-  uint32_t vertexCount = 0;
   wgpu::Buffer controlPoints = nullptr;
   uint32_t patchCount = 0;
   uint32_t triangleCount = 0;
@@ -68,6 +66,7 @@ public:
 
   static inline Setting<bool> wireframe    = {false};
   static inline Setting<bool> tessellation = {false};
+  static inline Setting<bool> directDraw   = {false}; // evaluate tessellated surface in the vertex shader
   static inline Setting<bool> perfWindow   = {false};
 
   static inline Setting<ipass::PatchData> patches;
