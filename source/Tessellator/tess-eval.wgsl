@@ -34,43 +34,38 @@
         vec2f(1.0, 1.0), vec2f(1.0, 0.0), vec2f(0.0, 0.0),
     );
 
+    fn bernstein3(t: f32) -> vec4f {
+        let s = 1.0 - t;
+        return vec4f(s * s * s, 3.0 * t * s * s, 3.0 * t * t * s, t * t * t);
+    }
+
+    fn bernstein3_deriv(t: f32) -> vec4f {
+        let s  = 1.0 - t;
+        let b2 = vec3f(s * s, 2.0 * t * s, t * t);
+        return 3.0 * vec4f(-b2.x, b2.x - b2.y, b2.y - b2.z, b2.z);
+    }
+
     // evaluate position analytic surface normal via partial derivatives.
     fn ipass_eval_bicubic(patch_offset: u32, uv: vec2f) -> IPassSurfacePoint {
-        let u = uv.x;
-        let v = uv.y;
-
-        let u2 = u * u;
-        let u3 = u2 * u;
-        let v2 = v * v;
-        let v3 = v2 * v;
-
-        var bu  = array<f32, 4>(1.0 - 3.0*u + 3.0*u2 -     u3,
-                                      3.0*u - 6.0*u2 + 3.0*u3,
-                                      3.0*u2 - 3.0*u3,
-                                      u3);
-        var bv  = array<f32, 4>(1.0 - 3.0*v + 3.0*v2 -     v3,
-                                      3.0*v - 6.0*v2 + 3.0*v3,
-                                      3.0*v2 - 3.0*v3,
-                                      v3);
-        var dbu = array<f32, 4>(-3.0 + 6.0*u - 3.0*u2,
-                                 3.0 - 12.0*u + 9.0*u2,
-                                 6.0*u - 9.0*u2,
-                                 3.0*u2);
-        var dbv = array<f32, 4>(-3.0 + 6.0*v - 3.0*v2,
-                                 3.0 - 12.0*v + 9.0*v2,
-                                 6.0*v - 9.0*v2,
-                                 3.0*v2);
+        let bu  = bernstein3(uv.x);
+        let bv  = bernstein3(uv.y);
+        let dbu = bernstein3_deriv(uv.x);
+        let dbv = bernstein3_deriv(uv.y);
 
         var pos  = vec4f(0.0);  // (N_x, N_y, N_z, W)
         var du_h = vec4f(0.0);  // d/du of (N_x, N_y, N_z, W)
         var dv_h = vec4f(0.0);  // d/dv of (N_x, N_y, N_z, W)
         for (var row = 0u; row < 4u; row++) {
+            var r  = vec4f(0.0);
+            var rd = vec4f(0.0);
             for (var col = 0u; col < 4u; col++) {
                 let cp = ipass_controlPoints[patch_offset + row * 4u + col];
-                pos  += bu[row]  * bv[col]  * cp;
-                du_h += dbu[row] * bv[col]  * cp;
-                dv_h += bu[row]  * dbv[col] * cp;
+                r  += bv[col]  * cp;
+                rd += dbv[col] * cp;
             }
+            pos  += bu[row]  * r;
+            du_h += dbu[row] * r;
+            dv_h += bu[row]  * rd;
         }
 
         let W    = pos.w;
