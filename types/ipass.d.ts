@@ -13,12 +13,13 @@ export interface BVLoadResult {
 }
 
 export interface OutputVertexLayout {
-    FLOATS_PER_VERTEX: 16;
-    BYTES_PER_VERTEX: 64;
-    POSITION_OFFSET: 0;
-    NORMAL_OFFSET: 16;
-    COLOR_OFFSET: 32;
-    UV_OFFSET: 48;
+    FLOATS_PER_VERTEX: 12;
+    BYTES_PER_VERTEX: 48;
+    POSITION_OFFSET: 0;     // vec4f, w = 1
+    NORMAL_OFFSET: 16;      // vec4f, w = 0
+    UV_OFFSET: 32;          // vec2f
+    PATCH_INDEX_OFFSET: 40; // f32
+    BARY_ID_OFFSET: 44;     // f32, corner within the triangle 0..2
 }
 
 export declare enum Status {
@@ -54,7 +55,7 @@ export declare class ComputePipeline extends PipelineBase {
 }
 
 // Evaluates the surface in your vertex shader, see draw.
-export declare class VertexPipeline extends PipelineBase {
+export declare class DirectPipeline extends PipelineBase {
     constructor(device: GPUDevice, maxPatches?: number); // 0 autosizes based on device limits
 
     draw(pass: GPURenderPassEncoder): number;
@@ -64,7 +65,7 @@ export declare class VertexPipeline extends PipelineBase {
 
 export interface IPASSModule {
     ComputePipeline: typeof ComputePipeline;
-    VertexPipeline: typeof VertexPipeline;
+    DirectPipeline: typeof DirectPipeline;
     OutputVertexLayout: OutputVertexLayout;
     Status: typeof Status;
     SURFACE_BIND_GROUP: 1;

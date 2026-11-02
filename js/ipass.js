@@ -1,5 +1,5 @@
 (function () {
-    if (Module['ComputePipeline'] || Module['VertexPipeline']) {
+    if (Module['ComputePipeline'] || Module['DirectPipeline']) {
         return;
     }
 
@@ -8,7 +8,7 @@
         this._inner = new Module._GeometryPipeline(gpuDevice, maxPatches || 0);
     }
 
-    function VertexPipeline(gpuDevice, maxPatches) {
+    function DirectPipeline(gpuDevice, maxPatches) {
         this._inner = new Module._DirectPipeline(gpuDevice, maxPatches || 0);
     }
 
@@ -56,7 +56,7 @@
     }
 
     addSharedMethods(ComputePipeline.prototype);
-    addSharedMethods(VertexPipeline.prototype);
+    addSharedMethods(DirectPipeline.prototype);
 
     ComputePipeline.prototype.getVertexBuffer = function () {
         return this._inner.getVertexBuffer();
@@ -66,15 +66,15 @@
         return this._inner.getMaxVertexCount();
     };
 
-    VertexPipeline.prototype.draw = function (renderPassEncoder) {
+    DirectPipeline.prototype.draw = function (renderPassEncoder) {
         return this._inner.draw(renderPassEncoder);
     };
 
-    VertexPipeline.prototype.getSurfaceBindGroupLayout = function () {
+    DirectPipeline.prototype.getSurfaceBindGroupLayout = function () {
         return this._inner.getSurfaceBindGroupLayout();
     };
 
-    VertexPipeline.getSurfaceShaderSource = function () {
+    DirectPipeline.getSurfaceShaderSource = function () {
         return Module._DirectPipeline.getSurfaceShaderSource();
     };
 
@@ -117,7 +117,7 @@
     };
 
     Module['ComputePipeline'] = ComputePipeline;
-    Module['VertexPipeline'] = VertexPipeline;
+    Module['DirectPipeline'] = DirectPipeline;
     Module['loadBVFile'] = loadBVFile;
     Module['Status'] = Status;
     Module['SURFACE_BIND_GROUP'] = Module.SURFACE_BIND_GROUP;
@@ -126,7 +126,8 @@
         BYTES_PER_VERTEX: Module.BYTES_PER_VERTEX,
         POSITION_OFFSET: Module.POSITION_OFFSET,
         NORMAL_OFFSET: Module.NORMAL_OFFSET,
-        COLOR_OFFSET: Module.COLOR_OFFSET,
-        UV_OFFSET: Module.UV_OFFSET
+        UV_OFFSET: Module.UV_OFFSET,
+        PATCH_INDEX_OFFSET: Module.PATCH_INDEX_OFFSET,
+        BARY_ID_OFFSET: Module.BARY_ID_OFFSET
     };
 })();
