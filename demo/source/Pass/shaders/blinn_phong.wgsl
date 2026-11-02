@@ -53,7 +53,7 @@ fn vs_main(input: vsInput) -> fsInput {
 @vertex
 fn vs_direct(@builtin(vertex_index) vid: u32, @builtin(instance_index) iid: u32) -> fsInput {
   let v = ipass_vertex(vid, iid);
-  return vs_common(vsInput(v.position, v.normal, v.uv, f32(v.patch_idx), f32(v.bary_id)));
+  return vs_common(vsInput(v.position, v.normal, v.uv, v.patch_idx, v.bary_id));
 }
 
 fn blinn_phong(base_color: vec4f, spec_scale: f32, spec_exp: f32,

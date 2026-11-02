@@ -13,9 +13,8 @@
         position  : vec4f, // object space, w = 1
         normal    : vec4f, // w = 0
         uv        : vec2f,
-        patch_idx : u32,
-        bary_id   : u32,   // corner within the triangle, 0..2
-        valid     : bool,  // false for padding in a patch's last chunk, all 3 corners collapse to one point
+        patch_idx : f32,
+        bary_id   : f32,   // corner within the triangle, 0..2
     }
 
     struct IPassSurfacePoint {
@@ -193,10 +192,10 @@
         let info      = ipass_patchInfo[patch_idx];
 
         var out: IPassVertex;
-        out.patch_idx = patch_idx;
-        out.bary_id   = corner;
-        out.valid     = tri < (info.y >> 8u);
-        if (!out.valid) {
+        out.patch_idx = f32(patch_idx);
+        out.bary_id   = f32(corner);
+
+        if (tri >= (info.y >> 8u)) {
             out.position = vec4f(0.0, 0.0, 0.0, 1.0);
             out.normal   = vec4f(0.0);
             out.uv       = vec2f(0.0);
