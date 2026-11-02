@@ -79,7 +79,7 @@ public:
   static inline glm::vec3 rotation    = { 0.0f, 0.0f, 0.0f }; // euler degrees, applied zyx
   static inline glm::vec3 scale       = { 1.0f, 1.0f, 1.0f };
 
-  static inline Setting<ShadingMode>        shadingMode = {ShadingMode::BlinnPhong};
+  static inline Setting<ShadingMode>        shadingMode = {ShadingMode::Flat};
   static inline Setting<PresentModeSetting> presentMode = {PresentModeSetting::Fifo};
 
   static inline glm::vec4 clearColor  = { 0.0f, 0.0f, 0.1f, 1.0f };
