@@ -58,8 +58,7 @@ cmake --build build --config Release
 
 The WebGPU backend can be specified with `-DBACKEND`. Available options are `DAWN` and `WGPU`.
 
-For building tests:
-`cmake --build . --target RUN_TESTS` or `ctest`
+Tests are off by default, enable them with `-DIPASS_BUILD_TESTS=ON` and run with `ctest --test-dir build -C Release`.
 
 ### Javascript
 
