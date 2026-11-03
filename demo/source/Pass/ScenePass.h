@@ -56,7 +56,7 @@ private:
     wgpu::RenderPipeline directPipeline;
   };
   std::array<ShaderVariant, 4> shaderVariants;
-  ShadingMode activeMode = ShadingMode::BlinnPhong;
+  ShadingMode activeMode = Settings::shadingMode.get();
 
   wgpu::Buffer wireframeIndexBuffer;
   glm::u32 wireframeIndexCount = 0;

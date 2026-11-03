@@ -82,7 +82,7 @@ else()
 endif()
 
 if(EMSCRIPTEN)
-  target_compile_options(ipass_webgpu PRIVATE -Wno-dollar-in-identifier-extension)
+  target_compile_options(ipass_webgpu PRIVATE -Wno-dollar-in-identifier-extension -Wno-infinite-recursion)
 endif()
 
 set(_backend_define "")
@@ -97,7 +97,7 @@ if(EMSCRIPTEN)
       target_include_directories(glfw INTERFACE "${CMAKE_SYSROOT}/include")
     endif()
 
-    target_link_options(glfw INTERFACE "-sUSE_GLFW=3")
+    target_link_options(glfw INTERFACE "-sUSE_GLFW=3" "-sALLOW_MEMORY_GROWTH")
   endif()
 
   FetchContent_MakeAvailable(webgpu nuklear glfw3webgpu glm)
