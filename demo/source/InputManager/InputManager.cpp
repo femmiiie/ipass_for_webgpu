@@ -1,10 +1,6 @@
 #include "InputManager.h"
 #include "KeyTable.h"
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten/emscripten.h>
-#endif
-
 void InputManager::Initialize(GLFWwindow* win, nk_context* nkCtx)
 {
   window    = win;
@@ -205,30 +201,12 @@ int InputManager::PollModifiers()
   return mods;
 }
 
-//specifically for web, native returns (1, 1)
 glm::dvec2 InputManager::GetMousePosScaling()
 {
-#ifdef __EMSCRIPTEN__
-  double sx, sy;
+  glm::ivec2 windowSize, fbSize;
+  glfwGetWindowSize(window, &windowSize.x, &windowSize.y);
+  glfwGetFramebufferSize(window, &fbSize.x, &fbSize.y);
+  if (windowSize.x <= 0 || windowSize.y <= 0) { return {1.0, 1.0}; }
 
-  EM_ASM({
-    const c = Module['canvas'];
-    if (!c) {
-      HEAPF64[$0 >> 3] = 1.0;
-      HEAPF64[$1 >> 3] = 1.0;
-      return;
-    }
-
-    const r = c.getBoundingClientRect();
-    const sx = (r.width  > 0.0) ? (c.width  / r.width)  : 1.0;
-    const sy = (r.height > 0.0) ? (c.height / r.height) : 1.0;
-
-    HEAPF64[$0 >> 3] = sx;
-    HEAPF64[$1 >> 3] = sy;
-  }, &sx, &sy);
-
-  return {sx, sy};
-#else
-  return {1.0f, 1.0f};
-#endif
+  return glm::dvec2(fbSize) / glm::dvec2(windowSize);
 }

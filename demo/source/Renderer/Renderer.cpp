@@ -33,12 +33,14 @@ Renderer::Renderer()
   this->context.size = platform::GetInitialWindowSize();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  platform::SetWindowHints();
   this->window = glfwCreateWindow(this->context.size.x, this->context.size.y, "iPASS for WebGPU", nullptr, nullptr);
   if (!this->window)
   {
     glfwTerminate();
     throw RendererException("Failed to create GLFW window!");
   }
+  this->context.size = platform::GetFramebufferSize(this->window);
 
   this->Initialize();
 
@@ -132,11 +134,13 @@ Renderer::~Renderer()
   this->context.queue.release();
   this->context.surface.release();
   this->context.device.release();
+  this->context.instance.release();
 }
 
 void Renderer::Initialize()
 {
-  wgpu::Instance instance = wgpu::createInstance();
+  this->context.instance = wgpu::createInstance();
+  wgpu::Instance instance = this->context.instance;
   if (!instance)
   {
     throw RendererException("Failed to create WebGPU instance!");
@@ -186,16 +190,22 @@ void Renderer::Initialize()
   this->context.surface.getCapabilities(adapter, &capabilities);
   this->context.surfaceFormat = capabilities.formats[0];
   capabilities.freeMembers();
-  #ifdef __EMSCRIPTEN__
-  this->context.colorFormat = wgpu::TextureFormat::BGRA8UnormSrgb;
-  #else
-  this->context.colorFormat = this->context.surfaceFormat;
-  #endif
+  switch (this->context.surfaceFormat)
+  {
+    case wgpu::TextureFormat::BGRA8Unorm:
+      this->context.colorFormat = wgpu::TextureFormat::BGRA8UnormSrgb;
+      break;
+    case wgpu::TextureFormat::RGBA8Unorm:
+      this->context.colorFormat = wgpu::TextureFormat::RGBA8UnormSrgb;
+      break;
+    default:
+      this->context.colorFormat = this->context.surfaceFormat;
+      break;
+  }
 
   this->ConfigureSurface();
 
   adapter.release();
-  instance.release();
 }
 
 void Renderer::ConfigureSurface()
@@ -214,13 +224,8 @@ void Renderer::ConfigureSurface()
   #endif
   surfConfig.alphaMode = wgpu::CompositeAlphaMode::Auto;
 
-  #ifdef __EMSCRIPTEN__
   surfConfig.viewFormatCount = 1;
   surfConfig.viewFormats = &this->context.colorFormat.m_raw;
-  #else
-  surfConfig.viewFormatCount = 0;
-  surfConfig.viewFormats = nullptr;
-  #endif
 
   this->context.surface.configure(surfConfig);
   this->context.queue = this->context.device.getQueue();
@@ -251,11 +256,7 @@ wgpu::TextureView Renderer::GetNextTextureView()
 
   wgpu::TextureViewDescriptor viewDescriptor;
   viewDescriptor.label = WGPU_STRING_VIEW_INIT;
-  #ifdef __EMSCRIPTEN__
   viewDescriptor.format = this->context.colorFormat;
-  #else
-  viewDescriptor.format = texture.getFormat();
-  #endif
   viewDescriptor.dimension = wgpu::TextureViewDimension::_2D;
   viewDescriptor.baseMipLevel = 0;
   viewDescriptor.mipLevelCount = 1;
@@ -271,15 +272,6 @@ void Renderer::Present()
 {
 #ifndef WEBGPU_BACKEND_EMDAWNWEBGPU
   this->context.surface.present();
-#endif
-}
-
-void Renderer::DevicePoll()
-{
-#if defined(WEBGPU_BACKEND_DAWN)
-  this->context.device.tick();
-#elif defined(WEBGPU_BACKEND_WGPU)
-  this->context.device.poll(false, nullptr);
 #endif
 }
 
@@ -394,7 +386,7 @@ void Renderer::MainLoop()
   targetView.release();
   this->Present();
   this->texture.release();
-  this->DevicePoll();
+  this->context.instance.processEvents();
 
   this->context.measure();
 }
@@ -436,19 +428,10 @@ wgpu::RenderPassDescriptor Renderer::GetRenderDescriptor(wgpu::TextureView& view
 
 void Renderer::MapBufferForRead(wgpu::Buffer& buffer, size_t size, std::function<void()> onSuccess)
 {
-#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
   auto* cb = new std::function<void()>(std::move(onSuccess));
-  buffer.mapAsync(wgpu::MapMode::Read, 0, size, wgpu::CallbackMode::AllowProcessEvents,
-    [cb](wgpu::MapAsyncStatus status, wgpu::StringView /*message*/) {
-      if (status == wgpu::MapAsyncStatus::Success) (*cb)();
-      delete cb;
-    }
-  );
-#else
-  auto* cb = new std::function<void()>(std::move(onSuccess));
-  wgpu::BufferMapCallbackInfo callbackInfo;
+  WGPUBufferMapCallbackInfo callbackInfo = {};
   callbackInfo.nextInChain = nullptr;
-  callbackInfo.mode        = wgpu::CallbackMode::AllowProcessEvents;
+  callbackInfo.mode        = WGPUCallbackMode_AllowProcessEvents;
   callbackInfo.userdata1   = cb;
   callbackInfo.userdata2   = nullptr;
   callbackInfo.callback    = [](WGPUMapAsyncStatus status, WGPUStringView /*message*/,
@@ -458,6 +441,5 @@ void Renderer::MapBufferForRead(wgpu::Buffer& buffer, size_t size, std::function
     if (status == WGPUMapAsyncStatus_Success) (*fn)();
     delete fn;
   };
-  buffer.mapAsync(wgpu::MapMode::Read, 0, size, callbackInfo);
-#endif
+  wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, size, callbackInfo);
 }

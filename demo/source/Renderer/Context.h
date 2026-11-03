@@ -13,6 +13,7 @@ using std::chrono::duration;
 
 struct Context
 {
+  wgpu::Instance instance;
   wgpu::Device device;
   wgpu::Queue queue;
 
@@ -20,7 +21,7 @@ struct Context
 
   wgpu::Surface surface;
   wgpu::TextureFormat surfaceFormat;
-  wgpu::TextureFormat colorFormat;  // sRGB view format on emscripten, same as surfaceFormat on native
+  wgpu::TextureFormat colorFormat;  // sRGB view of surfaceFormat
 
   void tick();
   void measure();

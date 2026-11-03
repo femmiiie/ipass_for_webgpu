@@ -43,7 +43,6 @@ public:
   bool isRunning();
   wgpu::TextureView GetNextTextureView();
   void Present();
-  void DevicePoll();
 
   void OnResize(int w, int h);
 
