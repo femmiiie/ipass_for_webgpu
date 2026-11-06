@@ -359,7 +359,7 @@ void Renderer::MainLoop()
   {
     this->stagingBusy = true;
     this->MapBufferForRead(this->stagingBuffer, this->stagingSize, [this]() {
-      const void* mapped = this->stagingBuffer.getMappedRange(0, this->stagingSize);
+      const void* mapped = this->stagingBuffer.getConstMappedRange(0, this->stagingSize);
       if (mapped)
       {
         const float* data = static_cast<const float*>(mapped);
@@ -375,7 +375,7 @@ void Renderer::MainLoop()
   {
     this->triCountStagingBusy = true;
     this->MapBufferForRead(this->triCountStagingBuffer, sizeof(uint32_t), [this]() {
-      const void* mapped = this->triCountStagingBuffer.getMappedRange(0, sizeof(uint32_t));
+      const void* mapped = this->triCountStagingBuffer.getConstMappedRange(0, sizeof(uint32_t));
       if (mapped)
         Settings::tessOutput.get().triangleCount = *static_cast<const uint32_t*>(mapped);
       this->triCountStagingBuffer.unmap();
