@@ -1,8 +1,8 @@
 const f32_max           : f32 = 10000.0f;
 const verts_per_patch   : u32 = 16;
-const patches_per_group : u32 = 16;
+const patches_per_group : u32 = 8;
 const tiles_per_patch   : u32 = 9;
-const group_size        : u32 = 256;  // verts_per_patch * patches_per_group
+const group_size        : u32 = 128;  // verts_per_patch * patches_per_group
 
 struct vert
 {
@@ -138,7 +138,7 @@ fn is_outside_frustum(base: u32) -> bool {
 @compute @workgroup_size(group_size, 1, 1)
 fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 {
-  if (id.x >= vert_count) { return; }
+  let in_bounds : bool = id.x < vert_count;
 
   let patch_id  : u32 = id.x / verts_per_patch;
   let group_id  : u32 = patch_id % patches_per_group;
@@ -154,7 +154,9 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
   var final_lower : vec4<f32>;
   var final_upper : vec4<f32>;
 
-  control_points[thread_id + base_index] = vertices[id.x].pos;
+  if (in_bounds) {
+    control_points[thread_id + base_index] = vertices[id.x].pos;
+  }
 
   workgroupBarrier();
 
@@ -300,7 +302,7 @@ fn ipass(@builtin(global_invocation_id) id: vec3<u32>)
 
   workgroupBarrier();
 
-  if (thread_id == 0)
+  if (in_bounds && thread_id == 0)
   {
     var m : f32 = 1.0f;
     for (var i : u32 = 0; i < verts_per_patch; i++) {

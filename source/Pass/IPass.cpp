@@ -10,7 +10,7 @@ using Vertex3D = utils::Vertex3D;
 // resize these buffers
 static constexpr uint32_t INITIAL_VERTEX_COUNT = 512;
 static constexpr uint32_t VERTS_PER_PATCH = 16;
-static constexpr uint32_t IPASS_WORKGROUP_SIZE = 256;
+static constexpr uint32_t IPASS_WORKGROUP_SIZE = 128;
 
 void IPass::EnsureStorageCapacity(uint32_t requiredVertices)
 {
